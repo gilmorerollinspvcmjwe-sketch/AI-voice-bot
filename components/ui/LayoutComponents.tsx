@@ -50,8 +50,6 @@ interface MenuItem {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeSubItem, onNavigate }) => {
-  // Local state to manage which menu is expanded (for Settings)
-  // Default expanded for easier navigation in this context
   const [expandedMenu, setExpandedMenu] = useState<string | null>('外呼任务');
 
   const menuItems: MenuItem[] = [
@@ -145,7 +143,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeSubItem, onNavigate }) =
                       onClick={() => onNavigate(sub.id)}
                       className={`pl-14 pr-6 py-2 text-xs cursor-pointer hover:text-white transition-colors flex items-center ${sub.id === activeSubItem ? 'text-primary font-medium' : 'text-slate-400'}`}
                     >
-                      {/* {sub.icon && <sub.icon size={12} className="mr-2 opacity-70" />} */}
+                      {sub.icon && <sub.icon size={12} className="mr-2 opacity-70" />}
                       {sub.label}
                     </div>
                   ))}

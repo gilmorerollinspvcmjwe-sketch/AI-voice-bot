@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Search, Plus, Trash2, Edit3, Play, Volume2, Mic, X, Loader2 } from 'lucide-react';
 import { AudioRecording } from '../../types';
-import { Input, Label, Select } from '../ui/FormComponents';
+import { Input, Label, Select } from '../../components/ui/FormComponents';
 
 const MOCK_RECORDINGS: AudioRecording[] = [
   { id: '1', name: '欢迎语_通用', text: '您好，这里是智能客服中心，请问有什么可以帮您？', voice: 'Azure-Xiaoxiao', duration: 3, url: 'mock_audio_1.mp3', updatedAt: 1715420000000 },
