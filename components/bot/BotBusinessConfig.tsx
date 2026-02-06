@@ -1,9 +1,8 @@
 
-
 import React, { useState } from 'react';
-import { Edit3, ChevronDown, ArrowUpDown, LayoutList, X, Plus, Database, HelpCircle, Trash2 } from 'lucide-react';
+import { Edit3, ChevronDown, ArrowUpDown, LayoutList, X, Plus, Database, HelpCircle, Trash2, UserCircle2 } from 'lucide-react';
 import { Switch, Select } from '../ui/FormComponents';
-import { LabelGroup, BotConfiguration, ExtractionConfig, ModelType, TagItem, Parameter } from '../../types';
+import { LabelGroup, BotConfiguration, ExtractionConfig, ModelType, TagItem, Parameter, ProfileExtractionRule } from '../../types';
 
 interface BotBusinessConfigProps {
   config: BotConfiguration;
@@ -14,7 +13,7 @@ interface BotBusinessConfigProps {
 }
 
 const BotBusinessConfig: React.FC<BotBusinessConfigProps> = ({ config, updateField, onSave, onCancel, extractionConfigs }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'TAG' | 'SATISFACTION' | 'SUMMARY' | 'INFO_EXTRACTION'>('TAG');
+  const [activeSubTab, setActiveSubTab] = useState<'TAG' | 'SATISFACTION' | 'SUMMARY' | 'INFO_EXTRACTION' | 'USER_PROFILE'>('TAG');
   const [tagModal, setTagModal] = useState<{ isOpen: boolean, groupId: string, name: string, description: string } | null>(null);
 
   const groups = config.labelGroups;
@@ -82,20 +81,39 @@ const BotBusinessConfig: React.FC<BotBusinessConfigProps> = ({ config, updateFie
     updateField('parameters', config.parameters.filter(p => p.id !== id));
   };
 
+  // --- Profile Rule Management ---
+  const addProfileRule = () => {
+    const newRule: ProfileExtractionRule = { id: Date.now().toString(), targetField: '', description: '' };
+    updateField('profileExtractionRules', [...(config.profileExtractionRules || []), newRule]);
+  };
+
+  const updateProfileRule = (id: string, key: keyof ProfileExtractionRule, value: string) => {
+    const newRules = (config.profileExtractionRules || []).map(r => {
+      if (r.id === id) return { ...r, [key]: value };
+      return r;
+    });
+    updateField('profileExtractionRules', newRules);
+  };
+
+  const removeProfileRule = (id: string) => {
+    updateField('profileExtractionRules', (config.profileExtractionRules || []).filter(r => r.id !== id));
+  };
+
   return (
     <div className="space-y-6">
       {/* Sub Tabs */}
-      <div className="flex border-b border-gray-200 mb-6 space-x-8 bg-white/50 px-4 -mx-4">
+      <div className="flex border-b border-gray-200 mb-6 space-x-8 bg-white/50 px-4 -mx-4 overflow-x-auto">
         {[
           { id: 'TAG', label: '标签管理' },
           { id: 'SATISFACTION', label: '满意度分析' },
           { id: 'SUMMARY', label: '通话小结' },
           { id: 'INFO_EXTRACTION', label: '信息提取' },
+          { id: 'USER_PROFILE', label: '用户画像 (CDP)' },
         ].map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveSubTab(tab.id as any)}
-            className={`pb-3 text-xs font-bold transition-all relative ${
+            className={`pb-3 text-xs font-bold transition-all relative whitespace-nowrap ${
               activeSubTab === tab.id ? 'text-primary border-b-2 border-primary' : 'text-slate-400 hover:text-slate-600'
             }`}
           >
@@ -324,6 +342,101 @@ const BotBusinessConfig: React.FC<BotBusinessConfigProps> = ({ config, updateFie
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* NEW: User Profile Collection */}
+      {activeSubTab === 'USER_PROFILE' && (
+        <div className="space-y-6">
+           <div className="bg-white rounded border border-gray-200 shadow-sm p-6">
+              <div className="flex justify-between items-start mb-6">
+                 <div className="flex items-center">
+                    <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mr-4">
+                       <UserCircle2 size={24} />
+                    </div>
+                    <div>
+                       <h3 className="text-base font-bold text-slate-800">用户画像自动采集</h3>
+                       <p className="text-xs text-slate-500 mt-1">
+                          在对话过程中自动分析用户特征（如年龄、偏好、身份），并更新到 CDP 系统。
+                       </p>
+                    </div>
+                 </div>
+                 <Switch 
+                    label=""
+                    checked={config.profileCollectionEnabled || false}
+                    onChange={(v) => updateField('profileCollectionEnabled', v)}
+                 />
+              </div>
+
+              <div className={`transition-opacity duration-300 ${!config.profileCollectionEnabled ? 'opacity-50 pointer-events-none' : ''}`}>
+                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Left: Prompt */}
+                    <div>
+                       <div className="mb-2 font-bold text-sm text-slate-700">画像提取指令 (Extraction Prompt)</div>
+                       <textarea 
+                          className="w-full h-64 px-4 py-3 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none resize-none leading-relaxed bg-slate-50/50"
+                          placeholder="例如：请分析用户的对话内容，推断用户的年龄段、职业以及购买意向强度..."
+                          value={config.profileExtractionPrompt || ''}
+                          onChange={(e) => updateField('profileExtractionPrompt', e.target.value)}
+                       />
+                       <p className="text-xs text-slate-400 mt-2">
+                          提示：明确告知大模型需要关注哪些维度的信息。
+                       </p>
+                    </div>
+
+                    {/* Right: Rules List */}
+                    <div className="bg-slate-50 rounded-lg border border-slate-200 p-4 flex flex-col h-full">
+                       <div className="flex justify-between items-center mb-4">
+                          <span className="text-sm font-bold text-slate-700">画像字段映射</span>
+                          <button 
+                             onClick={addProfileRule}
+                             className="text-xs px-2 py-1 bg-white border border-indigo-200 text-indigo-600 rounded hover:bg-indigo-50 flex items-center shadow-sm"
+                          >
+                             <Plus size={10} className="mr-1" /> 添加字段
+                          </button>
+                       </div>
+                       
+                       <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-1">
+                          {(config.profileExtractionRules || []).map((rule, idx) => (
+                             <div key={rule.id} className="bg-white p-3 rounded border border-gray-100 shadow-sm relative group">
+                                <div className="grid grid-cols-1 gap-2">
+                                   <div>
+                                      <label className="text-[10px] text-slate-400 font-bold uppercase mb-1 block">目标字段 (Key)</label>
+                                      <input 
+                                         className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:border-indigo-300 outline-none font-mono text-slate-700"
+                                         placeholder="e.g. user_age"
+                                         value={rule.targetField}
+                                         onChange={(e) => updateProfileRule(rule.id, 'targetField', e.target.value)}
+                                      />
+                                   </div>
+                                   <div>
+                                      <label className="text-[10px] text-slate-400 font-bold uppercase mb-1 block">提取说明 (Description)</label>
+                                      <input 
+                                         className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:border-indigo-300 outline-none"
+                                         placeholder="e.g. 推断用户的年龄"
+                                         value={rule.description}
+                                         onChange={(e) => updateProfileRule(rule.id, 'description', e.target.value)}
+                                      />
+                                   </div>
+                                </div>
+                                <button 
+                                   onClick={() => removeProfileRule(rule.id)}
+                                   className="absolute top-2 right-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                   <Trash2 size={14} />
+                                </button>
+                             </div>
+                          ))}
+                          {(config.profileExtractionRules || []).length === 0 && (
+                             <div className="text-center py-10 text-slate-400 text-xs italic">
+                                暂无配置，请添加需要采集的字段。
+                             </div>
+                          )}
+                       </div>
+                    </div>
+                 </div>
+              </div>
+           </div>
         </div>
       )}
       

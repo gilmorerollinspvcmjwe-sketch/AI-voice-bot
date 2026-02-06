@@ -289,6 +289,12 @@ export interface BotIntent {
   };
 }
 
+export interface ProfileExtractionRule {
+  id: string;
+  targetField: string;
+  description: string;
+}
+
 export interface BotConfiguration {
   id: string;
   name: string;
@@ -362,6 +368,17 @@ export interface BotConfiguration {
   noAnswerInterval?: number;
   noAnswerMaxRepeats?: number;
   noAnswerSpeech?: string;
+
+  // Marketing Config
+  marketingEnabled?: boolean;
+  marketingTimings?: string[]; // 'post_resolution', 'pre_hangup', 'silence'
+  marketingConflictStrategy?: 'service_first' | 'marketing_first';
+  activeCampaignIds?: string[];
+
+  // Profile Collection Config
+  profileCollectionEnabled?: boolean;
+  profileExtractionPrompt?: string;
+  profileExtractionRules?: ProfileExtractionRule[];
 }
 
 // Extraction Trigger
@@ -645,4 +662,41 @@ export interface CallRecord {
   botName: string;
   rounds: number;
   recordingUrl?: string;
+}
+
+// --- Smart Marketing (New) ---
+
+export interface CustomerProfile {
+  id: string;
+  name: string;
+  phoneNumber: string;
+  region: string; // e.g. "Shanghai"
+  tags: string[]; // e.g. ["High Net Worth", "Price Sensitive"]
+  lastInteraction: number;
+  notes?: string;
+}
+
+export interface MarketingCampaign {
+  id: string;
+  name: string;
+  status: 'active' | 'draft' | 'ended' | 'scheduled';
+  
+  // Targeting
+  targetRegions: string[]; // e.g. ["Shanghai", "Beijing"]
+  targetTags: string[]; // e.g. ["VIP"]
+  excludeTags?: string[];
+  
+  // Validity
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
+  
+  // Content
+  speechContent: string; // TTS text for the bot to say
+  smsTemplateId?: string; // Optional follow-up SMS
+  
+  // Stats
+  exposureCount: number;
+  conversionCount: number;
+  
+  updatedAt: number;
 }

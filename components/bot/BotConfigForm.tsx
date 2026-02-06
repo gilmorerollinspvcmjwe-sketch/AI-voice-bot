@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { ArrowRight } from 'lucide-react';
-import { BotConfiguration, ExtractionConfig } from '../../types';
+import { BotConfiguration, ExtractionConfig, MarketingCampaign } from '../../types';
 import { generateBotPrompt } from '../../services/geminiService';
 import BotBasicConfig from './BotBasicConfig';
 import BotStrategyConfig from './BotStrategyConfig';
@@ -9,17 +9,19 @@ import BotBusinessConfig from './BotBusinessConfig';
 import BotVariableConfig from './BotVariableConfig';
 import BotDebugConfig from './BotDebugConfig';
 import BotIntentConfig from './intent/BotIntentConfig';
+import BotMarketingConfig from './BotMarketingConfig';
 
 interface BotConfigFormProps {
   initialData: BotConfiguration;
   onSave: (data: BotConfiguration) => void;
   onCancel: () => void;
   extractionConfigs: ExtractionConfig[];
+  campaigns: MarketingCampaign[]; // Added prop
 }
 
-const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCancel, extractionConfigs }) => {
+const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCancel, extractionConfigs, campaigns }) => {
   const [config, setConfig] = useState<BotConfiguration>({ ...initialData });
-  const [activeTab, setActiveTab] = useState<'BASIC' | 'INTENTS' | 'STRATEGY' | 'BUSINESS' | 'VARIABLES' | 'DEBUG'>('BASIC');
+  const [activeTab, setActiveTab] = useState<'BASIC' | 'INTENTS' | 'STRATEGY' | 'BUSINESS' | 'VARIABLES' | 'DEBUG' | 'MARKETING'>('BASIC');
   const [isGenerating, setIsGenerating] = useState(false);
 
   const updateField = <K extends keyof BotConfiguration>(key: K, value: BotConfiguration[K]) => {
@@ -76,19 +78,20 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
       </div>
 
       {/* Main Tabs Navigation */}
-      <div className="flex border-b border-gray-200 mb-8 space-x-8">
+      <div className="flex border-b border-gray-200 mb-8 space-x-8 overflow-x-auto">
         {[
           { id: 'BASIC', label: '基础配置' },
           { id: 'INTENTS', label: '意图技能' },
           { id: 'STRATEGY', label: '对话策略' },
           { id: 'VARIABLES', label: '变量配置' },
           { id: 'BUSINESS', label: '业务分析' },
+          { id: 'MARKETING', label: '营销活动' }, // New Tab
           { id: 'DEBUG', label: '模型调试' },
         ].map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`pb-3 text-sm font-medium transition-all relative ${
+            className={`pb-3 text-sm font-medium transition-all relative whitespace-nowrap ${
               activeTab === tab.id ? 'text-primary border-b-2 border-primary' : 'text-slate-500 hover:text-slate-700'
             }`}
           >
@@ -155,6 +158,24 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
               onCancel={onCancel}
               extractionConfigs={extractionConfigs}
             />
+           </div>
+        )}
+
+        {activeTab === 'MARKETING' && (
+           <div className="animate-in fade-in duration-500">
+             <BotMarketingConfig 
+              config={config}
+              updateField={updateField}
+              campaigns={campaigns}
+            />
+             <div className="flex justify-start space-x-4 pt-4 border-t border-gray-100 mt-6">
+               <button onClick={handleSave} className="px-6 py-2 bg-primary text-white rounded hover:bg-sky-600 text-sm font-medium shadow-sm transition-all">
+                 保存配置
+               </button>
+               <button onClick={onCancel} className="px-6 py-2 border border-gray-200 text-slate-600 rounded hover:bg-slate-50 text-sm font-medium transition-all">
+                 取消
+               </button>
+             </div>
            </div>
         )}
 

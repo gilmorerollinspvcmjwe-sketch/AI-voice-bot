@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Sidebar, Header } from './components/ui/LayoutComponents';
-import { BotConfiguration, ModelType, TTSModel, ASRModel, EMOTIONS, LabelGroup, BotVariable, ExtractionConfig, BotIntent } from './types';
+import { BotConfiguration, ModelType, TTSModel, ASRModel, EMOTIONS, LabelGroup, BotVariable, ExtractionConfig, BotIntent, MarketingCampaign } from './types';
 import InformationExtraction from './InformationExtraction';
 import BotConfigForm from './components/bot/BotConfigForm';
 import BotListView from './components/bot/BotListView';
@@ -22,6 +22,8 @@ import FileManager from './components/files/FileManager';
 import OutboundTemplates from './components/outbound/OutboundTemplates';
 import OutboundTasks from './components/outbound/OutboundTasks';
 import ContactLists from './components/outbound/ContactLists';
+import CampaignManager, { MOCK_CAMPAIGNS as INITIAL_CAMPAIGNS } from './components/marketing/CampaignManager';
+import CustomerProfileManager from './components/marketing/CustomerProfileManager';
 
 // --- CONSTANTS & DEFAULTS ---
 const INITIAL_LABEL_GROUPS: LabelGroup[] = [
@@ -358,6 +360,9 @@ export default function App() {
 
   // Lifted state for Extraction Configs
   const [extractionConfigs, setExtractionConfigs] = useState<ExtractionConfig[]>(INITIAL_EXTRACTION_CONFIGS);
+  
+  // Lifted state for Campaigns
+  const [campaigns, setCampaigns] = useState<MarketingCampaign[]>(INITIAL_CAMPAIGNS);
 
   const handleCreate = () => {
     setEditingBot({ ...DEFAULT_BOT, id: Date.now().toString() });
@@ -419,6 +424,11 @@ export default function App() {
         return <OutboundTasks />;
       case '外呼联系单':
         return <ContactLists />;
+      // --- Marketing Route ---
+      case '营销活动':
+        return <CampaignManager campaigns={campaigns} onUpdateCampaigns={setCampaigns} />;
+      case '客户画像':
+        return <CustomerProfileManager />;
       // -----------------------
       case '机器人配置':
         return view === 'LIST' ? (
@@ -430,6 +440,7 @@ export default function App() {
               onSave={handleSave} 
               onCancel={() => { setView('LIST'); setEditingBot(null); }} 
               extractionConfigs={extractionConfigs}
+              campaigns={campaigns}
             />
           )
         );
