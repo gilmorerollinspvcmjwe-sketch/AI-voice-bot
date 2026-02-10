@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
 import { 
-  Headset, Plus, Search, Edit3, Trash2, Power, PowerOff, Users
+  Headset, Plus, Search, Edit3, Trash2, Power, PowerOff, Users,
+  Activity, AlertTriangle
 } from 'lucide-react';
 import { Seat, BotConfiguration } from '../../types';
 import { Input, Select, Label, Switch } from '../ui/FormComponents';
@@ -10,12 +11,14 @@ interface SeatManagerProps {
   bots: BotConfiguration[];
 }
 
+const TOTAL_LICENSE_CAPACITY = 200; // Mock Total Purchased Capacity
+
 const MOCK_SEATS: Seat[] = [
   { id: '9', name: '泰康Demo-02', botConfigId: 'bot_didi_demo', concurrency: 5, status: 'active', createdAt: 1773130717000 },
   { id: '8', name: '泰康Demo-01', botConfigId: 'bot_didi_demo', concurrency: 5, status: 'active', createdAt: 1773130694000 },
   { id: '6', name: '天鹅到家', botConfigId: 'bot_didi_demo', concurrency: 1, status: 'active', createdAt: 1772692096000 },
   { id: '3', name: '智能体坐席_外卖骑手', botConfigId: '', concurrency: 1, status: 'disabled', createdAt: 1768805996000 },
-  { id: '5', name: '【勿动】官网呼入', botConfigId: '', concurrency: 1, status: 'active', createdAt: 1772678339000 },
+  { id: '5', name: '【勿动】官网呼入', botConfigId: '', concurrency: 10, status: 'active', createdAt: 1772678339000 },
 ];
 
 export default function SeatManager({ bots }: SeatManagerProps) {
@@ -28,8 +31,12 @@ export default function SeatManager({ bots }: SeatManagerProps) {
     name: '',
     botConfigId: '',
     concurrency: 1,
-    status: 'active'
+    status: 'active',
   });
+
+  // Calculations
+  const totalUsed = seats.filter(s => s.status === 'active').reduce((sum, s) => sum + s.concurrency, 0);
+  const isOverCapacity = totalUsed > TOTAL_LICENSE_CAPACITY;
 
   const handleOpenModal = (seat?: Seat) => {
     if (seat) {
@@ -41,7 +48,7 @@ export default function SeatManager({ bots }: SeatManagerProps) {
         name: '',
         botConfigId: '',
         concurrency: 1,
-        status: 'active'
+        status: 'active',
       });
     }
     setIsModalOpen(true);
@@ -82,7 +89,7 @@ export default function SeatManager({ bots }: SeatManagerProps) {
 
   return (
     <div className="p-8 max-w-full mx-auto w-full h-full flex flex-col">
-      <div className="flex justify-between items-center mb-8 shrink-0">
+      <div className="flex justify-between items-center mb-6 shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center">
             <Headset size={24} className="mr-3 text-primary" />
@@ -92,15 +99,45 @@ export default function SeatManager({ bots }: SeatManagerProps) {
             管理AI坐席实例，绑定话术配置并分配并发资源。
           </p>
         </div>
-        <button 
-          onClick={() => handleOpenModal()}
-          className="px-6 py-2.5 bg-primary text-white rounded-xl text-sm font-bold hover:bg-sky-600 transition-all flex items-center shadow-lg shadow-sky-100"
-        >
-          <Plus size={18} className="mr-2" /> 新建坐席
-        </button>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex-1 flex flex-col overflow-hidden">
+      {/* Compact Status Strip */}
+      <div className="bg-white rounded-lg border border-slate-200 shadow-sm px-5 py-3 mb-6 flex items-center justify-between">
+         <div className="flex items-center space-x-8">
+            <div className="flex items-center">
+               <span className="text-xs font-bold text-slate-500 mr-2 uppercase tracking-wide">总并发许可</span>
+               <span className="text-xl font-bold text-slate-800">{TOTAL_LICENSE_CAPACITY}</span>
+            </div>
+            
+            <div className="h-8 w-px bg-slate-100"></div>
+
+            <div className="flex flex-col justify-center min-w-[300px]">
+               <div className="flex items-center justify-between text-xs mb-1.5">
+                  <div className="flex space-x-4">
+                     <span className="flex items-center text-slate-600 font-medium">
+                        当前占用: <span className={`ml-1 font-bold ${isOverCapacity ? 'text-red-500' : 'text-slate-800'}`}>{totalUsed}</span>
+                     </span>
+                  </div>
+                  <span className={`font-mono ${isOverCapacity ? 'text-red-500 font-bold' : 'text-slate-400'}`}>
+                     {Math.round((totalUsed / TOTAL_LICENSE_CAPACITY) * 100)}%
+                  </span>
+               </div>
+               <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden flex">
+                  <div 
+                     className={`h-full transition-all duration-500 ${isOverCapacity ? 'bg-red-500' : 'bg-primary'}`}
+                     style={{ width: `${Math.min(100, (totalUsed / TOTAL_LICENSE_CAPACITY) * 100)}%` }}
+                  ></div>
+               </div>
+            </div>
+         </div>
+
+         <div className="flex items-center text-xs text-slate-500 bg-slate-50 px-3 py-1.5 rounded border border-slate-100">
+            <AlertTriangle size={12} className="mr-1.5 text-amber-500" />
+            <span className="font-medium">资源说明：</span>所有类型的呼叫（呼入/外呼）共享此并发资源池。
+         </div>
+      </div>
+
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex-1 flex flex-col overflow-hidden">
          {/* Toolbar */}
          <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
             <div className="relative">
@@ -110,9 +147,12 @@ export default function SeatManager({ bots }: SeatManagerProps) {
                  placeholder="搜索座席名称..."
                />
             </div>
-            <div className="text-xs text-slate-500">
-               共 <span className="font-bold text-slate-800">{seats.length}</span> 个坐席实例
-            </div>
+            <button 
+               onClick={() => handleOpenModal()}
+               className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold hover:bg-sky-600 transition-all flex items-center shadow-sm"
+            >
+               <Plus size={16} className="mr-2" /> 新建坐席
+            </button>
          </div>
 
          {/* Table */}
@@ -137,7 +177,7 @@ export default function SeatManager({ bots }: SeatManagerProps) {
                            <div className="font-bold text-slate-800 text-sm">{seat.name}</div>
                         </td>
                         <td className="px-6 py-4">
-                           <div className="text-xs text-slate-600 bg-blue-50 px-2 py-1 rounded inline-block border border-blue-100 max-w-[200px] truncate" title={getBotName(seat.botConfigId)}>
+                           <div className="text-xs text-slate-600 bg-slate-50 px-2 py-1 rounded inline-block border border-slate-200 max-w-[200px] truncate" title={getBotName(seat.botConfigId)}>
                               {getBotName(seat.botConfigId)}
                            </div>
                         </td>

@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { 
-  Sparkles, Loader2, Cpu, Volume2, Mic, MessageSquare, Plus, Trash2, ChevronDown
+  Sparkles, Loader2, Cpu, Volume2, Mic, MessageSquare, Plus, Trash2, ChevronDown, Languages, FileText
 } from 'lucide-react';
 import { Input, Select, Slider, Switch, TagInput, Label } from '../ui/FormComponents';
 import { BotConfiguration, ModelType, TTSModel, ASRModel, EMOTIONS, Parameter } from '../../types';
@@ -15,6 +15,34 @@ interface BotBasicConfigProps {
   onSave: () => void;
   onCancel: () => void;
 }
+
+// Available voices for mapping
+const AVAILABLE_VOICES = [
+  { label: 'Azure-Xiaoxiao (普通话)', value: 'Azure-Xiaoxiao' },
+  { label: 'Azure-Yunxi (普通话)', value: 'Azure-Yunxi' },
+  { label: 'Azure-HiuGaai (粤语)', value: 'Azure-HiuGaai' },
+  { label: 'Azure-WanLung (粤语)', value: 'Azure-WanLung' },
+  { label: 'Google-Journey (English)', value: 'Google-Journey' },
+  { label: 'Gemini-Voice-Kore (English)', value: 'Gemini-Voice-Kore' },
+  { label: 'Volc-Sichuan (四川话)', value: 'Volc-Sichuan' },
+];
+
+const CODE_SWITCHING_PROMPT = `
+# Multi-Language Code-Switching Strategy
+You are a smart assistant capable of fluent code-switching between languages (Mandarin, Cantonese, English, etc.).
+
+## Interaction Rules
+1. **Language Detection**: Analyze the user's input language.
+2. **Response Style**: Reply in the same language as the user. If the user mixes languages, mirror their style naturally.
+3. **TTS Control (CRITICAL)**: To ensure correct pronunciation, you MUST prefix your response with a language tag:
+   - For Mandarin: Start with \`[LANG:ZH]\`
+   - For Cantonese: Start with \`[LANG:YUE]\`
+   - For English: Start with \`[LANG:EN]\`
+
+## Example
+User: "Hello, 请问食咗饭未?"
+Assistant: "[LANG:YUE] Hello, 我食咗啦，你呢?"
+`;
 
 const BotBasicConfig: React.FC<BotBasicConfigProps> = ({ 
   config, 
@@ -55,6 +83,19 @@ const BotBasicConfig: React.FC<BotBasicConfigProps> = ({
     updateField('description', desc);
     updateField('systemPrompt', prompt);
     setShowGenerator(false);
+  };
+
+  // --- Voice Mapping Handlers ---
+  const updateVoiceMapping = (lang: string, voice: string) => {
+    const newMap = { ...(config.ttsVoiceMapping || {}) };
+    newMap[lang] = voice;
+    updateField('ttsVoiceMapping', newMap);
+  };
+
+  const removeVoiceMapping = (lang: string) => {
+    const newMap = { ...(config.ttsVoiceMapping || {}) };
+    delete newMap[lang];
+    updateField('ttsVoiceMapping', newMap);
   };
 
   return (
@@ -127,17 +168,108 @@ const BotBasicConfig: React.FC<BotBasicConfigProps> = ({
         </div>
 
         <div className="mt-8 border-t border-gray-100 pt-8">
-          <div className="flex items-center space-x-2 mb-6">
-            <div className="p-1.5 bg-pink-100 text-pink-600 rounded">
-              <Volume2 size={14} />
-            </div>
-            <span className="text-xs font-bold text-slate-700">TTS 语音配置</span>
+          <div className="flex items-center justify-between mb-6">
+             <div className="flex items-center space-x-2">
+               <div className="p-1.5 bg-pink-100 text-pink-600 rounded">
+                 <Volume2 size={14} />
+               </div>
+               <span className="text-xs font-bold text-slate-700">TTS 语音配置</span>
+             </div>
+             
+             {/* Auto Switch Toggle */}
+             <div className="flex items-center space-x-2 bg-indigo-50 px-3 py-1 rounded border border-indigo-100">
+                <Languages size={14} className="text-indigo-600" />
+                <span className="text-xs font-bold text-indigo-700">自动语种跟随</span>
+                <Switch 
+                   label="" 
+                   checked={config.ttsAutoSwitch || false}
+                   onChange={(v) => updateField('ttsAutoSwitch', v)} 
+                />
+             </div>
           </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             <div className="lg:col-span-4 space-y-4">
               <Select label="TTS模型" options={Object.values(TTSModel) as string[]} value={config.ttsModel} onChange={(e) => updateField('ttsModel', e.target.value as TTSModel)} />
-              <Select label="音色选择" options={['Azure-Xiaoxiao', 'Azure-Yunxi', 'Google-Wavenet-A', 'Gemini-Voice-Kore']} value={config.voiceName} onChange={(e) => updateField('voiceName', e.target.value)} />
+              
+              {!config.ttsAutoSwitch ? (
+                 <Select 
+                   label="默认音色" 
+                   options={AVAILABLE_VOICES} 
+                   value={config.voiceName} 
+                   onChange={(e) => updateField('voiceName', e.target.value)} 
+                 />
+              ) : (
+                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-3">
+                    <div className="text-[10px] font-bold text-slate-500 uppercase flex justify-between items-center">
+                       <span>音色映射表</span>
+                       <button 
+                         onClick={() => updateVoiceMapping(`lang_${Date.now()}`, '')} 
+                         className="text-primary hover:underline"
+                       >
+                         + 添加
+                       </button>
+                    </div>
+                    
+                    {/* Header Row for Clarity */}
+                    <div className="flex items-center text-[9px] text-slate-400 font-medium px-1 mb-1">
+                       <span className="w-16">语言</span>
+                       <span className="w-20">系统标签</span>
+                       <span>音色</span>
+                    </div>
+
+                    {/* Fixed Rows for Common Languages */}
+                    <div className="space-y-2">
+                       {/* Mandarin */}
+                       <div className="flex items-center justify-between">
+                          <div className="flex flex-col">
+                             <span className="text-xs text-slate-600 font-bold w-16">中文</span>
+                          </div>
+                          <code className="text-[9px] text-pink-500 bg-pink-50 px-1 rounded border border-pink-100 w-20 font-mono">[LANG:ZH]</code>
+                          <select 
+                             className="text-xs border border-gray-200 rounded p-1 w-28 outline-none"
+                             value={config.ttsVoiceMapping?.['ZH'] || 'Azure-Xiaoxiao'}
+                             onChange={(e) => updateVoiceMapping('ZH', e.target.value)}
+                          >
+                             {AVAILABLE_VOICES.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
+                          </select>
+                       </div>
+                       {/* Cantonese */}
+                       <div className="flex items-center justify-between">
+                          <div className="flex flex-col">
+                             <span className="text-xs text-slate-600 font-bold w-16">粤语</span>
+                          </div>
+                          <code className="text-[9px] text-pink-500 bg-pink-50 px-1 rounded border border-pink-100 w-20 font-mono">[LANG:YUE]</code>
+                          <select 
+                             className="text-xs border border-gray-200 rounded p-1 w-28 outline-none"
+                             value={config.ttsVoiceMapping?.['YUE'] || 'Azure-HiuGaai'}
+                             onChange={(e) => updateVoiceMapping('YUE', e.target.value)}
+                          >
+                             {AVAILABLE_VOICES.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
+                          </select>
+                       </div>
+                       {/* English */}
+                       <div className="flex items-center justify-between">
+                          <div className="flex flex-col">
+                             <span className="text-xs text-slate-600 font-bold w-16">English</span>
+                          </div>
+                          <code className="text-[9px] text-pink-500 bg-pink-50 px-1 rounded border border-pink-100 w-20 font-mono">[LANG:EN]</code>
+                          <select 
+                             className="text-xs border border-gray-200 rounded p-1 w-28 outline-none"
+                             value={config.ttsVoiceMapping?.['EN'] || 'Google-Journey'}
+                             onChange={(e) => updateVoiceMapping('EN', e.target.value)}
+                          >
+                             {AVAILABLE_VOICES.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
+                          </select>
+                       </div>
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-1 leading-tight bg-slate-100 p-2 rounded">
+                       提示：请确保 Prompt 中包含系统标签（如 <code className="text-pink-600">[LANG:ZH]</code>），系统检测到标签时将自动切换至对应音色。
+                    </div>
+                 </div>
+              )}
             </div>
+            
             <div className="lg:col-span-4 space-y-6">
               <Slider label="音量" min={0} max={100} value={config.volume} onChange={(v) => updateField('volume', v)} />
               <Slider label="语速" min={0.5} max={2.0} step={0.1} value={config.speed} onChange={(v) => updateField('speed', v)} />
@@ -147,7 +279,10 @@ const BotBasicConfig: React.FC<BotBasicConfigProps> = ({
               <div className="bg-slate-50 border border-slate-100 rounded p-4">
                  <Label label="预览：" />
                  <div className="text-[11px] text-slate-500 leading-relaxed italic">
-                   当前音色风格为 {config.emotion}，适合标准服务场景。
+                   {config.ttsAutoSwitch 
+                     ? '已启用多语言混合模式，音色将根据 LLM 输出的语言标签 [LANG:XX] 自动切换。' 
+                     : `当前音色风格为 ${config.emotion}，适合标准服务场景。`
+                   }
                  </div>
               </div>
             </div>
@@ -185,7 +320,14 @@ const BotBasicConfig: React.FC<BotBasicConfigProps> = ({
                 <span className="text-xs font-bold text-slate-700">可视化填写提示词</span>
               </div>
               <div className="flex items-center space-x-3">
-                 <span className="text-[10px] text-slate-400">使用 {`{变量名}`} 插入动态参数</span>
+                 <button 
+                   onClick={() => updateField('systemPrompt', config.systemPrompt + '\n' + CODE_SWITCHING_PROMPT)}
+                   className="text-xs flex items-center bg-indigo-50 text-indigo-600 px-2 py-1 rounded hover:bg-indigo-100 transition-colors border border-indigo-100 font-medium"
+                   title="插入多语言切换指令模板"
+                 >
+                   <FileText size={12} className="mr-1" /> 多语言模版
+                 </button>
+                 <span className="text-slate-300">|</span>
                  <button 
                   onClick={() => setShowGenerator(true)} 
                   className="text-primary text-[10px] flex items-center hover:underline bg-sky-50 px-2 py-0.5 rounded-full border border-sky-100 transition-colors font-bold"

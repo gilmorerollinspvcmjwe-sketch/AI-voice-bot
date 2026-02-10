@@ -69,93 +69,80 @@ export interface ExtractionConfig {
 
 export type IntentNodeType = 'START' | 'LISTEN' | 'BRANCH' | 'AI_AGENT' | 'LOGIC' | 'ACTION' | 'DATA' | 'TRIGGER' | 'HANGUP' | 'END';
 
-// --- V2 Flow Node Configurations (Plan v2.0) ---
-
+// --- V2 Flow Node Configurations ---
+// ... (Existing Node Configs kept for compatibility) ...
 export interface NodePreAction {
   type: 'CLEAR_VAR' | 'EXECUTE_SCRIPT';
-  payload: string; // variable name or script content
+  payload: string; 
 }
 
 export interface NodeCommonConfig {
   preActions?: NodePreAction[];
-  nextTimeoutMs?: number; // Global timeout for this node's execution
-  nodeNote?: string; // Developer comments
+  nextTimeoutMs?: number; 
+  nodeNote?: string; 
   nextNodeId?: string;
 }
 
-// 1. Interaction: Play / TTS / Wait
 export interface PlayNodeConfig extends NodeCommonConfig {
   type: 'tts' | 'audio_file' | 'ssml';
-  content: string; // Text or URL
-  voiceOverride?: string; // Optional specific voice name
+  content: string; 
+  voiceOverride?: string; 
   bargeIn?: boolean;
-  bargeInThreshold?: number; // 0-1 confidence
+  bargeInThreshold?: number; 
   backgroundAudio?: {
     url: string;
-    volume: number; // 0-100
+    volume: number; 
     loop: boolean;
     fade?: 'in' | 'out' | 'cross';
   };
 }
 
 export interface WaitNodeConfig extends NodeCommonConfig {
-  durationMs: number; // Silence duration
+  durationMs: number; 
 }
 
-// 2. Interaction: Collect / Listen
 export interface RetryStrategy {
   maxAttempts: number;
-  noInputPrompts?: string[]; // Prompt to play when silence detected
-  noMatchPrompts?: string[]; // Prompt to play when intent not recognized
+  noInputPrompts?: string[]; 
+  noMatchPrompts?: string[]; 
   actionAfterExhaustion?: 'hangup' | 'transfer' | 'goto_node';
   exhaustionTargetId?: string;
 }
 
 export interface CollectNodeConfig extends NodeCommonConfig {
   collectType: 'intent' | 'slot' | 'dtmf';
-  variable?: string; // Target variable name for slot/dtmf
-  
-  // ASR/VAD Settings
+  variable?: string; 
   maxDurationSeconds?: number;
   silenceThresholdMs?: number;
   bargeIn?: boolean;
-  
-  // DTMF Specific
   dtmfConfig?: {
     maxDigits: number;
     terminator: string;
     timeoutMs: number;
   };
-
   retryStrategy?: RetryStrategy;
 }
 
-// 3. Cognitive: LLM
 export interface LLMNodeConfig extends NodeCommonConfig {
   modelType?: ModelType;
   temperature?: number;
   topP?: number;
-  
-  systemPrompt?: string; // Overrides bot global prompt
-  userPrompt?: string; // Can contain {{variables}}
-  
+  systemPrompt?: string; 
+  userPrompt?: string; 
   fewShotExamples?:Array<{
     input: string;
     output: string;
   }>;
-  
-  knowledgeBaseIds?: string[]; // IDs of attached knowledge bases
-  
+  knowledgeBaseIds?: string[]; 
   outputFormat?: 'text' | 'json';
-  jsonSchema?: string; // If outputFormat is json
+  jsonSchema?: string; 
 }
 
-// 4. Cognitive: Intent Router
 export interface IntentRoute {
   id: string;
-  intentName: string; // Standard intent label or special ("FALLBACK")
-  description?: string; // For LLM-based routing description
-  keywords?: string[]; // For rule-based routing
+  intentName: string; 
+  description?: string; 
+  keywords?: string[]; 
   targetNodeId?: string;
 }
 
@@ -165,11 +152,10 @@ export interface IntentRouterNodeConfig extends NodeCommonConfig {
   fallbackTargetId?: string;
 }
 
-// 5. Logic: Condition (Switch)
 export interface ConditionExpression {
   id: string;
   name: string;
-  logic: string; // JS expression e.g. "age > 18 && vip == true"
+  logic: string; 
   targetNodeId?: string;
 }
 
@@ -178,11 +164,10 @@ export interface ConditionNodeConfig extends NodeCommonConfig {
   elseTargetId?: string;
 }
 
-// 6. Logic: Set Variable & Tag
 export interface VariableOperation {
   variableId: string;
   type: 'SET' | 'ADD' | 'SUBTRACT' | 'APPEND' | 'CLEAR';
-  value: string; // Static value or {{expression}}
+  value: string; 
 }
 
 export interface SetVariableNodeConfig extends NodeCommonConfig {
@@ -191,49 +176,40 @@ export interface SetVariableNodeConfig extends NodeCommonConfig {
 
 export interface TagNodeConfig extends NodeCommonConfig {
   action: 'ADD' | 'REMOVE';
-  tags: string[]; // List of tag names
+  tags: string[]; 
 }
 
-// 7. Data: HTTP Request & SMS
 export interface HttpRequestNodeConfig extends NodeCommonConfig {
-  // New V2 fields
-  apiId?: string; // Reference to global ExtractionConfig
-  paramMapping?: Array<{ paramKey: string; variableId: string }>; // Map bot variables to API params
-  
-  // Legacy fields (kept for compatibility or custom mode)
+  apiId?: string; 
+  paramMapping?: Array<{ paramKey: string; variableId: string }>; 
   url?: string;
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   headers?: Record<string, string>;
   bodyType?: 'json' | 'form' | 'raw';
   body?: string;
   timeoutMs?: number;
-  
   responseMapping?: Array<{
-    responsePath: string; // e.g. data.user.id
+    responsePath: string; 
     targetVariable: string;
   }>;
-  
-  errorTargetId?: string; // Path on 4xx/5xx/Timeout
+  errorTargetId?: string; 
 }
 
 export interface SmsNodeConfig extends NodeCommonConfig {
   templateId: string;
-  phoneNumberVariable?: string; // Default to user_phone
-  params?: Record<string, string>; // Template params
+  phoneNumberVariable?: string; 
+  params?: Record<string, string>; 
 }
 
-// 8. Action: Transfer
 export interface TransferNodeConfig extends NodeCommonConfig {
   transferType: 'sip_trunk' | 'pstn' | 'queue' | 'agent';
-  target: string; // Number or Queue ID
-  uui?: string; // User-to-User Information
-  playBeforeTransfer?: string; // TTS text
-  
+  target: string; 
+  uui?: string; 
+  playBeforeTransfer?: string; 
   maxQueueTimeSeconds?: number;
   queueFullTargetId?: string;
 }
 
-// 9. Logic: Script
 export interface ScriptNodeConfig extends NodeCommonConfig {
   language: 'javascript' | 'python';
   code: string;
@@ -241,7 +217,6 @@ export interface ScriptNodeConfig extends NodeCommonConfig {
   outputVariables?: string[];
 }
 
-// Union type for all configs
 export type V2NodeConfig = 
   | PlayNodeConfig 
   | WaitNodeConfig
@@ -255,7 +230,7 @@ export type V2NodeConfig =
   | SmsNodeConfig
   | TransferNodeConfig 
   | ScriptNodeConfig
-  | any; // 'any' ensures backward compatibility with existing simple configs
+  | any; 
 
 // --- End V2 Types ---
 
@@ -266,7 +241,7 @@ export interface IntentNode {
   label: string;
   x: number;
   y: number;
-  config?: V2NodeConfig; // Updated to support V2 structures
+  config?: V2NodeConfig; 
 }
 
 export interface IntentEdge {
@@ -295,6 +270,51 @@ export interface ProfileExtractionRule {
   description: string;
 }
 
+// --- AGENT MODE TYPES (Updated) ---
+
+export interface AgentToolParameter {
+  name: string;
+  type: string;
+  description: string;
+  required: boolean;
+}
+
+export interface AgentTool {
+  id: string;
+  name: string; // The function name for LLM (e.g. check_order)
+  description: string; // The function description
+  type: 'API'; // Simplified: removed 'TRANSFER' | 'SMS'
+  
+  // Link to existing resources
+  refId?: string; // ExtractionConfig ID for API
+  
+  // LLM Configuration
+  parameters: AgentToolParameter[];
+  
+  // New: Instruction for LLM after receiving tool response
+  responseInstruction?: string; 
+
+  // Execution Behavior (Filler/Background)
+  executionStrategy?: {
+    playFiller: boolean;
+    fillerType: 'TTS' | 'AUDIO';
+    fillerContent: string; // TTS text or Audio URL
+    backgroundMusicId?: string;
+  };
+}
+
+export interface AgentConfig {
+  tools: AgentTool[];
+  generalFiller: {
+    enabled: boolean;
+    type: 'TTS' | 'AUDIO';
+    content: string;
+  };
+  functionCallModel?: string; // Optional override
+}
+
+// ------------------------------
+
 export interface BotConfiguration {
   id: string;
   name: string;
@@ -310,6 +330,8 @@ export interface BotConfiguration {
   // Voice Config
   ttsModel: TTSModel;
   voiceName: string;
+  ttsAutoSwitch?: boolean; 
+  ttsVoiceMapping?: Record<string, string>; 
   volume: number;
   speed: number;
   emotion: string;
@@ -328,7 +350,11 @@ export interface BotConfiguration {
   extractionConfigId?: string;
   extractionPrompt?: string;
   
-  // Intent/Flow
+  // *** ORCHESTRATION SWITCH ***
+  orchestrationType?: 'WORKFLOW' | 'AGENT'; // Default 'WORKFLOW'
+  agentConfig?: AgentConfig; // New Agent Mode Config
+  
+  // Intent/Flow (Workflow Mode)
   routerEnabled: boolean;
   intents: BotIntent[];
   
@@ -371,7 +397,7 @@ export interface BotConfiguration {
 
   // Marketing Config
   marketingEnabled?: boolean;
-  marketingTimings?: string[]; // 'post_resolution', 'pre_hangup', 'silence'
+  marketingTimings?: string[]; 
   marketingConflictStrategy?: 'service_first' | 'marketing_first';
   activeCampaignIds?: string[];
 
@@ -381,6 +407,7 @@ export interface BotConfiguration {
   profileExtractionRules?: ProfileExtractionRule[];
 }
 
+// ... (Rest of types unchanged)
 // Extraction Trigger
 export interface TriggerCondition {
   id: string;

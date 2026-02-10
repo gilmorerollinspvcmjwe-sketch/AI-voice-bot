@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { 
-  Plus, Search, Download, ArrowRight, X, Volume2, Play, Loader2
+  Plus, Search, Download, ArrowRight, X, Volume2, Play, Loader2, Upload, ChevronDown, CheckCircle2
 } from 'lucide-react';
 import { QAPair } from '../../types';
 import { TagInput, Label, Switch as ToggleSwitch } from '../ui/FormComponents';
@@ -66,6 +66,12 @@ export default function QAManager() {
   const [isBatchTTSOpen, setIsBatchTTSOpen] = useState(false);
   const [activeAudioPopover, setActiveAudioPopover] = useState<string | null>(null); // ID of the row with open audio popover
   
+  // Import/Export States
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{ success: number; fail: number } | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
   // Form State
   const [formData, setFormData] = useState<Partial<QAPair>>({});
 
@@ -131,6 +137,38 @@ export default function QAManager() {
 
   const toggleActive = (id: string, currentStatus: boolean) => {
     setQaPairs(prev => prev.map(p => p.id === id ? { ...p, isActive: !currentStatus } : p));
+  };
+
+  // --- Import/Export Logic ---
+  const triggerImport = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setIsImporting(true);
+      // Simulate API processing delay
+      setTimeout(() => {
+        setIsImporting(false);
+        setImportResult({ success: 12, fail: 3 }); // Mock result
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }, 1500);
+    }
+  };
+
+  const handleExport = (type: 'full' | 'template') => {
+    setIsExportMenuOpen(false);
+    if (type === 'full') {
+      const link = document.createElement('a');
+      link.href = '#';
+      link.download = `qa_knowledge_export_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      alert("模版下载开始...");
+    }
   };
 
   // --- Batch TTS Logic ---
@@ -266,9 +304,41 @@ export default function QAManager() {
           </p>
         </div>
         <div className="flex space-x-3">
+           {/* Import Button */}
+           <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} accept=".xlsx,.csv" />
+           <button 
+             onClick={triggerImport}
+             disabled={isImporting}
+             className="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-md text-xs font-medium hover:bg-slate-50 hover:text-primary transition-colors flex items-center shadow-sm"
+           >
+             {isImporting ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Upload size={14} className="mr-1.5" />}
+             导入
+           </button>
+
+           {/* Export Dropdown */}
+           <div className="relative">
+              <button 
+                onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
+                className="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-md text-xs font-medium hover:bg-slate-50 hover:text-primary transition-colors flex items-center shadow-sm"
+              >
+                <Download size={14} className="mr-1.5" /> 导出 <ChevronDown size={12} className="ml-1 opacity-50" />
+              </button>
+              {isExportMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setIsExportMenuOpen(false)}></div>
+                  <div className="absolute top-full right-0 mt-1 w-32 bg-white border border-slate-200 rounded-lg shadow-xl z-20 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                     <button onClick={() => handleExport('full')} className="w-full text-left px-4 py-2.5 text-xs text-slate-700 hover:bg-slate-50 hover:text-primary block">全量导出</button>
+                     <button onClick={() => handleExport('template')} className="w-full text-left px-4 py-2.5 text-xs text-slate-700 hover:bg-slate-50 hover:text-primary block border-t border-slate-50">下载模版</button>
+                  </div>
+                </>
+              )}
+           </div>
+
+           <div className="w-px h-6 bg-slate-200 mx-1 self-center"></div>
+
            <button 
              onClick={() => setIsBatchTTSOpen(true)}
-             className="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-md text-xs font-medium hover:bg-slate-50 hover:text-primary transition-colors flex items-center"
+             className="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-md text-xs font-medium hover:bg-slate-50 hover:text-primary transition-colors flex items-center shadow-sm"
            >
              <Volume2 size={14} className="mr-1.5" /> 录音配置
            </button>
@@ -292,10 +362,7 @@ export default function QAManager() {
               />
            </div>
            <div className="flex items-center space-x-2">
-              <button className="p-1.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded">
-                 <Download size={14} />
-              </button>
-              <span className="text-xs text-slate-400 border-l border-slate-200 pl-2">
+              <span className="text-xs text-slate-400 pl-2">
                   共 {qaPairs.length} 条
               </span>
            </div>
@@ -515,6 +582,25 @@ export default function QAManager() {
                     </button>
                  </div>
               )}
+           </div>
+        </div>
+      )}
+
+      {/* Import Result Modal */}
+      {importResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+           <div className="bg-white rounded-lg shadow-xl w-80 overflow-hidden p-6 text-center">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 text-green-600">
+                 <CheckCircle2 size={24} />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 mb-2">导入完成</h3>
+              <p className="text-sm text-slate-500 mb-6">
+                 成功导入 <span className="font-bold text-green-600">{importResult.success}</span> 条数据<br/>
+                 失败 <span className="font-bold text-red-500">{importResult.fail}</span> 条数据
+              </p>
+              <button onClick={() => setImportResult(null)} className="w-full py-2 bg-primary text-white rounded-lg text-sm font-bold hover:bg-sky-600">
+                 确定
+              </button>
            </div>
         </div>
       )}

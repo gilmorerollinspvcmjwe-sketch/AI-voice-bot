@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Workflow, Bot } from 'lucide-react';
 import { BotConfiguration, ExtractionConfig, MarketingCampaign } from '../../types';
 import { generateBotPrompt } from '../../services/geminiService';
 import BotBasicConfig from './BotBasicConfig';
@@ -10,18 +10,23 @@ import BotVariableConfig from './BotVariableConfig';
 import BotDebugConfig from './BotDebugConfig';
 import BotIntentConfig from './intent/BotIntentConfig';
 import BotMarketingConfig from './BotMarketingConfig';
+import BotAgentConfig from './BotAgentConfig';
 
 interface BotConfigFormProps {
   initialData: BotConfiguration;
   onSave: (data: BotConfiguration) => void;
   onCancel: () => void;
   extractionConfigs: ExtractionConfig[];
-  campaigns: MarketingCampaign[]; // Added prop
+  campaigns: MarketingCampaign[]; 
 }
 
 const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCancel, extractionConfigs, campaigns }) => {
-  const [config, setConfig] = useState<BotConfiguration>({ ...initialData });
-  const [activeTab, setActiveTab] = useState<'BASIC' | 'INTENTS' | 'STRATEGY' | 'BUSINESS' | 'VARIABLES' | 'DEBUG' | 'MARKETING'>('BASIC');
+  const [config, setConfig] = useState<BotConfiguration>({ 
+    ...initialData,
+    orchestrationType: initialData.orchestrationType || 'WORKFLOW' 
+  });
+  
+  const [activeTab, setActiveTab] = useState<'BASIC' | 'FLOW' | 'TOOLS' | 'STRATEGY' | 'BUSINESS' | 'VARIABLES' | 'DEBUG' | 'MARKETING'>('BASIC');
   const [isGenerating, setIsGenerating] = useState(false);
 
   const updateField = <K extends keyof BotConfiguration>(key: K, value: BotConfiguration[K]) => {
@@ -55,7 +60,6 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
     `;
     document.body.appendChild(toast);
     
-    // Remove toast after delay
     setTimeout(() => {
       toast.classList.add('opacity-0', 'transition-opacity', 'duration-500');
       setTimeout(() => toast.remove(), 500);
@@ -74,18 +78,36 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
             {initialData.id ? '编辑机器人配置' : '新建机器人配置'}
           </h1>
         </div>
-        {/* Global Save buttons removed from here */}
+        
+        {/* Orchestration Type Switch */}
+        <div className="bg-slate-100 p-1 rounded-lg flex items-center shadow-inner">
+           <button 
+             onClick={() => updateField('orchestrationType', 'WORKFLOW')}
+             className={`px-4 py-1.5 rounded-md text-xs font-bold flex items-center transition-all ${config.orchestrationType === 'WORKFLOW' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+           >
+             <Workflow size={14} className="mr-2" /> 流程画布模式
+           </button>
+           <button 
+             onClick={() => updateField('orchestrationType', 'AGENT')}
+             className={`px-4 py-1.5 rounded-md text-xs font-bold flex items-center transition-all ${config.orchestrationType === 'AGENT' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+           >
+             <Bot size={14} className="mr-2" /> 智能体编排模式
+           </button>
+        </div>
       </div>
 
       {/* Main Tabs Navigation */}
       <div className="flex border-b border-gray-200 mb-8 space-x-8 overflow-x-auto">
         {[
           { id: 'BASIC', label: '基础配置' },
-          { id: 'INTENTS', label: '意图技能' },
+          ...(config.orchestrationType === 'WORKFLOW' 
+              ? [{ id: 'FLOW', label: '意图技能 (Flow Canvas)' }]
+              : [{ id: 'TOOLS', label: '工具调用 (Tool Calling)' }]
+          ),
           { id: 'STRATEGY', label: '对话策略' },
           { id: 'VARIABLES', label: '变量配置' },
           { id: 'BUSINESS', label: '业务分析' },
-          { id: 'MARKETING', label: '营销活动' }, // New Tab
+          { id: 'MARKETING', label: '营销活动' }, 
           { id: 'DEBUG', label: '模型调试' },
         ].map(tab => (
           <button
@@ -113,9 +135,29 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
           />
         )}
 
-        {activeTab === 'INTENTS' && (
+        {/* Workflow Canvas */}
+        {activeTab === 'FLOW' && config.orchestrationType === 'WORKFLOW' && (
            <div className="animate-in fade-in duration-500">
              <BotIntentConfig 
+               config={config} 
+               updateField={updateField}
+               extractionConfigs={extractionConfigs}
+             />
+             <div className="flex justify-start space-x-4 pt-4 border-t border-gray-100 mt-6">
+               <button onClick={handleSave} className="px-6 py-2 bg-primary text-white rounded hover:bg-sky-600 text-sm font-medium shadow-sm transition-all">
+                 保存配置
+               </button>
+               <button onClick={onCancel} className="px-6 py-2 border border-gray-200 text-slate-600 rounded hover:bg-slate-50 text-sm font-medium transition-all">
+                 取消
+               </button>
+             </div>
+           </div>
+        )}
+
+        {/* Agent Tool Calling */}
+        {activeTab === 'TOOLS' && config.orchestrationType === 'AGENT' && (
+           <div className="animate-in fade-in duration-500">
+             <BotAgentConfig 
                config={config} 
                updateField={updateField}
                extractionConfigs={extractionConfigs}
