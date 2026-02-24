@@ -59,9 +59,9 @@ export default function BotAgentConfig({ config, updateField, extractionConfigs 
          <div>
             <h3 className="font-bold text-slate-800 flex items-center">
                <Wrench size={18} className="mr-2 text-indigo-600" />
-               工具调用 (Tool Calling)
+               工具调用
             </h3>
-            <p className="text-xs text-slate-500 mt-1">配置 Agent 可调用的外部能力 (Functions)。提示词请在“基础配置”中设置。</p>
+            <p className="text-xs text-slate-500 mt-1">配置智能体可调用的外部能力。提示词请在“基础配置”中设置。</p>
          </div>
          <button 
            onClick={() => openToolModal()}
@@ -85,8 +85,12 @@ export default function BotAgentConfig({ config, updateField, extractionConfigs 
                <div key={tool.id} className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-all group">
                   <div className="flex justify-between items-start mb-3">
                      <div className="flex items-center">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase mr-3 bg-blue-50 text-blue-600 border border-blue-100">
-                           {tool.type}
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase mr-3 border ${
+                           tool.type === 'SMS' 
+                             ? 'bg-purple-50 text-purple-600 border-purple-100' 
+                             : 'bg-blue-50 text-blue-600 border-blue-100'
+                        }`}>
+                           {tool.type === 'SMS' ? '发送短信' : 'API 接口'}
                         </span>
                         <h4 className="font-bold text-slate-800 font-mono text-sm">{tool.name}</h4>
                      </div>

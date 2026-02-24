@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { Edit3, ChevronDown, ArrowUpDown, LayoutList, X, Plus, Database, HelpCircle, Trash2, UserCircle2 } from 'lucide-react';
-import { Switch, Select } from '../ui/FormComponents';
+import { Edit3, ChevronDown, ArrowUpDown, LayoutList, X, Plus, Database, HelpCircle, Trash2, UserCircle2, BookOpen } from 'lucide-react';
+import { Switch, Select, TagInput } from '../ui/FormComponents';
 import { LabelGroup, BotConfiguration, ExtractionConfig, ModelType, TagItem, Parameter, ProfileExtractionRule } from '../../types';
 
 interface BotBusinessConfigProps {
@@ -13,7 +13,7 @@ interface BotBusinessConfigProps {
 }
 
 const BotBusinessConfig: React.FC<BotBusinessConfigProps> = ({ config, updateField, onSave, onCancel, extractionConfigs }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'TAG' | 'SATISFACTION' | 'SUMMARY' | 'INFO_EXTRACTION' | 'USER_PROFILE'>('TAG');
+  const [activeSubTab, setActiveSubTab] = useState<'TAG' | 'SATISFACTION' | 'SUMMARY' | 'INFO_EXTRACTION' | 'USER_PROFILE' | 'KNOWLEDGE'>('TAG');
   const [tagModal, setTagModal] = useState<{ isOpen: boolean, groupId: string, name: string, description: string } | null>(null);
 
   const groups = config.labelGroups;
@@ -105,6 +105,7 @@ const BotBusinessConfig: React.FC<BotBusinessConfigProps> = ({ config, updateFie
       <div className="flex border-b border-gray-200 mb-6 space-x-8 bg-white/50 px-4 -mx-4 overflow-x-auto">
         {[
           { id: 'TAG', label: '标签管理' },
+          { id: 'KNOWLEDGE', label: '知识库设置' },
           { id: 'SATISFACTION', label: '满意度分析' },
           { id: 'SUMMARY', label: '通话小结' },
           { id: 'INFO_EXTRACTION', label: '信息提取' },
@@ -220,6 +221,48 @@ const BotBusinessConfig: React.FC<BotBusinessConfigProps> = ({ config, updateFie
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* KNOWLEDGE BASE SETTINGS */}
+      {activeSubTab === 'KNOWLEDGE' && (
+        <div className="bg-white rounded border border-gray-200 shadow-sm p-8 space-y-8 animate-in fade-in">
+           
+           <div className="flex justify-between items-start">
+              <div className="flex items-center">
+                 <div className="p-3 bg-blue-50 text-blue-600 rounded-lg mr-4">
+                    <BookOpen size={24} />
+                 </div>
+                 <div>
+                    <h3 className="text-base font-bold text-slate-800">启用知识库问答</h3>
+                    <p className="text-xs text-slate-500 mt-1">开启后，机器人将使用问答库中的内容回答用户提问。</p>
+                 </div>
+              </div>
+              <Switch 
+                 label="" 
+                 checked={config.kbEnabled || false} 
+                 onChange={(v) => updateField('kbEnabled', v)} 
+              />
+           </div>
+
+           <div className={`space-y-6 transition-opacity duration-300 ${!config.kbEnabled ? 'opacity-50 pointer-events-none' : ''}`}>
+              <div className="p-4 bg-slate-50 border border-slate-100 rounded-lg">
+                 <div className="flex items-center mb-2">
+                    <span className="text-sm font-bold text-slate-700">生效分类 (Allowed Categories)</span>
+                    <HelpCircle size={14} className="ml-1 text-slate-400" />
+                 </div>
+                 <div className="text-xs text-slate-500 mb-3">
+                    仅使用以下分类的问答对。留空则使用所有分类。
+                 </div>
+                 <TagInput 
+                    label="" 
+                    placeholder="输入分类后回车 (如: 业务咨询)"
+                    tags={config.kbCategories || []}
+                    onChange={(tags) => updateField('kbCategories', tags)}
+                 />
+              </div>
+           </div>
+
         </div>
       )}
 

@@ -101,7 +101,7 @@ export default function AgentToolModal({ tool, onSave, onClose, extractionConfig
                <div className="flex-1">
                   <Label label="工具类型" required />
                   <div className="flex bg-slate-100 p-1 rounded-lg">
-                     {['API'].map(t => (
+                     {['API', 'SMS'].map(t => (
                        <button
                          key={t}
                          onClick={() => setFormData(prev => ({ ...prev, type: t as any }))}
@@ -109,7 +109,8 @@ export default function AgentToolModal({ tool, onSave, onClose, extractionConfig
                            formData.type === t ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'
                          }`}
                        >
-                         {t === 'API' && '外部接口 (Function Call)'}
+                         {t === 'API' && '外部接口'}
+                         {t === 'SMS' && '发送短信'}
                        </button>
                      ))}
                   </div>
@@ -125,11 +126,22 @@ export default function AgentToolModal({ tool, onSave, onClose, extractionConfig
                     />
                  </div>
                )}
+
+               {formData.type === 'SMS' && (
+                 <div className="flex-[2]">
+                    <Label label="短信模版 ID" required />
+                    <Input 
+                       placeholder="例如: SMS_123456"
+                       value={formData.smsTemplateId || ''}
+                       onChange={(e) => setFormData({...formData, smsTemplateId: e.target.value})}
+                    />
+                 </div>
+               )}
             </div>
 
             <div className="grid grid-cols-2 gap-4 mb-4">
                <div>
-                  <Label label="函数名称 (Function Name)" required tooltip="LLM 将使用此名称调用工具，建议使用蛇形命名法 (e.g. query_order)" />
+                  <Label label="函数名称" required tooltip="LLM 将使用此名称调用工具，建议使用蛇形命名法 (e.g. query_order)" />
                   <Input 
                     className="font-mono text-xs"
                     placeholder="e.g. query_order_status"
@@ -146,7 +158,7 @@ export default function AgentToolModal({ tool, onSave, onClose, extractionConfig
             </div>
 
             <div className="mb-4">
-               <Label label="工具描述 (Prompt Description)" required tooltip="非常重要！告诉大模型在什么场景下应该使用此工具。" />
+               <Label label="工具描述" required tooltip="非常重要！告诉大模型在什么场景下应该使用此工具。" />
                <textarea 
                   className="w-full h-20 px-3 py-2 text-sm border border-slate-300 rounded focus:border-primary outline-none resize-none"
                   placeholder="例如：当用户询问发货状态、物流进度或订单详情时使用此工具。需要提供订单号。"
@@ -157,7 +169,7 @@ export default function AgentToolModal({ tool, onSave, onClose, extractionConfig
 
             {/* New Response Instruction */}
             <div>
-               <Label label="结果回复指引 (Response Instruction)" tooltip="指导大模型在获取到接口数据后，如何向用户播报结果。可包含话术风格或必须播报的字段。" />
+               <Label label="结果回复指引" tooltip="指导大模型在获取到接口数据后，如何向用户播报结果。可包含话术风格或必须播报的字段。" />
                <textarea 
                   className="w-full h-20 px-3 py-2 text-sm border border-slate-300 rounded focus:border-primary outline-none resize-none bg-blue-50/20"
                   placeholder="例如：请以热情的语气回复，重点播报订单状态和预计到达时间。如果订单已发货，请询问用户是否需要发送物流短信。"
@@ -170,7 +182,7 @@ export default function AgentToolModal({ tool, onSave, onClose, extractionConfig
           {/* 2. Parameters */}
           <section>
              <div className="flex justify-between items-center mb-2 border-b border-slate-100 pb-2">
-                <h4 className="text-sm font-bold text-slate-700">参数定义 (JSON Schema)</h4>
+                <h4 className="text-sm font-bold text-slate-700">参数定义</h4>
                 <button onClick={addParameter} className="text-xs text-primary flex items-center hover:underline">
                    <Plus size={12} className="mr-1" /> 添加参数
                 </button>
@@ -186,7 +198,7 @@ export default function AgentToolModal({ tool, onSave, onClose, extractionConfig
                 {formData.parameters.map((param, idx) => (
                    <div key={idx} className="flex items-start space-x-2 bg-slate-50 p-2 rounded border border-slate-100">
                       <div className="w-1/4">
-                         <label className="text-[10px] font-bold text-slate-500 mb-1 block">参数名 (Key)</label>
+                         <label className="text-[10px] font-bold text-slate-500 mb-1 block">参数名</label>
                          <input 
                             className="w-full px-2 py-1 text-xs border border-gray-200 rounded font-mono"
                             value={param.name}
@@ -207,7 +219,7 @@ export default function AgentToolModal({ tool, onSave, onClose, extractionConfig
                          </select>
                       </div>
                       <div className="flex-1">
-                         <label className="text-[10px] font-bold text-slate-500 mb-1 block">描述 (Description)</label>
+                         <label className="text-[10px] font-bold text-slate-500 mb-1 block">描述</label>
                          <input 
                             className="w-full px-2 py-1 text-xs border border-gray-200 rounded"
                             value={param.description}
@@ -229,7 +241,7 @@ export default function AgentToolModal({ tool, onSave, onClose, extractionConfig
           <section className="bg-indigo-50/50 rounded-xl p-4 border border-indigo-100">
              <div className="flex justify-between items-center mb-4">
                 <h4 className="text-sm font-bold text-indigo-900 flex items-center">
-                   <Music size={16} className="mr-2" /> 执行体验 (Execution UX)
+                   <Music size={16} className="mr-2" /> 执行体验
                 </h4>
                 <div className="flex items-center space-x-2">
                    <span className="text-xs text-indigo-700">启用防静默填充</span>

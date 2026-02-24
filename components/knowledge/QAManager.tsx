@@ -13,6 +13,7 @@ const MOCK_QA_PAIRS: QAPair[] = [
     standardQuestion: '你吃什么',
     similarQuestions: [],
     answer: '是',
+    category: '闲聊',
     validityType: 'permanent',
     lastUpdated: 1773134010000,
     isActive: true,
@@ -26,6 +27,7 @@ const MOCK_QA_PAIRS: QAPair[] = [
     standardQuestion: '你什么工作',
     similarQuestions: [],
     answer: '上班',
+    category: '闲聊',
     validityType: 'permanent',
     lastUpdated: 1773133991000,
     isActive: true,
@@ -36,6 +38,7 @@ const MOCK_QA_PAIRS: QAPair[] = [
     standardQuestion: '你在哪',
     similarQuestions: [],
     answer: '北京',
+    category: '业务',
     validityType: 'permanent',
     lastUpdated: 1773133985000,
     isActive: false, 
@@ -45,6 +48,7 @@ const MOCK_QA_PAIRS: QAPair[] = [
     standardQuestion: '你是谁?',
     similarQuestions: ['你是干嘛的?', '你是做什么的?', '你叫什么?'],
     answer: '我是顾问',
+    category: '业务',
     validityType: 'permanent',
     lastUpdated: 1773133571000,
     isActive: true,
@@ -86,6 +90,7 @@ export default function QAManager() {
       standardQuestion: '',
       similarQuestions: [],
       answer: '',
+      category: '通用',
       validityType: 'permanent',
       isActive: true,
       audioResources: {},
@@ -117,6 +122,7 @@ export default function QAManager() {
       standardQuestion: formData.standardQuestion!,
       similarQuestions: formData.similarQuestions || [],
       answer: formData.answer!,
+      category: formData.category || '通用',
       validityType: formData.validityType || 'permanent',
       validityStart: formData.validityStart,
       validityEnd: formData.validityEnd,
@@ -234,6 +240,26 @@ export default function QAManager() {
                  onChange={(e) => setFormData({...formData, standardQuestion: e.target.value})}
                />
                <p className="text-[11px] text-slate-400 mt-1.5 ml-0.5">该问题将作为NLP匹配的核心依据，请尽量简练准确。</p>
+            </div>
+
+            {/* Category */}
+            <div className="max-w-3xl">
+               <Label label="业务分类" required tooltip="用于机器人配置中的知识库过滤" />
+               <div className="relative">
+                  <input 
+                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    placeholder="例如：闲聊、业务咨询、投诉"
+                    list="category-suggestions"
+                    value={formData.category}
+                    onChange={(e) => setFormData({...formData, category: e.target.value})}
+                  />
+                  <datalist id="category-suggestions">
+                     <option value="通用" />
+                     <option value="业务" />
+                     <option value="闲聊" />
+                     <option value="投诉" />
+                  </datalist>
+               </div>
             </div>
 
             {/* Similar Questions */}
@@ -376,6 +402,7 @@ export default function QAManager() {
                    <input type="checkbox" className="rounded border-slate-300 text-primary focus:ring-primary/20" />
                 </th>
                 <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-1/5">标准问题</th>
+                <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">分类</th>
                 <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-1/4">相似问题</th>
                 <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-1/4">答案预览</th>
                 <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">录音资源</th>
@@ -392,6 +419,11 @@ export default function QAManager() {
                   </td>
                   <td className="px-4 py-3">
                     <div className={`text-sm font-medium ${item.isActive ? 'text-slate-700' : 'text-slate-400'}`}>{item.standardQuestion}</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-100 font-medium">
+                       {item.category || '通用'}
+                    </span>
                   </td>
                   <td className="px-4 py-3">
                     {item.similarQuestions && item.similarQuestions.length > 0 ? (

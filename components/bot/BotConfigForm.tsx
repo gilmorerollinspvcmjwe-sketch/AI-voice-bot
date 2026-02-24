@@ -78,32 +78,15 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
             {initialData.id ? '编辑机器人配置' : '新建机器人配置'}
           </h1>
         </div>
-        
-        {/* Orchestration Type Switch */}
-        <div className="bg-slate-100 p-1 rounded-lg flex items-center shadow-inner">
-           <button 
-             onClick={() => updateField('orchestrationType', 'WORKFLOW')}
-             className={`px-4 py-1.5 rounded-md text-xs font-bold flex items-center transition-all ${config.orchestrationType === 'WORKFLOW' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-           >
-             <Workflow size={14} className="mr-2" /> 流程画布模式
-           </button>
-           <button 
-             onClick={() => updateField('orchestrationType', 'AGENT')}
-             className={`px-4 py-1.5 rounded-md text-xs font-bold flex items-center transition-all ${config.orchestrationType === 'AGENT' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-           >
-             <Bot size={14} className="mr-2" /> 智能体编排模式
-           </button>
-        </div>
+        {/* Switch removed here as requested */}
       </div>
 
       {/* Main Tabs Navigation */}
       <div className="flex border-b border-gray-200 mb-8 space-x-8 overflow-x-auto">
         {[
           { id: 'BASIC', label: '基础配置' },
-          ...(config.orchestrationType === 'WORKFLOW' 
-              ? [{ id: 'FLOW', label: '意图技能 (Flow Canvas)' }]
-              : [{ id: 'TOOLS', label: '工具调用 (Tool Calling)' }]
-          ),
+          { id: 'FLOW', label: '意图技能' },
+          { id: 'TOOLS', label: '工具调用' },
           { id: 'STRATEGY', label: '对话策略' },
           { id: 'VARIABLES', label: '变量配置' },
           { id: 'BUSINESS', label: '业务分析' },
@@ -136,7 +119,7 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
         )}
 
         {/* Workflow Canvas */}
-        {activeTab === 'FLOW' && config.orchestrationType === 'WORKFLOW' && (
+        {activeTab === 'FLOW' && (
            <div className="animate-in fade-in duration-500">
              <BotIntentConfig 
                config={config} 
@@ -155,7 +138,7 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
         )}
 
         {/* Agent Tool Calling */}
-        {activeTab === 'TOOLS' && config.orchestrationType === 'AGENT' && (
+        {activeTab === 'TOOLS' && (
            <div className="animate-in fade-in duration-500">
              <BotAgentConfig 
                config={config} 

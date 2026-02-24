@@ -283,10 +283,11 @@ export interface AgentTool {
   id: string;
   name: string; // The function name for LLM (e.g. check_order)
   description: string; // The function description
-  type: 'API'; // Simplified: removed 'TRANSFER' | 'SMS'
+  type: 'API' | 'SMS'; // Added SMS
   
   // Link to existing resources
   refId?: string; // ExtractionConfig ID for API
+  smsTemplateId?: string; // ID for SMS Template
   
   // LLM Configuration
   parameters: AgentToolParameter[];
@@ -365,6 +366,10 @@ export interface BotConfiguration {
   contextItems: any[]; 
   labelGroups: LabelGroup[];
   
+  // Knowledge Base Config (New)
+  kbEnabled?: boolean;
+  kbCategories?: string[]; // List of categories enabled for this bot
+
   // Strategy Details
   welcomeMessageEnabled: boolean;
   welcomeMessage: string;
@@ -441,6 +446,7 @@ export interface QAPair {
   standardQuestion: string;
   similarQuestions: string[];
   answer: string;
+  category?: string; // New Category Field
   validityType: 'permanent' | 'range';
   validityStart?: number;
   validityEnd?: number;
