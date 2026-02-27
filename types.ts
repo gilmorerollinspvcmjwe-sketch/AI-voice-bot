@@ -258,6 +258,7 @@ export interface BotIntent {
   description: string;
   keywords: string[];
   systemPrompt: string;
+  similarQuestions?: string[]; // 相似问法，用于意图识别训练
   flowCanvas: {
     nodes: IntentNode[];
     edges: IntentEdge[];
@@ -368,7 +369,9 @@ export interface BotConfiguration {
   
   // Knowledge Base Config (New)
   kbEnabled?: boolean;
-  kbCategories?: string[]; // List of categories enabled for this bot
+  kbCategories?: string[]; // Legacy: List of categories enabled for this bot (deprecated, use kbQACategories and kbLexiconCategories)
+  kbQACategories?: string[]; // 问答对分类列表
+  kbLexiconCategories?: string[]; // 词库分类列表
 
   // Strategy Details
   welcomeMessageEnabled: boolean;
@@ -476,6 +479,74 @@ export interface KnowledgeSettings {
   extractionSchedule: 'realtime' | 'daily_2am' | 'manual';
   sourceFilter: 'all' | 'human_takeover';
   confidenceThreshold: number;
+}
+
+// --- RAG (Retrieval Augmented Generation) Types ---
+
+export interface RAGConfig {
+  enabled: boolean;
+  embeddingModel: string;
+  vectorDimension: number;
+  topK: number;
+  similarityThreshold: number;
+  searchMode: 'vector' | 'hybrid';
+  contextTemplate?: string;
+  vectorDB: VectorDBConfig;
+}
+
+export interface VectorDBConfig {
+  provider: 'qdrant' | 'milvus' | 'pinecone';
+  host: string;
+  port?: number;
+  apiKey?: string;
+  collectionName: string;
+  https?: boolean;
+}
+
+export interface RAGSearchRequest {
+  query: string;
+  topK?: number;
+  threshold?: number;
+  category?: string;
+  filter?: Record<string, any>;
+}
+
+export interface RAGSearchResponse {
+  results: RAGResult[];
+  total: number;
+  latency: number;
+}
+
+export interface RAGResult {
+  qaPair: QAPair;
+  score: number;
+  rank: number;
+}
+
+export interface EmbeddingRequest {
+  texts: string[];
+  model?: string;
+}
+
+export interface EmbeddingResponse {
+  embeddings: number[][];
+  model: string;
+  usage: {
+    prompt_tokens: number;
+    total_tokens: number;
+  };
+}
+
+export interface QAPairVectorStatus {
+  vectorId?: string;
+  embeddingStatus: 'pending' | 'processing' | 'completed' | 'failed';
+  lastEmbeddedAt?: number;
+  errorMessage?: string;
+}
+
+// Extend QAPair with vector status
+export interface QAPairWithVector extends QAPair {
+  vectorStatus?: QAPairVectorStatus;
 }
 
 // Lexicon
@@ -598,6 +669,67 @@ export interface AudioRecording {
   url: string; // mock url
   updatedAt: number;
 }
+
+// --- DEBUG TYPES (New) ---
+
+export type DebugExecutionState = 'idle' | 'running' | 'paused' | 'completed' | 'error';
+
+export type NodeExecutionStatus = 'pending' | 'executing' | 'success' | 'error' | 'skipped';
+
+export interface NodeExecutionInfo {
+  nodeId: string;
+  status: NodeExecutionStatus;
+  input: Record<string, any>;
+  output: Record<string, any>;
+  startTime: number;
+  endTime?: number;
+  duration?: number;
+  error?: string;
+  attemptCount: number;
+}
+
+export interface DebugBreakpoint {
+  id: string;
+  nodeId: string;
+  condition?: string;
+  enabled: boolean;
+  hitCount: number;
+}
+
+export interface ExecutionStep {
+  id: string;
+  nodeId: string;
+  timestamp: number;
+  executionInfo: NodeExecutionInfo;
+  variablesSnapshot: Record<string, any>;
+}
+
+export interface DebugSession {
+  id: string;
+  startTime: number;
+  endTime?: number;
+  state: DebugExecutionState;
+  currentNodeId: string | null;
+  executionHistory: ExecutionStep[];
+  breakpoints: DebugBreakpoint[];
+  variables: Record<string, any>;
+  executionSpeed: number;
+  maxSteps: number;
+  currentStep: number;
+  autoPauseOnError: boolean;
+}
+
+export interface DebugConfig {
+  executionSpeed: number;
+  autoPauseOnError: boolean;
+  showDetailedLogs: boolean;
+  maxSteps: number;
+  timeoutMs: number;
+}
+
+export type StepType = 'over' | 'into' | 'out';
+
+// ----------------------------
 
 export interface BackgroundMusic {
   id: string;
@@ -733,3 +865,77 @@ export interface MarketingCampaign {
   
   updatedAt: number;
 }
+
+// --- Monitoring Report Types (New) ---
+
+export interface ReportMetrics {
+  totalCalls: number;
+  connectedCalls: number;
+  connectionRate: number;
+  avgDuration: number;
+  avgSatisfaction: number;
+  transferRate: number;
+  resolutionRate: number;
+}
+
+export interface TrendData {
+  date: string;
+  totalCalls: number;
+  connectedCalls: number;
+  avgDuration: number;
+  satisfaction: number;
+}
+
+export interface BotPerformance {
+  botId: string;
+  botName: string;
+  totalCalls: number;
+  connectionRate: number;
+  avgDuration: number;
+  satisfaction: number;
+  intentAccuracy: number;
+  transferRate: number;
+}
+
+export interface IntentAnalysis {
+  intentId: string;
+  intentName: string;
+  triggerCount: number;
+  accuracy: number;
+  avgDuration: number;
+}
+
+export interface HourlyDistribution {
+  hour: number;
+  callCount: number;
+}
+
+export interface DurationDistribution {
+  range: string;
+  count: number;
+  percentage: number;
+}
+
+export interface HangupReasonDistribution {
+  reason: string;
+  count: number;
+  percentage: number;
+}
+
+export interface UnmatchedIntent {
+  text: string;
+  count: number;
+  lastTime: number;
+}
+
+// Extend CallRecord with report-related fields
+export interface CallRecordDetail extends CallRecord {
+  satisfaction?: number; // 1-5 rating
+  hangupReason: 'normal' | 'user_hangup' | 'timeout' | 'transfer' | 'error';
+  intentMatched: boolean;
+  intentName?: string;
+  waitTime: number; // seconds before bot answers
+  botId: string;
+}
+
+export type TimeRange = 'today' | 'yesterday' | 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'custom';

@@ -2,11 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, Trash2, Edit3, Target, AlertCircle, 
-  GitBranch, X, Save, Crown
+  GitBranch, X, Save, Crown, Bug
 } from 'lucide-react';
 import { BotIntent, BotConfiguration, ExtractionConfig } from '../../../types';
 import { Switch, Input, Label, TagInput } from '../../ui/FormComponents';
 import MicroFlowEditor from './MicroFlowEditor';
+import IntentFlowDebugger from './IntentFlowDebugger';
 
 interface BotIntentConfigProps {
   config: BotConfiguration;
@@ -20,6 +21,7 @@ const DEFAULT_INTENT: BotIntent = {
   description: '',
   keywords: [],
   systemPrompt: '',
+  similarQuestions: [],
   flowCanvas: {
     nodes: [{ id: 'start', type: 'START', subType: 'start', label: '意图触发', x: 50, y: 300 }],
     edges: []
@@ -30,6 +32,7 @@ export default function BotIntentConfig({ config, updateField, extractionConfigs
   const [activeIntentId, setActiveIntentId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingIntentData, setEditingIntentData] = useState<BotIntent>(DEFAULT_INTENT);
+  const [isDebugMode, setIsDebugMode] = useState(false);
   
   const intents = config.intents || [];
   const activeIntent = intents.find(i => i.id === activeIntentId);
@@ -216,12 +219,21 @@ export default function BotIntentConfig({ config, updateField, extractionConfigs
                      <span className="mx-2 text-slate-300">|</span>
                      <span className="text-xs text-slate-500">流程编排</span>
                   </div>
-                  <button 
-                    onClick={() => openModal(activeIntent)} 
-                    className="text-xs text-primary hover:underline flex items-center"
-                  >
-                    <Edit3 size={12} className="mr-1" /> 编辑属性
-                  </button>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setIsDebugMode(true)}
+                      className="flex items-center px-3 py-1.5 bg-purple-50 text-purple-600 border border-purple-200 rounded text-xs font-medium hover:bg-purple-100 transition-colors"
+                    >
+                      <Bug className="w-3 h-3 mr-1" />
+                      调试
+                    </button>
+                    <button 
+                      onClick={() => openModal(activeIntent)} 
+                      className="text-xs text-primary hover:underline flex items-center"
+                    >
+                      <Edit3 size={12} className="mr-1" /> 编辑属性
+                    </button>
+                  </div>
                </div>
 
                {/* Canvas Area */}
@@ -249,7 +261,7 @@ export default function BotIntentConfig({ config, updateField, extractionConfigs
       {/* Modal Dialog */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-           <div className="bg-white rounded-lg shadow-xl w-[500px] overflow-hidden">
+           <div className="bg-white rounded-lg shadow-xl w-[600px] max-h-[85vh] overflow-hidden flex flex-col">
               <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-slate-50">
                  <h3 className="text-base font-bold text-slate-800 flex items-center">
                     <Target size={16} className="mr-2 text-primary" />
@@ -260,7 +272,8 @@ export default function BotIntentConfig({ config, updateField, extractionConfigs
                  </button>
               </div>
               
-              <div className="p-6 space-y-5">
+              <div className="flex-1 overflow-y-auto p-6 space-y-5">
+                 {/* 意图名称 */}
                  <div>
                     <Label label="意图名称" required />
                     <Input 
@@ -271,15 +284,32 @@ export default function BotIntentConfig({ config, updateField, extractionConfigs
                     />
                  </div>
                  
+                 {/* 意图描述 */}
                  <div>
                     <Label label="意图描述 (Prompt Context)" required tooltip="模型将根据此描述判断用户意图是否属于该类别。" />
                     <textarea 
-                       className="w-full h-32 px-3 py-2 text-sm border border-gray-300 rounded focus:border-primary outline-none resize-none bg-slate-50"
+                       className="w-full h-24 px-3 py-2 text-sm border border-gray-300 rounded focus:border-primary outline-none resize-none bg-slate-50"
                        placeholder="例如：当用户询问产品保修政策、设备出现故障需要维修、或者询问维修进度时，进入此意图。"
                        value={editingIntentData.description}
                        onChange={(e) => setEditingIntentData({...editingIntentData, description: e.target.value})}
                     />
                     <p className="text-[11px] text-slate-400 mt-2">提示：描述越具体，识别越准确。该描述将同时作为进入该意图后的初始系统人设上下文。</p>
+                 </div>
+
+                 {/* 相似问法 */}
+                 <div>
+                    <Label 
+                       label="相似问法" 
+                       tooltip="添加用户可能使用的不同表达方式，帮助模型更准确地识别该意图。"
+                    />
+                    <SimilarQuestionsInput
+                       questions={editingIntentData.similarQuestions || []}
+                       onChange={(questions) => setEditingIntentData({...editingIntentData, similarQuestions: questions})}
+                       placeholder="输入相似问法后按回车，例如：怎么报修、设备坏了、保修政策"
+                    />
+                    <p className="text-[11px] text-slate-400 mt-2">
+                       已添加 {editingIntentData.similarQuestions?.length || 0} 个相似问法，建议添加 3-10 个
+                    </p>
                  </div>
               </div>
 
@@ -295,6 +325,106 @@ export default function BotIntentConfig({ config, updateField, extractionConfigs
         </div>
       )}
 
+      {/* Debug Mode */}
+      {isDebugMode && activeIntent && (
+        <IntentFlowDebugger
+          nodes={activeIntent.flowCanvas?.nodes || []}
+          edges={activeIntent.flowCanvas?.edges || []}
+          initialVariables={{
+            '客户姓名': '张三',
+            '客户电话': '13800138000',
+            '当前时间': new Date().toLocaleTimeString()
+          }}
+          onClose={() => setIsDebugMode(false)}
+        />
+      )}
+
     </div>
   );
 }
+
+// --- Similar Questions Input Component ---
+
+interface SimilarQuestionsInputProps {
+  questions: string[];
+  onChange: (questions: string[]) => void;
+  placeholder?: string;
+}
+
+const SimilarQuestionsInput: React.FC<SimilarQuestionsInputProps> = ({
+  questions,
+  onChange,
+  placeholder = "输入相似问法后按回车"
+}) => {
+  const [inputValue, setInputValue] = useState('');
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const trimmed = inputValue.trim();
+      if (trimmed && !questions.includes(trimmed)) {
+        onChange([...questions, trimmed]);
+        setInputValue('');
+      }
+    } else if (e.key === 'Backspace' && !inputValue && questions.length > 0) {
+      // 删除最后一个
+      onChange(questions.slice(0, -1));
+    }
+  };
+
+  const removeQuestion = (index: number) => {
+    onChange(questions.filter((_, i) => i !== index));
+  };
+
+  return (
+    <div className="w-full">
+      {/* Tags Display */}
+      {questions.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-3">
+          {questions.map((question, index) => (
+            <span
+              key={index}
+              className="inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-700 text-sm rounded-full border border-blue-100 group hover:bg-blue-100 transition-colors"
+            >
+              <span className="max-w-[200px] truncate">{question}</span>
+              <button
+                onClick={() => removeQuestion(index)}
+                className="ml-2 text-blue-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <X size={14} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Input */}
+      <input
+        type="text"
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder={placeholder}
+        className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:border-primary outline-none bg-slate-50"
+      />
+
+      {/* Quick Add Suggestions */}
+      {questions.length === 0 && (
+        <div className="mt-2">
+          <span className="text-[11px] text-slate-400">快速添加示例：</span>
+          <div className="flex flex-wrap gap-2 mt-1">
+            {['怎么联系客服', '多少钱', '有什么优惠', '如何操作'].map((example) => (
+              <button
+                key={example}
+                onClick={() => onChange([...questions, example])}
+                className="text-[11px] px-2 py-1 bg-slate-100 text-slate-600 rounded hover:bg-slate-200 transition-colors"
+              >
+                + {example}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

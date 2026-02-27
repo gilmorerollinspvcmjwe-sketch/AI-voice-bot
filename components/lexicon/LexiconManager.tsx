@@ -2,10 +2,11 @@
 import React, { useState } from 'react';
 import { 
   Plus, Search, Edit3, Trash2, BookA, Signal, Upload, 
-  Check, X, FileText, Filter
+  Check, X, FileText, Filter, ArrowLeft
 } from 'lucide-react';
 import { LexiconItem } from '../../types';
 import { TagInput, Label, Switch, Select } from '../ui/FormComponents';
+import CategoryListView from '../knowledge/CategoryListView';
 
 // --- Mock Data ---
 const MOCK_LEXICON: LexiconItem[] = [
@@ -53,6 +54,9 @@ const MOCK_LEXICON: LexiconItem[] = [
 
 export default function LexiconManager() {
   const [lexicon, setLexicon] = useState<LexiconItem[]>(MOCK_LEXICON);
+  const [view, setView] = useState<'CATEGORY_LIST' | 'LIST'>('CATEGORY_LIST');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [categories, setCategories] = useState<string[]>(['产品名称', '技术术语', '行业概念', '医疗词汇', '公司名', '自定义']);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<LexiconItem | null>(null);
   
@@ -80,7 +84,7 @@ export default function LexiconManager() {
         id: Date.now().toString(),
         term: '',
         synonyms: [],
-        category: '自定义',
+        category: selectedCategory || '自定义',
         weight: 'MEDIUM',
         isActive: true,
         description: ''
@@ -144,20 +148,100 @@ export default function LexiconManager() {
     return matchesSearch && matchesCategory;
   });
 
-  const categories = Array.from(new Set(lexicon.map(i => i.category)));
+  const availableCategories = Array.from(new Set(lexicon.map(i => i.category)));
 
+  // --- CATEGORY LIST VIEW ---
+  if (view === 'CATEGORY_LIST') {
+    const getCategoryStats = (category: string) => {
+      const items = lexicon.filter(item => item.category === category);
+      const highCount = items.filter(item => item.weight === 'HIGH').length;
+      const mediumCount = items.filter(item => item.weight === 'MEDIUM').length;
+      const lowCount = items.filter(item => item.weight === 'LOW').length;
+      const lastUpdated = items.length > 0
+        ? Math.max(...items.map(item => item.lastUpdated || 0))
+        : undefined;
+
+      return {
+        count: items.length,
+        lastUpdated,
+        activeCount: highCount,
+        inactiveCount: mediumCount + lowCount,
+      };
+    };
+
+    const handleCategoryClick = (category: string) => {
+      setSelectedCategory(category);
+      setFilterCategory(category);
+      setView('LIST');
+    };
+
+    const handleAddCategory = (name: string) => {
+      if (!categories.includes(name)) {
+        setCategories([...categories, name]);
+      }
+    };
+
+    const handleEditCategory = (oldName: string, newName: string) => {
+      if (oldName === newName) return;
+      if (categories.includes(newName)) {
+        alert('分类名称已存在');
+        return;
+      }
+
+      setCategories(categories.map(c => c === oldName ? newName : c));
+      setLexicon(lexicon.map(item =>
+        item.category === oldName ? { ...item, category: newName } : item
+      ));
+    };
+
+    const handleDeleteCategory = (name: string) => {
+      setCategories(categories.filter(c => c !== name));
+    };
+
+    return (
+      <div className="h-full overflow-auto">
+        <CategoryListView
+          title="词库分类"
+          description="选择分类查看和管理词条"
+          categories={categories}
+          onCategoryClick={handleCategoryClick}
+          onAddCategory={handleAddCategory}
+          onEditCategory={handleEditCategory}
+          onDeleteCategory={handleDeleteCategory}
+          getCategoryStats={getCategoryStats}
+        />
+      </div>
+    );
+  }
+
+  // --- LIST VIEW ---
   return (
     <div className="p-8 max-w-7xl mx-auto w-full h-full flex flex-col">
       {/* Header */}
       <div className="flex justify-between items-center mb-8 shrink-0">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center">
-            <BookA size={24} className="mr-3 text-indigo-600" />
-            词库管理 (Lexicon)
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            维护专业术语热词表，增强 ASR 识别准确率并辅助大模型理解业务上下文。
-          </p>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              setView('CATEGORY_LIST');
+              setSelectedCategory(null);
+              setFilterCategory('ALL');
+            }}
+            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center">
+                <BookA size={24} className="mr-3 text-indigo-600" />
+                {selectedCategory}
+              </h1>
+              <span className="text-sm text-slate-400">词库管理</span>
+            </div>
+            <p className="text-sm text-slate-500 mt-1">
+              维护专业术语热词表，增强 ASR 识别准确率并辅助大模型理解业务上下文。
+            </p>
+          </div>
         </div>
         <div className="flex space-x-3">
            <button className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all flex items-center shadow-sm">

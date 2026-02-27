@@ -16,9 +16,14 @@ interface BotDebugConfigProps {
 
 interface LatencyMetrics {
   asr?: number;
-  llm: number;
-  tts?: number;
-  total: number;
+  llmTTFB?: number;
+  llmStreamOutput?: number;
+  llmTotal: number;
+  ttsFirstAudio?: number;
+  ttsFullPlayback?: number;
+  ttsTotal?: number;
+  e2eTTFB?: number;
+  e2eTotal?: number;
 }
 
 interface TokenMetrics {
@@ -69,6 +74,7 @@ const BotDebugConfig: React.FC<BotDebugConfigProps> = ({ config }) => {
   const [saveToRecord, setSaveToRecord] = useState(true);
   const [debugVoice, setDebugVoice] = useState(config.voiceName || 'Azure-Xiaoxiao');
   const [showVariables, setShowVariables] = useState(true);
+  const [showLatencyDetail, setShowLatencyDetail] = useState(false);
   const [showTags, setShowTags] = useState(true);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -109,82 +115,90 @@ const BotDebugConfig: React.FC<BotDebugConfigProps> = ({ config }) => {
 
   // --- MOCK LOGIC ENGINE ---
   const generateMockResponse = async (userText: string) => {
-    // 1. Latency Simulation
     const asrTime = isVoiceMode ? Math.floor(Math.random() * 200) + 100 : 0;
-    const llmTime = Math.floor(Math.random() * 500) + 200; 
-    
-    await new Promise(r => setTimeout(r, asrTime + llmTime)); 
+    const llmTTFB = Math.floor(Math.random() * 200) + 150;
+    const llmStreamOutput = Math.floor(Math.random() * 300) + 100;
+    const llmTotal = llmTTFB + llmStreamOutput;
+
+    await new Promise(r => setTimeout(r, asrTime + llmTotal));
 
     let responseText = "好的，我记录下来了。请问还有其他问题吗？";
     let actionEvent = undefined;
-    let messageTags = ['大模型回复']; // Default tag
+    let messageTags = ['大模型回复'];
 
-    // 2. Logic & Tagging
     if (userText.includes('你好') || userText.includes('开始')) {
       responseText = "您好，这里是智能客服中心，请问有什么可以帮您？";
       messageTags = ['开场白'];
-    } 
-    else if (userText.includes('我是')) {
-       const name = userText.replace('我是', '').replace('我叫', '');
-       responseText = `${name}您好，很高兴为您服务。`;
-       setExtractionVars(prev => ({ ...prev, '客户姓名': name }));
-       messageTags = ['大模型回复', '信息提取'];
-    }
-    else if (userText.includes('转人工')) {
+    } else if (userText.includes('我是')) {
+      const name = userText.replace('我是', '').replace('我叫', '');
+      responseText = `${name}您好，很高兴为您服务。`;
+      setExtractionVars(prev => ({ ...prev, '客户姓名': name }));
+      messageTags = ['大模型回复', '信息提取'];
+    } else if (userText.includes('转人工')) {
       responseText = "好的，正在为您转接高级客户经理，请稍候...";
       actionEvent = { type: 'TRANSFER' as const, detail: 'VIP专家坐席', reason: '客户主动要求' };
       messageTags = ['转人工话术', '意图识别: 转人工'];
-    } 
-    else if (userText.includes('挂断') || userText.includes('再见') || userText.includes('不需要') || userText.includes('结束')) {
+    } else if (userText.includes('挂断') || userText.includes('再见') || userText.includes('不需要') || userText.includes('结束')) {
       responseText = "感谢您的来电，祝您生活愉快，再见。";
       actionEvent = { type: 'HANGUP' as const, detail: '正常挂机', reason: '业务结束' };
       messageTags = ['挂机话术', '意图识别: 挂断'];
-      
-      // Auto Tagging Logic
       const simulatedAutoTags: string[] = [];
       config.labelGroups.forEach(group => {
-          if (!group.enabled || group.tags.length === 0) return;
-          if (group.name === '意向标签') {
-             if (userText.includes('不需要')) {
-                 const tag = group.tags.find(t => t.name.includes('拒绝') || t.name.includes('C级'));
-                 if (tag) simulatedAutoTags.push(tag.name);
-             } else if (userText.includes('明天') || userText.includes('回访')) {
-                 const tag = group.tags.find(t => t.name.includes('A级') || t.name.includes('有意向'));
-                 if (tag) simulatedAutoTags.push(tag.name);
-             } else {
-                 simulatedAutoTags.push(group.tags[0].name);
-             }
+        if (!group.enabled || group.tags.length === 0) return;
+        if (group.name === '意向标签') {
+          if (userText.includes('不需要')) {
+            const tag = group.tags.find(t => t.name.includes('拒绝') || t.name.includes('C级'));
+            if (tag) simulatedAutoTags.push(tag.name);
+          } else if (userText.includes('明天') || userText.includes('回访')) {
+            const tag = group.tags.find(t => t.name.includes('A级') || t.name.includes('有意向'));
+            if (tag) simulatedAutoTags.push(tag.name);
+          } else {
+            simulatedAutoTags.push(group.tags[0].name);
           }
+        }
       });
       setSystemTags(simulatedAutoTags);
-    }
-    else if (userText.includes('明天') || userText.includes('回访')) {
-       responseText = "好的，已为您预约明天下午的回访。";
-       setExtractionVars(prev => ({ 
-           ...prev, 
-           '下次回访时间': '2024-05-21 14:00',
-           '客户意图': 'A级(有回访意愿)'
-       }));
-       messageTags = ['大模型回复', '信息提取', '预约成功'];
+    } else if (userText.includes('明天') || userText.includes('回访')) {
+      responseText = "好的，已为您预约明天下午的回访。";
+      setExtractionVars(prev => ({
+        ...prev,
+        '下次回访时间': '2024-05-21 14:00',
+        '客户意图': 'A级(有回访意愿)'
+      }));
+      messageTags = ['大模型回复', '信息提取', '预约成功'];
     }
 
-    // Check if input vars were used in response (Simulation)
     Object.values(inputVars).forEach((val) => {
-        const v = val as string;
-        if (v && responseText.includes(v)) {
-            if (!messageTags.includes('使用输入变量')) messageTags.push('使用输入变量');
-        }
+      const v = val as string;
+      if (v && responseText.includes(v)) {
+        if (!messageTags.includes('使用输入变量')) messageTags.push('使用输入变量');
+      }
     });
 
-    // Update System Time
     setConversationVars(prev => ({ ...prev, '当前时间': new Date().toLocaleTimeString() }));
 
-    const ttsTime = isVoiceMode ? Math.min(1000, responseText.length * 50) : 0;
-    if (isVoiceMode) await new Promise(r => setTimeout(r, ttsTime));
+    const ttsFirstAudio = Math.floor(Math.random() * 100) + 50;
+    const ttsFullPlayback = Math.min(800, responseText.length * 40);
+    const ttsTotal = ttsFirstAudio + ttsFullPlayback;
+
+    if (isVoiceMode) await new Promise(r => setTimeout(r, ttsTotal));
+
+    const e2eTTFB = asrTime + llmTTFB + ttsFirstAudio;
+    const e2eTotal = asrTime + llmTotal + ttsTotal;
 
     return {
       responseText,
-      latency: { asr: asrTime, llm: llmTime, tts: ttsTime, total: asrTime + llmTime + ttsTime },
+      latency: {
+        asr: asrTime,
+        llmTTFB,
+        llmStreamOutput,
+        llmTotal,
+        ttsFirstAudio,
+        ttsFullPlayback,
+        ttsTotal,
+        e2eTTFB,
+        e2eTotal
+      },
       actionEvent,
       tags: messageTags
     };
@@ -271,7 +285,7 @@ const BotDebugConfig: React.FC<BotDebugConfigProps> = ({ config }) => {
       role: 'model',
       content: openingText,
       timestamp: Date.now(),
-      latency: { llm: 120, total: 120 },
+      latency: { llmTotal: 120, e2eTTFB: 120, e2eTotal: 120 },
       tags: ['开场白', '使用输入变量', '自动触发']
     };
     setMessages([botMsg]);
@@ -405,19 +419,90 @@ const BotDebugConfig: React.FC<BotDebugConfigProps> = ({ config }) => {
                        <div className="text-[10px] text-slate-400 mb-1 ml-1 flex items-center space-x-2">
                           <span className="font-bold text-slate-600">Bot</span>
                           {isVoiceMode ? (
-                            <div className="flex space-x-1 bg-slate-100 px-1.5 py-0.5 rounded text-[9px] font-mono">
-                               <span title="ASR 识别耗时">ASR:{msg.latency.asr}ms</span>
+                            <div 
+                              onClick={() => setShowLatencyDetail(!showLatencyDetail)}
+                              className="flex space-x-1 bg-slate-100 px-1.5 py-0.5 rounded text-[9px] font-mono cursor-pointer hover:bg-slate-200 transition-colors"
+                            >
+                               <span title="端到端首字延迟（用户最关注）" className="text-red-600 font-bold">
+                                 E2E首字:{msg.latency.e2eTTFB}ms
+                               </span>
                                <span className="text-slate-300">|</span>
-                               <span title="LLM 生成耗时" className="text-orange-600 font-bold">LLM:{msg.latency.llm}ms</span>
-                               <span className="text-slate-300">|</span>
-                               <span title="TTS 合成耗时">TTS:{msg.latency.tts}ms</span>
+                               <span title="端到端总耗时">
+                                 总耗时:{msg.latency.e2eTotal}ms
+                               </span>
+                               <span className="text-slate-400 ml-1">{showLatencyDetail ? '▲' : '▼'}</span>
                             </div>
                           ) : (
                             <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-[9px]">
-                              耗时: {msg.latency.llm}ms
+                              耗时: {msg.latency.llmTotal}ms
                             </span>
                           )}
                        </div>
+                    )}
+
+                    {/* Latency Detail Panel */}
+                    {msg.role === 'model' && msg.latency && isVoiceMode && showLatencyDetail && (
+                      <div className="mb-2 ml-1 p-2 bg-slate-50 rounded-lg border border-slate-200 text-[10px]">
+                        <div className="font-bold text-slate-500 mb-2 flex items-center">
+                          <Clock size={10} className="mr-1" />耗时分解
+                        </div>
+                        <div className="space-y-1.5">
+                          <div className="flex items-center">
+                            <span className="w-14 text-slate-500">ASR</span>
+                            <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-blue-400" 
+                                style={{ width: `${Math.min(100, ((msg.latency.asr || 0) / (msg.latency.e2eTotal || 1)) * 100)}%` }}
+                              />
+                            </div>
+                            <span className="w-12 text-right text-slate-600">{msg.latency.asr}ms</span>
+                          </div>
+                          <div className="flex items-center">
+                            <span className="w-14 text-slate-500">LLM首字</span>
+                            <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-orange-500" 
+                                style={{ width: `${Math.min(100, ((msg.latency.llmTTFB || 0) / (msg.latency.e2eTotal || 1)) * 100)}%` }}
+                              />
+                            </div>
+                            <span className="w-12 text-right text-orange-600 font-bold">{msg.latency.llmTTFB}ms ⭐</span>
+                          </div>
+                          <div className="flex items-center">
+                            <span className="w-14 text-slate-500">LLM输出</span>
+                            <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-orange-300" 
+                                style={{ width: `${Math.min(100, ((msg.latency.llmStreamOutput || 0) / (msg.latency.e2eTotal || 1)) * 100)}%` }}
+                              />
+                            </div>
+                            <span className="w-12 text-right text-slate-600">{msg.latency.llmStreamOutput}ms</span>
+                          </div>
+                          <div className="flex items-center">
+                            <span className="w-14 text-slate-500">TTS首字</span>
+                            <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-green-500" 
+                                style={{ width: `${Math.min(100, ((msg.latency.ttsFirstAudio || 0) / (msg.latency.e2eTotal || 1)) * 100)}%` }}
+                              />
+                            </div>
+                            <span className="w-12 text-right text-green-600 font-bold">{msg.latency.ttsFirstAudio}ms ⭐</span>
+                          </div>
+                          <div className="flex items-center">
+                            <span className="w-14 text-slate-500">TTS播放</span>
+                            <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-green-400" 
+                                style={{ width: `${Math.min(100, ((msg.latency.ttsFullPlayback || 0) / (msg.latency.e2eTotal || 1)) * 100)}%` }}
+                              />
+                            </div>
+                            <span className="w-12 text-right text-slate-600">{msg.latency.ttsFullPlayback}ms</span>
+                          </div>
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-slate-200 flex justify-between text-[9px]">
+                          <span className="text-red-600 font-bold">⭐ E2E首字 = ASR + LLM首字 + TTS首字</span>
+                          <span className="text-slate-400">{msg.latency.e2eTTFB}ms</span>
+                        </div>
+                      </div>
                     )}
 
                     {/* Bubble */}

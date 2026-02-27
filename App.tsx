@@ -24,6 +24,7 @@ import OutboundTasks from './components/outbound/OutboundTasks';
 import ContactLists from './components/outbound/ContactLists';
 import CampaignManager, { MOCK_CAMPAIGNS as INITIAL_CAMPAIGNS } from './components/marketing/CampaignManager';
 import CustomerProfileManager from './components/marketing/CustomerProfileManager';
+import MonitoringReport from './components/report/MonitoringReport';
 
 // --- CONSTANTS & DEFAULTS ---
 const INITIAL_LABEL_GROUPS: LabelGroup[] = [
@@ -462,6 +463,8 @@ export default function App() {
         return <IntegrationCenter />;
       case '通信网关':
         return <GatewayCenter />;
+      case '监控报表':
+        return <MonitoringReport />;
       default:
         return (
           <div className="flex flex-col items-center justify-center h-full text-slate-400">

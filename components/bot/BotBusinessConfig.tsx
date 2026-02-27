@@ -4,6 +4,113 @@ import { Edit3, ChevronDown, ArrowUpDown, LayoutList, X, Plus, Database, HelpCir
 import { Switch, Select, TagInput } from '../ui/FormComponents';
 import { LabelGroup, BotConfiguration, ExtractionConfig, ModelType, TagItem, Parameter, ProfileExtractionRule } from '../../types';
 
+// --- Mock Data for Knowledge Base Categories ---
+// 这些分类通常来自 QAManager 和 LexiconManager
+const QA_CATEGORIES = ['闲聊', '业务', '产品咨询', '技术支持', '投诉建议', '常见问题'];
+const LEXICON_CATEGORIES = ['产品名称', '技术术语', '行业概念', '医疗词汇', '公司名', '自定义'];
+
+// --- MultiSelect Dropdown Component ---
+interface MultiSelectDropdownProps {
+  options: string[];
+  selected: string[];
+  onChange: (selected: string[]) => void;
+  placeholder?: string;
+  tagColor?: 'blue' | 'green';
+}
+
+const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ 
+  options, 
+  selected, 
+  onChange, 
+  placeholder = '请选择...',
+  tagColor = 'blue'
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const toggleOption = (option: string) => {
+    if (selected.includes(option)) {
+      onChange(selected.filter(item => item !== option));
+    } else {
+      onChange([...selected, option]);
+    }
+  };
+
+  const removeTag = (option: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    onChange(selected.filter(item => item !== option));
+  };
+
+  const tagClass = tagColor === 'green' 
+    ? 'bg-green-50 text-green-600 border-green-100' 
+    : 'bg-blue-50 text-blue-600 border-blue-100';
+
+  const optionActiveClass = tagColor === 'green'
+    ? 'bg-green-50 text-green-700'
+    : 'bg-blue-50 text-blue-700';
+
+  return (
+    <div className="relative">
+      {/* Trigger */}
+      <div 
+        className="w-full px-3 py-2 text-sm border border-gray-200 rounded bg-white cursor-pointer min-h-[38px]"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        {selected.length === 0 ? (
+          <span className="text-slate-400">{placeholder}</span>
+        ) : (
+          <div className="flex flex-wrap gap-1">
+            {selected.map(item => (
+              <span 
+                key={item} 
+                className={`px-2 py-0.5 text-xs rounded border ${tagClass} flex items-center`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {item}
+                <X 
+                  size={12} 
+                  className="ml-1 cursor-pointer hover:opacity-70" 
+                  onClick={(e) => removeTag(item, e)}
+                />
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Dropdown */}
+      {isOpen && (
+        <>
+          <div 
+            className="fixed inset-0 z-10" 
+            onClick={() => setIsOpen(false)}
+          />
+          <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-48 overflow-y-auto">
+            {options.map(option => (
+              <div
+                key={option}
+                className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${
+                  selected.includes(option) ? optionActiveClass : 'text-slate-700'
+                }`}
+                onClick={() => toggleOption(option)}
+              >
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(option)}
+                    onChange={() => {}}
+                    className="mr-2 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  {option}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
 interface BotBusinessConfigProps {
   config: BotConfiguration;
   updateField: <K extends keyof BotConfiguration>(key: K, value: BotConfiguration[K]) => void;
@@ -246,20 +353,37 @@ const BotBusinessConfig: React.FC<BotBusinessConfigProps> = ({ config, updateFie
            </div>
 
            <div className={`space-y-6 transition-opacity duration-300 ${!config.kbEnabled ? 'opacity-50 pointer-events-none' : ''}`}>
-              <div className="p-4 bg-slate-50 border border-slate-100 rounded-lg">
+              <div className="p-4 bg-slate-50 border border-slate-100 rounded-lg space-y-4">
                  <div className="flex items-center mb-2">
                     <span className="text-sm font-bold text-slate-700">生效分类 (Allowed Categories)</span>
                     <HelpCircle size={14} className="ml-1 text-slate-400" />
                  </div>
                  <div className="text-xs text-slate-500 mb-3">
-                    仅使用以下分类的问答对。留空则使用所有分类。
+                    选择要使用的问答对分类和词库分类，用于知识库问答匹配。
                  </div>
-                 <TagInput 
-                    label="" 
-                    placeholder="输入分类后回车 (如: 业务咨询)"
-                    tags={config.kbCategories || []}
-                    onChange={(tags) => updateField('kbCategories', tags)}
-                 />
+                 
+                 {/* 问答对分类选择 */}
+                 <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-2">问答对分类</label>
+                    <MultiSelectDropdown
+                       options={QA_CATEGORIES}
+                       selected={config.kbQACategories || []}
+                       onChange={(selected) => updateField('kbQACategories', selected)}
+                       placeholder="选择问答对分类"
+                    />
+                 </div>
+                 
+                 {/* 词库分类选择 */}
+                 <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-2">词库分类</label>
+                    <MultiSelectDropdown
+                       options={LEXICON_CATEGORIES}
+                       selected={config.kbLexiconCategories || []}
+                       onChange={(selected) => updateField('kbLexiconCategories', selected)}
+                       placeholder="选择词库分类"
+                       tagColor="green"
+                    />
+                 </div>
               </div>
            </div>
 

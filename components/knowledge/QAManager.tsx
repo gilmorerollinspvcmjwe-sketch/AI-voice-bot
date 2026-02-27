@@ -1,13 +1,16 @@
 
 import React, { useState } from 'react';
 import { 
-  Plus, Search, Download, ArrowRight, X, Volume2, Play, Loader2, Upload, ChevronDown, CheckCircle2
+  Plus, Search, Download, ArrowRight, X, Volume2, Play, Loader2, Upload, ChevronDown, CheckCircle2, Trash2, Power, PowerOff, ArrowLeft
 } from 'lucide-react';
-import { QAPair } from '../../types';
+import { QAPair, RAGConfig as RAGConfigType } from '../../types';
 import { TagInput, Label, Switch as ToggleSwitch } from '../ui/FormComponents';
+import RAGConfigPanel from './RAGConfig';
+import CategoryListView from './CategoryListView';
+import { DEFAULT_RAG_CONFIG } from '../../services/ragService';
 
 // --- MOCK DATA ---
-const MOCK_QA_PAIRS: QAPair[] = [
+export const MOCK_QA_PAIRS: QAPair[] = [
   {
     id: '1',
     standardQuestion: '你吃什么',
@@ -63,7 +66,9 @@ const ACTIVE_SYSTEM_VOICES = ['Azure-Xiaoxiao', 'Azure-Yunxi', 'Gemini-Voice-Kor
 
 export default function QAManager() {
   const [qaPairs, setQaPairs] = useState<QAPair[]>(MOCK_QA_PAIRS);
-  const [view, setView] = useState<'LIST' | 'FORM'>('LIST');
+  const [view, setView] = useState<'CATEGORY_LIST' | 'LIST' | 'FORM'>('CATEGORY_LIST');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [categories, setCategories] = useState<string[]>(['闲聊', '业务']);
   const [editingItem, setEditingItem] = useState<QAPair | null>(null);
   
   // Modal States
@@ -85,12 +90,21 @@ export default function QAManager() {
   const [batchScope, setBatchScope] = useState<'active' | 'selected'>('active');
   const [batchProgress, setBatchProgress] = useState<{current: number, total: number} | null>(null);
 
+  // Batch Operations State
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isBatchDeleteConfirmOpen, setIsBatchDeleteConfirmOpen] = useState(false);
+  const [isBatchToggleConfirmOpen, setIsBatchToggleConfirmOpen] = useState(false);
+  const [batchToggleAction, setBatchToggleAction] = useState<'enable' | 'disable'>('enable');
+
+  // RAG Config State
+  const [ragConfig, setRagConfig] = useState<RAGConfigType>(DEFAULT_RAG_CONFIG);
+
   const handleCreate = () => {
     setFormData({
       standardQuestion: '',
       similarQuestions: [],
       answer: '',
-      category: '通用',
+      category: selectedCategory || '通用',
       validityType: 'permanent',
       isActive: true,
       audioResources: {},
@@ -143,6 +157,42 @@ export default function QAManager() {
 
   const toggleActive = (id: string, currentStatus: boolean) => {
     setQaPairs(prev => prev.map(p => p.id === id ? { ...p, isActive: !currentStatus } : p));
+  };
+
+  // --- Batch Operations Logic ---
+  const toggleSelectAll = () => {
+    if (selectedIds.size === qaPairs.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(qaPairs.map(p => p.id)));
+    }
+  };
+
+  const toggleSelectItem = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const handleBatchDelete = () => {
+    if (selectedIds.size === 0) return;
+    setQaPairs(prev => prev.filter(p => !selectedIds.has(p.id)));
+    setSelectedIds(new Set());
+    setIsBatchDeleteConfirmOpen(false);
+  };
+
+  const handleBatchToggle = () => {
+    if (selectedIds.size === 0) return;
+    const newStatus = batchToggleAction === 'enable';
+    setQaPairs(prev => prev.map(p => 
+      selectedIds.has(p.id) ? { ...p, isActive: newStatus } : p
+    ));
+    setSelectedIds(new Set());
+    setIsBatchToggleConfirmOpen(false);
   };
 
   // --- Import/Export Logic ---
@@ -319,15 +369,102 @@ export default function QAManager() {
     );
   }
 
+  // --- CATEGORY LIST VIEW ---
+  if (view === 'CATEGORY_LIST') {
+    const getCategoryStats = (category: string) => {
+      const items = qaPairs.filter(qa => qa.category === category);
+      const activeCount = items.filter(qa => qa.isActive).length;
+      const inactiveCount = items.filter(qa => !qa.isActive).length;
+      const lastUpdated = items.length > 0 
+        ? Math.max(...items.map(qa => qa.lastUpdated || 0))
+        : undefined;
+      
+      return {
+        count: items.length,
+        lastUpdated,
+        activeCount,
+        inactiveCount,
+      };
+    };
+
+    const handleCategoryClick = (category: string) => {
+      setSelectedCategory(category);
+      setView('LIST');
+    };
+
+    const handleAddCategory = (name: string) => {
+      if (!categories.includes(name)) {
+        setCategories([...categories, name]);
+      }
+    };
+
+    const handleEditCategory = (oldName: string, newName: string) => {
+      if (oldName === newName) return;
+      if (categories.includes(newName)) {
+        alert('分类名称已存在');
+        return;
+      }
+      
+      // Update category name in list
+      setCategories(categories.map(c => c === oldName ? newName : c));
+      
+      // Update category in all QA pairs
+      setQaPairs(qaPairs.map(qa => 
+        qa.category === oldName ? { ...qa, category: newName } : qa
+      ));
+    };
+
+    const handleDeleteCategory = (name: string) => {
+      setCategories(categories.filter(c => c !== name));
+    };
+
+    return (
+      <div className="h-full overflow-auto">
+        <CategoryListView
+          title="问答对分类"
+          description="选择分类查看和管理问答对"
+          categories={categories}
+          onCategoryClick={handleCategoryClick}
+          onAddCategory={handleAddCategory}
+          onEditCategory={handleEditCategory}
+          onDeleteCategory={handleDeleteCategory}
+          getCategoryStats={getCategoryStats}
+        >
+          {/* RAG Config Panel */}
+          <RAGConfigPanel config={ragConfig} onChange={setRagConfig} />
+        </CategoryListView>
+      </div>
+    );
+  }
+
   // --- LIST VIEW ---
   return (
     <div className="p-6 max-w-full mx-auto w-full relative h-full flex flex-col">
+      {/* RAG Config Panel */}
+      <div className="mb-6">
+        <RAGConfigPanel config={ragConfig} onChange={setRagConfig} />
+      </div>
+
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4 shrink-0">
-        <div>
-          <h1 className="text-lg font-bold text-slate-900 tracking-tight">问答对管理</h1>
-          <p className="text-xs text-slate-500 mt-1">
-             维护 NLP 知识库，支持批量生成 TTS 语音。
-          </p>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              setView('CATEGORY_LIST');
+              setSelectedCategory(null);
+            }}
+            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-bold text-slate-900 tracking-tight">{selectedCategory}</h1>
+              <span className="text-xs text-slate-400">问答对管理</span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+               维护 NLP 知识库，支持批量生成 TTS 语音。
+            </p>
+          </div>
         </div>
         <div className="flex space-x-3">
            {/* Import Button */}
@@ -388,6 +525,39 @@ export default function QAManager() {
               />
            </div>
            <div className="flex items-center space-x-2">
+              {selectedIds.size > 0 && (
+                <div className="flex items-center space-x-2 mr-4 animate-in fade-in slide-in-from-right-2">
+                  <span className="text-xs text-slate-600">
+                    已选择 <span className="font-bold text-primary">{selectedIds.size}</span> 条
+                  </span>
+                  <div className="h-4 w-px bg-slate-300"></div>
+                  <button 
+                    onClick={() => { setBatchToggleAction('enable'); setIsBatchToggleConfirmOpen(true); }}
+                    className="flex items-center px-2 py-1 text-xs font-medium text-green-600 hover:bg-green-50 rounded transition-colors"
+                  >
+                    <Power size={12} className="mr-1" /> 批量启用
+                  </button>
+                  <button 
+                    onClick={() => { setBatchToggleAction('disable'); setIsBatchToggleConfirmOpen(true); }}
+                    className="flex items-center px-2 py-1 text-xs font-medium text-orange-600 hover:bg-orange-50 rounded transition-colors"
+                  >
+                    <PowerOff size={12} className="mr-1" /> 批量停用
+                  </button>
+                  <button 
+                    onClick={() => setIsBatchDeleteConfirmOpen(true)}
+                    className="flex items-center px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 rounded transition-colors"
+                  >
+                    <Trash2 size={12} className="mr-1" /> 批量删除
+                  </button>
+                  <div className="h-4 w-px bg-slate-300"></div>
+                  <button 
+                    onClick={() => setSelectedIds(new Set())}
+                    className="text-xs text-slate-400 hover:text-slate-600"
+                  >
+                    取消选择
+                  </button>
+                </div>
+              )}
               <span className="text-xs text-slate-400 pl-2">
                   共 {qaPairs.length} 条
               </span>
@@ -399,7 +569,12 @@ export default function QAManager() {
             <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
               <tr>
                 <th className="w-10 px-4 py-3 bg-slate-50">
-                   <input type="checkbox" className="rounded border-slate-300 text-primary focus:ring-primary/20" />
+                   <input 
+                     type="checkbox" 
+                     className="rounded border-slate-300 text-primary focus:ring-primary/20"
+                     checked={selectedIds.size > 0 && selectedIds.size === qaPairs.length}
+                     onChange={toggleSelectAll}
+                   />
                 </th>
                 <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-1/5">标准问题</th>
                 <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">分类</th>
@@ -413,9 +588,14 @@ export default function QAManager() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {qaPairs.map(item => (
-                <tr key={item.id} className="hover:bg-slate-50 transition-colors group relative">
+                <tr key={item.id} className={`hover:bg-slate-50 transition-colors group relative ${selectedIds.has(item.id) ? 'bg-blue-50/30' : ''}`}>
                   <td className="px-4 py-3">
-                     <input type="checkbox" className="rounded border-slate-300 text-primary focus:ring-primary/20" />
+                     <input 
+                       type="checkbox" 
+                       className="rounded border-slate-300 text-primary focus:ring-primary/20"
+                       checked={selectedIds.has(item.id)}
+                       onChange={() => toggleSelectItem(item.id)}
+                     />
                   </td>
                   <td className="px-4 py-3">
                     <div className={`text-sm font-medium ${item.isActive ? 'text-slate-700' : 'text-slate-400'}`}>{item.standardQuestion}</div>
@@ -575,9 +755,15 @@ export default function QAManager() {
                                <input type="radio" checked={batchScope === 'active'} onChange={() => setBatchScope('active')} className="mr-1.5 text-primary scale-90" />
                                <span className="text-xs text-slate-600">所有启用状态的问答</span>
                             </label>
-                            <label className="flex items-center cursor-pointer opacity-50 cursor-not-allowed">
-                               <input type="radio" checked={batchScope === 'selected'} disabled className="mr-1.5 text-primary scale-90" />
-                               <span className="text-xs text-slate-600">仅勾选的问答 (0)</span>
+                            <label className={`flex items-center cursor-pointer ${selectedIds.size === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                               <input 
+                                 type="radio" 
+                                 checked={batchScope === 'selected'} 
+                                 disabled={selectedIds.size === 0}
+                                 onChange={() => setBatchScope('selected')} 
+                                 className="mr-1.5 text-primary scale-90" 
+                               />
+                               <span className="text-xs text-slate-600">仅勾选的问答 ({selectedIds.size})</span>
                             </label>
                          </div>
                       </div>
@@ -633,6 +819,91 @@ export default function QAManager() {
               <button onClick={() => setImportResult(null)} className="w-full py-2 bg-primary text-white rounded-lg text-sm font-bold hover:bg-sky-600">
                  确定
               </button>
+           </div>
+        </div>
+      )}
+
+      {/* Batch Delete Confirm Modal */}
+      {isBatchDeleteConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+           <div className="bg-white rounded-lg shadow-xl w-96 overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100">
+                 <h3 className="text-sm font-bold text-slate-800 flex items-center">
+                    <Trash2 size={16} className="mr-2 text-red-500" />
+                    确认批量删除
+                 </h3>
+              </div>
+              <div className="p-5">
+                 <p className="text-sm text-slate-600 mb-2">
+                    您确定要删除选中的 <span className="font-bold text-red-500">{selectedIds.size}</span> 条问答对吗？
+                 </p>
+                 <p className="text-xs text-slate-400">
+                    此操作不可撤销，删除后机器人将无法回答这些问题。
+                 </p>
+              </div>
+              <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end space-x-2">
+                 <button 
+                   onClick={() => setIsBatchDeleteConfirmOpen(false)} 
+                   className="px-4 py-2 border border-slate-300 rounded text-slate-600 text-xs font-medium hover:bg-white"
+                 >
+                    取消
+                 </button>
+                 <button 
+                   onClick={handleBatchDelete}
+                   className="px-4 py-2 bg-red-500 text-white rounded text-xs font-bold hover:bg-red-600 shadow-sm"
+                 >
+                    确认删除
+                 </button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* Batch Toggle Confirm Modal */}
+      {isBatchToggleConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+           <div className="bg-white rounded-lg shadow-xl w-96 overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100">
+                 <h3 className="text-sm font-bold text-slate-800 flex items-center">
+                    {batchToggleAction === 'enable' ? (
+                      <><Power size={16} className="mr-2 text-green-500" /> 确认批量启用</>
+                    ) : (
+                      <><PowerOff size={16} className="mr-2 text-orange-500" /> 确认批量停用</>
+                    )}
+                 </h3>
+              </div>
+              <div className="p-5">
+                 <p className="text-sm text-slate-600 mb-2">
+                    {batchToggleAction === 'enable' ? (
+                      <>您确定要启用选中的 <span className="font-bold text-green-500">{selectedIds.size}</span> 条问答对吗？</>
+                    ) : (
+                      <>您确定要停用选中的 <span className="font-bold text-orange-500">{selectedIds.size}</span> 条问答对吗？</>
+                    )}
+                 </p>
+                 <p className="text-xs text-slate-400">
+                    {batchToggleAction === 'enable' 
+                      ? '启用后，机器人将可以回答这些问题。' 
+                      : '停用后，机器人将不再回答这些问题，但数据仍保留。'}
+                 </p>
+              </div>
+              <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end space-x-2">
+                 <button 
+                   onClick={() => setIsBatchToggleConfirmOpen(false)} 
+                   className="px-4 py-2 border border-slate-300 rounded text-slate-600 text-xs font-medium hover:bg-white"
+                 >
+                    取消
+                 </button>
+                 <button 
+                   onClick={handleBatchToggle}
+                   className={`px-4 py-2 text-white rounded text-xs font-bold shadow-sm ${
+                     batchToggleAction === 'enable' 
+                       ? 'bg-green-500 hover:bg-green-600' 
+                       : 'bg-orange-500 hover:bg-orange-600'
+                   }`}
+                 >
+                    确认{batchToggleAction === 'enable' ? '启用' : '停用'}
+                 </button>
+              </div>
            </div>
         </div>
       )}
