@@ -3,6 +3,7 @@ import React from 'react';
 import { Plus, Trash2, X } from 'lucide-react';
 import { IntentNode, LabelGroup } from '../../../../types';
 import { Label, Select } from '../../../ui/FormComponents';
+import VisualConditionBuilder from './VisualConditionBuilder';
 
 interface Props {
   node: IntentNode;
@@ -17,10 +18,11 @@ const LogicConfig: React.FC<Props> = ({ node, onChange, availableNodes = [], lab
     return (
       <div className="space-y-4">
         {(node.config?.expressions || []).map((expr: any, idx: number) => (
-          <div key={idx} className="p-3 bg-amber-50 border border-amber-100 rounded text-xs space-y-2 relative">
+          <div key={idx} className="p-3 bg-amber-50 border border-amber-100 rounded text-xs space-y-3 relative">
+            {/* Branch Name */}
             <input 
-              className="w-full px-2 py-1 bg-white border border-amber-200 rounded font-bold text-amber-800"
-              placeholder="分支名称"
+              className="w-full px-2 py-1.5 bg-white border border-amber-200 rounded font-bold text-amber-800 text-sm"
+              placeholder="分支名称 (如: 已收集姓名)"
               value={expr.name}
               onChange={(e) => {
                 const newExprs = [...(node.config?.expressions || [])];
@@ -28,21 +30,25 @@ const LogicConfig: React.FC<Props> = ({ node, onChange, availableNodes = [], lab
                 onChange({ expressions: newExprs });
               }}
             />
-            <textarea 
-              className="w-full h-16 px-2 py-1 bg-white border border-amber-200 rounded resize-none font-mono text-slate-600"
-              placeholder="JS表达式 (如: age > 18)"
-              value={expr.logic}
-              onChange={(e) => {
-                const newExprs = [...(node.config?.expressions || [])];
-                newExprs[idx] = { ...expr, logic: e.target.value };
-                onChange({ expressions: newExprs });
-              }}
-            />
+            
+            {/* Visual Condition Builder */}
+            <div className="bg-white border border-amber-100 rounded p-2">
+              <VisualConditionBuilder
+                value={expr.logic || ''}
+                onChange={(newLogic) => {
+                  const newExprs = [...(node.config?.expressions || [])];
+                  newExprs[idx] = { ...expr, logic: newLogic };
+                  onChange({ expressions: newExprs });
+                }}
+                availableVariables={['userName', 'phone', 'email', 'address', 'age', 'status', 'tags']}
+              />
+            </div>
+            
             {/* Target Node Selector for Branch */}
-            <div className="flex items-center space-x-2 pt-1 border-t border-amber-200/50">
-               <span className="text-[10px] text-amber-700 font-bold whitespace-nowrap">跳转至:</span>
+            <div className="flex items-center space-x-2 pt-2 border-t border-amber-200/50">
+               <span className="text-[10px] text-amber-700 font-bold whitespace-nowrap">满足条件后跳转至:</span>
                <select 
-                  className="flex-1 px-2 py-1 text-[10px] border border-amber-200 rounded bg-white outline-none"
+                  className="flex-1 px-2 py-1.5 text-[10px] border border-amber-200 rounded bg-white outline-none"
                   value={expr.targetNodeId || ''}
                   onChange={(e) => {
                     const newExprs = [...(node.config?.expressions || [])];
@@ -62,7 +68,7 @@ const LogicConfig: React.FC<Props> = ({ node, onChange, availableNodes = [], lab
                 const newExprs = (node.config?.expressions || []).filter((_: any, i: number) => i !== idx);
                 onChange({ expressions: newExprs });
               }}
-              className="absolute top-1 right-1 text-amber-300 hover:text-red-500"
+              className="absolute top-2 right-2 text-amber-300 hover:text-red-500 p-1"
             >
               <X size={14} />
             </button>
@@ -73,9 +79,9 @@ const LogicConfig: React.FC<Props> = ({ node, onChange, availableNodes = [], lab
             const newExpr = { id: Date.now().toString(), name: '新分支', logic: '' };
             onChange({ expressions: [...(node.config?.expressions || []), newExpr] });
           }}
-          className="w-full py-1.5 border border-dashed border-amber-300 rounded text-xs text-amber-600 hover:bg-amber-50 transition-colors flex items-center justify-center"
+          className="w-full py-2 border border-dashed border-amber-300 rounded text-xs text-amber-600 hover:bg-amber-50 transition-colors flex items-center justify-center"
         >
-          <Plus size={12} className="mr-1" /> 添加条件分支
+          <Plus size={14} className="mr-1" /> 添加条件分支
         </button>
       </div>
     );
