@@ -499,6 +499,24 @@ export interface KnowledgeCandidate {
   confidence: number;
   extractedTime: number;
   status: 'pending' | 'approved' | 'rejected';
+  // 新增字段
+  category?: string;
+  autoCategory?: string;
+  categoryConfidence?: number;
+  adoptedAt?: number;
+  adoptedBy?: string;
+}
+
+// 批量操作请求类型
+export interface BatchAdoptRequest {
+  itemIds: string[];
+  category: string;
+  syncToQAManager: boolean;
+}
+
+export interface BatchUpdateCategoryRequest {
+  itemIds: string[];
+  category: string;
 }
 
 export interface KnowledgeSettings {

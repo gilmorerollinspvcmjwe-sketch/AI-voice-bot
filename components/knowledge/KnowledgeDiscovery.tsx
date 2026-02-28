@@ -1,12 +1,14 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Lightbulb, Settings, Filter, Check, X, ArrowUpRight, 
   MessageSquare, UserCog, Loader2, Plus, Clock, AlertCircle,
-  Calendar, ChevronLeft, ChevronRight, Play, Eye
+  Calendar, ChevronLeft, ChevronRight, Play, Eye, Tag,
+  ChevronDown, Trash2
 } from 'lucide-react';
-import { KnowledgeCandidate, KnowledgeSettings } from '../../types';
+import { KnowledgeCandidate, KnowledgeSettings, QAPair } from '../../types';
 import { Switch, Slider, Select } from '../ui/FormComponents';
+import CategorySelector from './CategorySelector';
 
 // --- MOCK DATA ---
 const MOCK_CANDIDATES: KnowledgeCandidate[] = [
@@ -14,13 +16,16 @@ const MOCK_CANDIDATES: KnowledgeCandidate[] = [
     id: '1',
     question: '如何开具增值税发票？',
     similarQuestions: ['在哪里开发票', '发票怎么弄'],
-    answer: '您可以在小程序“我的订单”中选择对应订单，点击“申请开票”，填写抬头信息后即可提交。电子发票将在24小时内发送至您的邮箱。',
+    answer: '您可以在小程序"我的订单"中选择对应订单，点击"申请开票"，填写抬头信息后即可提交。电子发票将在24小时内发送至您的邮箱。',
     sourceType: 'bot_dialog',
     sourceId: 'Call_20240520_8832',
     frequency: 12,
     confidence: 0.95,
     extractedTime: Date.now() - 3600000,
-    status: 'pending'
+    status: 'pending',
+    category: '售后服务',
+    autoCategory: '售后服务',
+    categoryConfidence: 0.92
   },
   {
     id: '2',
@@ -32,7 +37,10 @@ const MOCK_CANDIDATES: KnowledgeCandidate[] = [
     frequency: 8,
     confidence: 0.88,
     extractedTime: Date.now() - 86400000,
-    status: 'pending'
+    status: 'pending',
+    category: '物流配送',
+    autoCategory: '物流配送',
+    categoryConfidence: 0.85
   },
   {
     id: '3',
@@ -43,7 +51,10 @@ const MOCK_CANDIDATES: KnowledgeCandidate[] = [
     frequency: 5,
     confidence: 0.72,
     extractedTime: Date.now() - 120000,
-    status: 'pending'
+    status: 'pending',
+    category: '物流配送',
+    autoCategory: '物流配送',
+    categoryConfidence: 0.78
   },
   {
     id: '4',
@@ -54,7 +65,10 @@ const MOCK_CANDIDATES: KnowledgeCandidate[] = [
     frequency: 3,
     confidence: 0.91,
     extractedTime: Date.now() - 4500000,
-    status: 'pending'
+    status: 'pending',
+    category: '产品咨询',
+    autoCategory: '产品咨询',
+    categoryConfidence: 0.88
   },
   {
     id: '5',
@@ -66,7 +80,10 @@ const MOCK_CANDIDATES: KnowledgeCandidate[] = [
     frequency: 2,
     confidence: 0.65,
     extractedTime: Date.now() - 500000,
-    status: 'pending'
+    status: 'pending',
+    category: '产品咨询',
+    autoCategory: '产品咨询',
+    categoryConfidence: 0.72
   }
 ];
 
@@ -76,7 +93,7 @@ const MOCK_TRANSCRIPTS: Record<string, {role: 'user' | 'agent' | 'bot', content:
     { role: 'user', content: '我想问下那个发票怎么弄啊？', time: '10:00:05' },
     { role: 'bot', content: '您是想开具增值税发票吗？', time: '10:00:08' },
     { role: 'user', content: '对的，公司报销用。', time: '10:00:12' },
-    { role: 'bot', content: '明白。您可以在小程序“我的订单”中选择对应订单，点击“申请开票”，填写抬头信息后即可提交。电子发票将在24小时内发送至您的邮箱。', time: '10:00:15' },
+    { role: 'bot', content: '明白。您可以在小程序"我的订单"中选择对应订单，点击"申请开票"，填写抬头信息后即可提交。电子发票将在24小时内发送至您的邮箱。', time: '10:00:15' },
     { role: 'user', content: '好的谢谢。', time: '10:00:20' }
   ],
   'Call_20240519_1102': [
@@ -99,14 +116,21 @@ const DEFAULT_SETTINGS: KnowledgeSettings = {
   confidenceThreshold: 60
 };
 
+// 可用分类列表
+const DEFAULT_CATEGORIES = ['售后服务', '物流配送', '支付相关', '产品咨询', '账户问题', '优惠活动', '未分类'];
+
 export default function KnowledgeDiscovery() {
   const [candidates, setCandidates] = useState<KnowledgeCandidate[]>(MOCK_CANDIDATES);
+  const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [settings, setSettings] = useState<KnowledgeSettings>(DEFAULT_SETTINGS);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [filter, setFilter] = useState<'pending' | 'approved' | 'rejected'>('pending');
   const [viewingSource, setViewingSource] = useState<KnowledgeCandidate | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
+  const [showBatchMenu, setShowBatchMenu] = useState(false);
+  const [batchCategory, setBatchCategory] = useState('');
+  const [syncToQA, setSyncToQA] = useState(true);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -114,7 +138,6 @@ export default function KnowledgeDiscovery() {
 
   const filteredCandidates = candidates.filter(c => {
     if (c.status !== filter) return false;
-    // Client-side filtering simulation based on settings (e.g. confidence)
     if (c.confidence * 100 < settings.confidenceThreshold) return false;
     return true;
   });
@@ -142,23 +165,117 @@ export default function KnowledgeDiscovery() {
     }
   };
 
-  const handleStatusChange = (id: string, status: KnowledgeCandidate['status']) => {
-    setCandidates(prev => prev.map(c => c.id === id ? { ...c, status } : c));
-    setSelectedIds(selectedIds.filter(i => i !== id));
+  // 更新单个条目的分类
+  const handleUpdateCategory = (id: string, category: string) => {
+    setCandidates(prev => prev.map(c => 
+      c.id === id ? { ...c, category } : c
+    ));
+  };
+
+  // 采纳单个条目
+  const handleAdopt = (item: KnowledgeCandidate) => {
+    const updatedItem: KnowledgeCandidate = {
+      ...item,
+      status: 'approved',
+      adoptedAt: Date.now(),
+      adoptedBy: 'current_user'
+    };
     
-    if (status === 'approved') {
-      showToast('已添加到问答库', '该知识现已生效');
+    setCandidates(prev => prev.map(c => c.id === item.id ? updatedItem : c));
+    setSelectedIds(selectedIds.filter(i => i !== item.id));
+    
+    // 同步到问答对管理
+    if (syncToQA) {
+      syncToQAManager(updatedItem);
     }
+    
+    showToast('已采纳', `已添加到${item.category || '默认分类'}`);
   };
 
-  const handleBatchApprove = () => {
-    selectedIds.forEach(id => handleStatusChange(id, 'approved'));
+  // 批量采纳
+  const handleBatchAdopt = () => {
+    const targetCategory = batchCategory || '默认分类';
+    
+    selectedIds.forEach(id => {
+      const item = candidates.find(c => c.id === id);
+      if (item) {
+        const updatedItem: KnowledgeCandidate = {
+          ...item,
+          status: 'approved',
+          category: targetCategory,
+          adoptedAt: Date.now(),
+          adoptedBy: 'current_user'
+        };
+        
+        setCandidates(prev => prev.map(c => c.id === id ? updatedItem : c));
+        
+        if (syncToQA) {
+          syncToQAManager(updatedItem);
+        }
+      }
+    });
+    
     setSelectedIds([]);
+    setShowBatchMenu(false);
+    setBatchCategory('');
+    showToast('批量采纳完成', `已采纳 ${selectedIds.length} 条知识`);
   };
 
+  // 批量修改分类
+  const handleBatchUpdateCategory = () => {
+    if (!batchCategory) return;
+    
+    selectedIds.forEach(id => {
+      setCandidates(prev => prev.map(c => 
+        c.id === id ? { ...c, category: batchCategory } : c
+      ));
+    });
+    
+    setShowBatchMenu(false);
+    setBatchCategory('');
+    showToast('批量修改完成', `已修改 ${selectedIds.length} 条知识的分类`);
+  };
+
+  // 批量忽略
   const handleBatchReject = () => {
-    selectedIds.forEach(id => handleStatusChange(id, 'rejected'));
+    selectedIds.forEach(id => {
+      setCandidates(prev => prev.map(c => 
+        c.id === id ? { ...c, status: 'rejected' } : c
+      ));
+    });
+    
     setSelectedIds([]);
+    setShowBatchMenu(false);
+    showToast('批量忽略完成', `已忽略 ${selectedIds.length} 条知识`);
+  };
+
+  // 同步到问答对管理
+  const syncToQAManager = (item: KnowledgeCandidate) => {
+    const qaPair: QAPair = {
+      id: `qa_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      question: item.question,
+      answer: item.answer,
+      similarQuestions: item.similarQuestions || [],
+      category: item.category || '默认分类',
+      status: 'active',
+      source: 'knowledge_discovery',
+      sourceId: item.id,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+    
+    // 这里应该调用API保存到问答对管理
+    console.log('同步到问答对管理:', qaPair);
+    
+    // 触发事件通知问答对管理组件
+    window.dispatchEvent(new CustomEvent('qa-pair-added', { detail: qaPair }));
+  };
+
+  // 添加新分类
+  const handleAddCategory = (newCategory: string) => {
+    if (!categories.includes(newCategory)) {
+      setCategories([...categories, newCategory]);
+    }
   };
 
   const handleManualExtraction = () => {
@@ -235,18 +352,83 @@ export default function KnowledgeDiscovery() {
            {selectedIds.length > 0 && (
              <div className="flex items-center space-x-2 animate-in fade-in slide-in-from-right-5 duration-200">
                 <span className="text-xs text-slate-500 mr-2">已选 {selectedIds.length} 项</span>
-                <button 
-                  onClick={handleBatchApprove}
-                  className="px-3 py-1.5 bg-green-50 text-green-700 border border-green-200 rounded text-xs font-bold hover:bg-green-100 flex items-center"
-                >
-                  <Plus size={12} className="mr-1" /> 批量采纳
-                </button>
-                <button 
-                  onClick={handleBatchReject}
-                  className="px-3 py-1.5 bg-slate-100 text-slate-600 border border-slate-200 rounded text-xs font-medium hover:bg-slate-200"
-                >
-                  批量忽略
-                </button>
+                
+                {/* 批量操作下拉 */}
+                <div className="relative">
+                  <button 
+                    onClick={() => setShowBatchMenu(!showBatchMenu)}
+                    className="px-3 py-1.5 bg-primary text-white rounded text-xs font-bold hover:bg-primary/90 flex items-center"
+                  >
+                    批量操作
+                    <ChevronDown size={12} className="ml-1" />
+                  </button>
+                  
+                  {showBatchMenu && (
+                    <>
+                      <div 
+                        className="fixed inset-0 z-40"
+                        onClick={() => setShowBatchMenu(false)}
+                      />
+                      <div className="absolute right-0 top-full mt-1 w-56 bg-white border border-slate-200 rounded-lg shadow-lg z-50 py-1">
+                        {/* 批量采纳 */}
+                        <div className="px-3 py-2 border-b border-slate-100">
+                          <div className="text-xs font-bold text-slate-700 mb-2">批量采纳到</div>
+                          <CategorySelector
+                            value={batchCategory}
+                            onChange={setBatchCategory}
+                            categories={categories}
+                            onAddCategory={handleAddCategory}
+                            placeholder="选择分类"
+                          />
+                          <label className="flex items-center mt-2 text-xs text-slate-600">
+                            <input
+                              type="checkbox"
+                              checked={syncToQA}
+                              onChange={(e) => setSyncToQA(e.target.checked)}
+                              className="mr-1.5 rounded border-slate-300 text-primary"
+                            />
+                            同步到问答对管理
+                          </label>
+                          <button
+                            onClick={handleBatchAdopt}
+                            disabled={!batchCategory}
+                            className="w-full mt-2 py-1.5 bg-green-500 text-white rounded text-xs font-medium hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            确认采纳
+                          </button>
+                        </div>
+                        
+                        {/* 批量修改分类 */}
+                        <div className="px-3 py-2 border-b border-slate-100">
+                          <div className="text-xs font-bold text-slate-700 mb-2">批量修改分类</div>
+                          <CategorySelector
+                            value={batchCategory}
+                            onChange={setBatchCategory}
+                            categories={categories}
+                            onAddCategory={handleAddCategory}
+                            placeholder="选择新分类"
+                          />
+                          <button
+                            onClick={handleBatchUpdateCategory}
+                            disabled={!batchCategory}
+                            className="w-full mt-2 py-1.5 bg-blue-500 text-white rounded text-xs font-medium hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            确认修改
+                          </button>
+                        </div>
+                        
+                        {/* 批量忽略 */}
+                        <button 
+                          onClick={handleBatchReject}
+                          className="w-full px-3 py-2 text-left text-xs text-slate-600 hover:bg-slate-50 flex items-center"
+                        >
+                          <X size={12} className="mr-2 text-slate-400" />
+                          批量忽略
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
              </div>
            )}
         </div>
@@ -264,10 +446,10 @@ export default function KnowledgeDiscovery() {
                      onChange={handleSelectAll}
                    />
                 </th>
-                <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-1/4">建议问题 (Standard Question)</th>
-                <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-1/3">建议答案 (Draft Answer)</th>
+                <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-1/4">建议问题</th>
+                <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-1/3">建议答案</th>
+                <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">分类</th>
                 <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">来源/热度</th>
-                <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">置信度</th>
                 <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-right">操作</th>
               </tr>
             </thead>
@@ -312,6 +494,17 @@ export default function KnowledgeDiscovery() {
                       </div>
                     </td>
                     <td className="px-4 py-4 align-top">
+                      <CategorySelector
+                        value={item.category || ''}
+                        onChange={(category) => handleUpdateCategory(item.id, category)}
+                        categories={categories}
+                        onAddCategory={handleAddCategory}
+                        showConfidence={true}
+                        confidence={item.categoryConfidence}
+                        autoCategory={item.autoCategory}
+                      />
+                    </td>
+                    <td className="px-4 py-4 align-top">
                        <div className="flex flex-col gap-1">
                           <div className="flex items-center text-xs text-slate-600">
                             {item.sourceType === 'human_takeover' ? <UserCog size={12} className="mr-1 text-purple-500"/> : <MessageSquare size={12} className="mr-1 text-blue-500"/>}
@@ -320,14 +513,12 @@ export default function KnowledgeDiscovery() {
                           <div className="text-xs text-slate-500 bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded w-fit font-mono">
                              🔥 {item.frequency} 次
                           </div>
-                       </div>
-                    </td>
-                    <td className="px-4 py-4 align-top">
-                       <div className="flex items-center">
-                          <div className={`w-12 h-1.5 rounded-full overflow-hidden bg-slate-100 mr-2`}>
-                             <div className={`h-full rounded-full ${item.confidence > 0.9 ? 'bg-green-500' : (item.confidence > 0.7 ? 'bg-yellow-500' : 'bg-red-500')}`} style={{width: `${item.confidence * 100}%`}}></div>
+                          <div className="flex items-center mt-1">
+                            <div className={`w-12 h-1.5 rounded-full overflow-hidden bg-slate-100 mr-2`}>
+                               <div className={`h-full rounded-full ${item.confidence > 0.9 ? 'bg-green-500' : (item.confidence > 0.7 ? 'bg-yellow-500' : 'bg-red-500')}`} style={{width: `${item.confidence * 100}%`}}></div>
+                            </div>
+                            <span className="text-xs font-mono text-slate-500">{Math.round(item.confidence * 100)}%</span>
                           </div>
-                          <span className="text-xs font-mono text-slate-500">{Math.round(item.confidence * 100)}%</span>
                        </div>
                     </td>
                     <td className="px-4 py-4 align-top text-right">
@@ -335,14 +526,17 @@ export default function KnowledgeDiscovery() {
                          {item.status === 'pending' && (
                            <>
                              <button 
-                               onClick={() => handleStatusChange(item.id, 'approved')}
+                               onClick={() => handleAdopt(item)}
                                className="p-1.5 bg-green-50 text-green-600 hover:bg-green-100 rounded transition-colors"
                                title="采纳"
                              >
                                <Check size={16} />
                              </button>
                              <button 
-                               onClick={() => handleStatusChange(item.id, 'rejected')}
+                               onClick={() => {
+                                 setCandidates(prev => prev.map(c => c.id === item.id ? { ...c, status: 'rejected' } : c));
+                                 setSelectedIds(selectedIds.filter(i => i !== item.id));
+                               }}
                                className="p-1.5 bg-slate-100 text-slate-400 hover:bg-slate-200 rounded transition-colors"
                                title="忽略"
                              >
@@ -431,9 +625,6 @@ export default function KnowledgeDiscovery() {
                           value={settings.extractionPrompt}
                           onChange={(e) => setSettings({...settings, extractionPrompt: e.target.value})}
                        />
-                       <div className="absolute bottom-3 right-3 text-slate-400">
-                          <Edit3Icon size={12} />
-                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-6">
@@ -568,7 +759,7 @@ export default function KnowledgeDiscovery() {
                  </div>
                  {viewingSource.similarQuestions && viewingSource.similarQuestions.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-indigo-200/50">
-                       <div className="text-[10px] font-bold text-indigo-400 uppercase mb-1">相似问法 (Similar Questions)</div>
+                       <div className="text-[10px] font-bold text-indigo-400 uppercase mb-1">相似问法</div>
                        <div className="flex flex-wrap gap-1">
                           {viewingSource.similarQuestions.map((q, i) => (
                              <span key={i} className="text-[10px] px-1.5 py-0.5 bg-white border border-indigo-100 text-indigo-600 rounded">{q}</span>
@@ -618,7 +809,7 @@ export default function KnowledgeDiscovery() {
   );
 }
 
-// Icon helper since Edit3 is not directly exported as Edit3Icon in lucide-react (it's Edit3)
+// Icon helper
 const Edit3Icon = ({ size, className }: { size?: number, className?: string }) => (
   <svg width={size || 24} height={size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
