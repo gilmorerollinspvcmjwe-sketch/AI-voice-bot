@@ -5,6 +5,7 @@ import { IntentNode, LabelGroup } from '../../../../types';
 import { Label, Select } from '../../../ui/FormComponents';
 import VisualConditionBuilder from './VisualConditionBuilder';
 import ExtractionRuleConfig from './ExtractionRuleConfig';
+import SimpleErrorHandling from './SimpleErrorHandling';
 
 interface Props {
   node: IntentNode;
@@ -250,6 +251,19 @@ const LogicConfig: React.FC<Props> = ({ node, onChange, availableNodes = [], lab
                 onAddVariableType={handleAddVariableType}
               />
             )}
+
+            {/* Error Handling for Extraction Mode */}
+            {node.config?.voiceCollectionEnabled && (
+              <div className="pt-4 border-t border-blue-100">
+                <SimpleErrorHandling
+                  label="提取失败时跳转至"
+                  tooltip="包括正则无匹配、大模型提取失败等情况"
+                  value={node.config?.onExtractionErrorNodeId || ''}
+                  onChange={(value) => onChange({ onExtractionErrorNodeId: value })}
+                  availableNodes={availableNodes}
+                />
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -299,6 +313,17 @@ const LogicConfig: React.FC<Props> = ({ node, onChange, availableNodes = [], lab
           onChange={(e) => onChange({ code: e.target.value })}
           spellCheck={false}
         />
+
+        {/* Error Handling */}
+        <div className="pt-4 border-t border-gray-100">
+          <SimpleErrorHandling
+            label="执行异常时跳转至"
+            tooltip="包括代码错误、执行超时、内存溢出等"
+            value={node.config?.onErrorNodeId || ''}
+            onChange={(value) => onChange({ onErrorNodeId: value })}
+            availableNodes={availableNodes}
+          />
+        </div>
       </>
     );
   }

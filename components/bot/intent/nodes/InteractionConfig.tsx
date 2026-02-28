@@ -2,13 +2,15 @@
 import React from 'react';
 import { IntentNode } from '../../../../types';
 import { Input, Label, Select } from '../../../ui/FormComponents';
+import SimpleErrorHandling from './SimpleErrorHandling';
 
 interface Props {
   node: IntentNode;
   onChange: (updates: any) => void;
+  availableNodes?: { label: string; value: string }[];
 }
 
-const InteractionConfig: React.FC<Props> = ({ node, onChange }) => {
+const InteractionConfig: React.FC<Props> = ({ node, onChange, availableNodes = [] }) => {
   // 1. Play / TTS
   if (node.subType === 'play_tts') {
     return (
@@ -34,6 +36,17 @@ const InteractionConfig: React.FC<Props> = ({ node, onChange }) => {
           value={node.config?.voiceOverride || ''}
           onChange={(e) => onChange({ voiceOverride: e.target.value })}
         />
+
+        {/* Error Handling */}
+        <div className="pt-4 border-t border-gray-100">
+          <SimpleErrorHandling
+            label="播放异常时跳转至"
+            tooltip="包括TTS合成失败、音频文件不存在、格式不支持等"
+            value={node.config?.onErrorNodeId || ''}
+            onChange={(value) => onChange({ onErrorNodeId: value })}
+            availableNodes={availableNodes}
+          />
+        </div>
       </>
     );
   }

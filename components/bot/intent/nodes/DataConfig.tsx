@@ -3,6 +3,7 @@ import React from 'react';
 import { IntentNode, ExtractionConfig } from '../../../../types';
 import { Input, Label, Select } from '../../../ui/FormComponents';
 import { KeyValueList } from '../NodeFormHelpers';
+import SimpleErrorHandling from './SimpleErrorHandling';
 
 interface Props {
   node: IntentNode;
@@ -175,6 +176,17 @@ const DataConfig: React.FC<Props> = ({ node, onChange, extractionConfigs = [], a
             }}
           />
         </div>
+
+        {/* Error Handling */}
+        <div className="pt-4 border-t border-gray-100">
+          <SimpleErrorHandling
+            label="发送失败时跳转至"
+            tooltip="包括手机号格式错误、短信服务商错误等（可选）"
+            value={node.config?.onSendErrorNodeId || ''}
+            onChange={(value) => onChange({ onSendErrorNodeId: value })}
+            availableNodes={availableNodes}
+          />
+        </div>
       </>
     );
   }
@@ -222,6 +234,17 @@ const DataConfig: React.FC<Props> = ({ node, onChange, extractionConfigs = [], a
           value={node.config?.playBeforeTransfer || ''}
           onChange={(e) => onChange({ playBeforeTransfer: e.target.value })}
         />
+
+        {/* Error Handling */}
+        <div className="pt-4 border-t border-gray-100">
+          <SimpleErrorHandling
+            label="转接失败时跳转至"
+            tooltip="包括目标坐席忙、转接超时、转接被拒绝等"
+            value={node.config?.onTransferErrorNodeId || ''}
+            onChange={(value) => onChange({ onTransferErrorNodeId: value })}
+            availableNodes={availableNodes}
+          />
+        </div>
       </>
     );
   }

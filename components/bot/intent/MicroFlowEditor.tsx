@@ -547,8 +547,16 @@ export default function MicroFlowEditor({
                {/* --- CONFIG TAB CONTENT --- */}
                {activeTab === 'CONFIG' && (
                   <>
-                     <InteractionConfig node={selectedNode} onChange={(updates) => updateNodeConfig(selectedNode.id, updates)} />
-                     <CognitiveConfig node={selectedNode} onChange={(updates) => updateNodeConfig(selectedNode.id, updates)} />
+                     <InteractionConfig
+                        node={selectedNode}
+                        onChange={(updates) => updateNodeConfig(selectedNode.id, updates)}
+                        availableNodes={getConnectableNodes(selectedNode.id)}
+                     />
+                     <CognitiveConfig
+                        node={selectedNode}
+                        onChange={(updates) => updateNodeConfig(selectedNode.id, updates)}
+                        availableNodes={getConnectableNodes(selectedNode.id)}
+                     />
                      {/* Pass available nodes to LogicConfig for branch targeting */}
                      <LogicConfig 
                         node={selectedNode} 

@@ -85,16 +85,17 @@ export interface NodeCommonConfig {
 
 export interface PlayNodeConfig extends NodeCommonConfig {
   type: 'tts' | 'audio_file' | 'ssml';
-  content: string; 
-  voiceOverride?: string; 
+  content: string;
+  voiceOverride?: string;
   bargeIn?: boolean;
-  bargeInThreshold?: number; 
+  bargeInThreshold?: number;
   backgroundAudio?: {
     url: string;
-    volume: number; 
+    volume: number;
     loop: boolean;
     fade?: 'in' | 'out' | 'cross';
   };
+  onErrorNodeId?: string;  // 播放异常时跳转节点
 }
 
 export interface WaitNodeConfig extends NodeCommonConfig {
@@ -111,7 +112,7 @@ export interface RetryStrategy {
 
 export interface CollectNodeConfig extends NodeCommonConfig {
   collectType: 'intent' | 'slot' | 'dtmf';
-  variable?: string; 
+  variable?: string;
   maxDurationSeconds?: number;
   silenceThresholdMs?: number;
   bargeIn?: boolean;
@@ -121,21 +122,23 @@ export interface CollectNodeConfig extends NodeCommonConfig {
     timeoutMs: number;
   };
   retryStrategy?: RetryStrategy;
+  onCollectErrorNodeId?: string;  // 收集异常时跳转节点
 }
 
 export interface LLMNodeConfig extends NodeCommonConfig {
   modelType?: ModelType;
   temperature?: number;
   topP?: number;
-  systemPrompt?: string; 
-  userPrompt?: string; 
+  systemPrompt?: string;
+  userPrompt?: string;
   fewShotExamples?:Array<{
     input: string;
     output: string;
   }>;
-  knowledgeBaseIds?: string[]; 
+  knowledgeBaseIds?: string[];
   outputFormat?: 'text' | 'json';
-  jsonSchema?: string; 
+  jsonSchema?: string;
+  onErrorNodeId?: string;  // 异常时跳转节点
 }
 
 export interface IntentRoute {
@@ -191,6 +194,7 @@ export interface SetVariableNodeConfig extends NodeCommonConfig {
   operations?: VariableOperation[];
   extractionRules?: ExtractionRule[];
   voiceCollectionEnabled?: boolean;
+  onExtractionErrorNodeId?: string;  // 提取失败时跳转节点
 }
 
 export interface TagNodeConfig extends NodeCommonConfig {
@@ -220,17 +224,19 @@ export interface HttpRequestNodeConfig extends NodeCommonConfig {
 
 export interface SmsNodeConfig extends NodeCommonConfig {
   templateId: string;
-  phoneNumberVariable?: string; 
-  params?: Record<string, string>; 
+  phoneNumberVariable?: string;
+  params?: Record<string, string>;
+  onSendErrorNodeId?: string;  // 发送失败时跳转节点（可选）
 }
 
 export interface TransferNodeConfig extends NodeCommonConfig {
   transferType: 'sip_trunk' | 'pstn' | 'queue' | 'agent';
-  target: string; 
-  uui?: string; 
-  playBeforeTransfer?: string; 
+  target: string;
+  uui?: string;
+  playBeforeTransfer?: string;
   maxQueueTimeSeconds?: number;
   queueFullTargetId?: string;
+  onTransferErrorNodeId?: string;  // 转接失败时跳转节点
 }
 
 export interface ScriptNodeConfig extends NodeCommonConfig {
@@ -238,6 +244,7 @@ export interface ScriptNodeConfig extends NodeCommonConfig {
   code: string;
   inputVariables?: string[];
   outputVariables?: string[];
+  onErrorNodeId?: string;  // 执行异常时跳转节点
 }
 
 export type V2NodeConfig = 
