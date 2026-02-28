@@ -43,7 +43,7 @@ const INTENT_TOOLBOX_GROUPS: { name: string; color: string; items: ToolboxItem[]
     name: '交互 (Interaction)',
     color: 'indigo',
     items: [
-      { type: 'ACTION', subType: 'play_tts', label: '播放 (Play)', icon: Volume2, tip: '播放录音文件或URL。' },
+      { type: 'ACTION', subType: 'play_audio', label: '播放录音', icon: Volume2, tip: '从录音市场选择录音播放。' },
       { type: 'LISTEN', subType: 'collect', label: '收集 (Collect)', icon: Mic, tip: '收集用户语音意图、槽位或按键输入。' },
       { type: 'ACTION', subType: 'wait', label: '等待 (Wait)', icon: Timer, tip: '静音等待一段时间，通常用于模拟思考或节奏控制。' },
     ]

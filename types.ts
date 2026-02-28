@@ -83,10 +83,27 @@ export interface NodeCommonConfig {
   nextNodeId?: string;
 }
 
+// 录音市场项目类型
+export interface AudioMarketItem {
+  id: string;
+  name: string;
+  url: string;
+  duration?: number;
+  category?: string;
+  description?: string;
+}
+
 export interface PlayNodeConfig extends NodeCommonConfig {
-  type: 'tts' | 'audio_file' | 'ssml';
-  content: string;
-  voiceOverride?: string;
+  // 新的录音选择字段
+  audioId?: string;           // 录音ID
+  audioName?: string;         // 录音名称（用于显示）
+  audioUrl?: string;          // 录音URL（从录音市场获取）
+  duration?: number;          // 录音时长（秒）
+  onErrorNodeId?: string;     // 播放异常时跳转节点
+  // 保留向后兼容的字段
+  type?: 'tts' | 'audio_file' | 'ssml';  // 已废弃，仅用于兼容旧数据
+  content?: string;  // 已废弃，仅用于兼容旧数据
+  voiceOverride?: string;  // 已废弃，仅用于兼容旧数据
   bargeIn?: boolean;
   bargeInThreshold?: number;
   backgroundAudio?: {
@@ -95,7 +112,6 @@ export interface PlayNodeConfig extends NodeCommonConfig {
     loop: boolean;
     fade?: 'in' | 'out' | 'cross';
   };
-  onErrorNodeId?: string;  // 播放异常时跳转节点
 }
 
 export interface WaitNodeConfig extends NodeCommonConfig {
