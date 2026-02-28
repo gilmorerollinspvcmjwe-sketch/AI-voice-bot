@@ -164,14 +164,33 @@ export interface ConditionNodeConfig extends NodeCommonConfig {
   elseTargetId?: string;
 }
 
+// 提取方式
+export type ExtractionMethod = 'REGEX' | 'LLM';
+
+// 提取规则配置
+export interface ExtractionRule {
+  id: string;
+  targetVariable: string;
+  variableType: string;
+  method: ExtractionMethod;
+  regexPattern?: string;
+  regexGroup?: number;
+  llmPrompt?: string;
+  sourceText?: string;
+  fallbackValue?: string;
+}
+
 export interface VariableOperation {
   variableId: string;
   type: 'SET' | 'ADD' | 'SUBTRACT' | 'APPEND' | 'CLEAR';
-  value: string; 
+  value: string;
 }
 
 export interface SetVariableNodeConfig extends NodeCommonConfig {
-  operations: VariableOperation[];
+  mode?: 'SYSTEM' | 'EXTRACTION';
+  operations?: VariableOperation[];
+  extractionRules?: ExtractionRule[];
+  voiceCollectionEnabled?: boolean;
 }
 
 export interface TagNodeConfig extends NodeCommonConfig {

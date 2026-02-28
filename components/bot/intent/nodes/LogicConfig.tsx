@@ -1,9 +1,10 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Plus, Trash2, X } from 'lucide-react';
 import { IntentNode, LabelGroup } from '../../../../types';
 import { Label, Select } from '../../../ui/FormComponents';
 import VisualConditionBuilder from './VisualConditionBuilder';
+import ExtractionRuleConfig from './ExtractionRuleConfig';
 
 interface Props {
   node: IntentNode;
@@ -108,70 +109,149 @@ const LogicConfig: React.FC<Props> = ({ node, onChange, availableNodes = [], lab
     );
   }
 
-  // 6. Set Variable
+  // 6. Set Variable (Enhanced with Extraction Mode)
   if (node.subType === 'set_variable') {
+    const mode = node.config?.mode || 'SYSTEM';
+    const [localVariableTypes, setLocalVariableTypes] = useState<string[]>([
+      '客户姓名', '公司', '详细地址', '地铁开始地址', '地铁结束地址', '日期', '时间', '人名', '电话', '邮箱'
+    ]);
+
+    const handleAddVariableType = (newType: string) => {
+      if (!localVariableTypes.includes(newType)) {
+        setLocalVariableTypes([...localVariableTypes, newType]);
+      }
+    };
+
     return (
-      <div className="space-y-3">
-        <div className="flex space-x-2 text-[10px] text-slate-500 font-bold px-1">
-          <span className="flex-1">变量名</span>
-          <span className="w-16">操作</span>
-          <span className="flex-1">值</span>
-        </div>
-        {(node.config?.operations || []).map((op: any, idx: number) => (
-          <div key={idx} className="flex space-x-1 items-center">
-            <input 
-              className="flex-1 min-w-0 px-2 py-1.5 text-xs border border-gray-200 rounded"
-              placeholder="var_name"
-              value={op.variableId}
-              onChange={(e) => {
-                const newOps = [...(node.config?.operations || [])];
-                newOps[idx] = { ...op, variableId: e.target.value };
-                onChange({ operations: newOps });
-              }}
-            />
-            <select 
-              className="w-16 px-1 py-1.5 text-xs border border-gray-200 rounded bg-white"
-              value={op.type}
-              onChange={(e) => {
-                const newOps = [...(node.config?.operations || [])];
-                newOps[idx] = { ...op, type: e.target.value };
-                onChange({ operations: newOps });
-              }}
+      <div className="space-y-4">
+        {/* Mode Switch */}
+        <div>
+          <Label label="赋值模式" />
+          <div className="flex bg-slate-100 p-1 rounded">
+            <button
+              onClick={() => onChange({ mode: 'SYSTEM' })}
+              className={`flex-1 py-2 text-xs font-medium rounded transition-colors ${
+                mode === 'SYSTEM'
+                  ? 'bg-white shadow text-primary'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
             >
-              <option value="SET">=</option>
-              <option value="ADD">+</option>
-              <option value="SUBTRACT">-</option>
-            </select>
-            <input 
-              className="flex-1 min-w-0 px-2 py-1.5 text-xs border border-gray-200 rounded"
-              placeholder="value"
-              value={op.value}
-              onChange={(e) => {
-                const newOps = [...(node.config?.operations || [])];
-                newOps[idx] = { ...op, value: e.target.value };
-                onChange({ operations: newOps });
-              }}
-            />
-            <button 
-              onClick={() => {
-                const newOps = (node.config?.operations || []).filter((_: any, i: number) => i !== idx);
-                onChange({ operations: newOps });
-              }}
-              className="text-slate-300 hover:text-red-500"
+              系统赋值
+            </button>
+            <button
+              onClick={() => onChange({ mode: 'EXTRACTION' })}
+              className={`flex-1 py-2 text-xs font-medium rounded transition-colors ${
+                mode === 'EXTRACTION'
+                  ? 'bg-white shadow text-primary'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
             >
-              <Trash2 size={14} />
+              提取赋值
             </button>
           </div>
-        ))}
-        <button 
-          onClick={() => {
-            const newOp = { variableId: '', type: 'SET', value: '' };
-            onChange({ operations: [...(node.config?.operations || []), newOp] });
-          }}
-          className="w-full py-1.5 border border-dashed border-gray-300 rounded text-xs text-slate-500 hover:text-primary hover:border-primary transition-colors flex items-center justify-center mt-2"
-        >
-          <Plus size={12} className="mr-1" /> 添加操作
-        </button>
+        </div>
+
+        {/* System Mode - Original Operations */}
+        {mode === 'SYSTEM' && (
+          <div className="space-y-3">
+            <div className="flex space-x-2 text-[10px] text-slate-500 font-bold px-1">
+              <span className="flex-1">变量名</span>
+              <span className="w-16">操作</span>
+              <span className="flex-1">值</span>
+            </div>
+            {(node.config?.operations || []).map((op: any, idx: number) => (
+              <div key={idx} className="flex space-x-1 items-center">
+                <input
+                  className="flex-1 min-w-0 px-2 py-1.5 text-xs border border-gray-200 rounded"
+                  placeholder="变量名"
+                  value={op.variableId}
+                  onChange={(e) => {
+                    const newOps = [...(node.config?.operations || [])];
+                    newOps[idx] = { ...op, variableId: e.target.value };
+                    onChange({ operations: newOps });
+                  }}
+                />
+                <select
+                  className="w-16 px-1 py-1.5 text-xs border border-gray-200 rounded bg-white"
+                  value={op.type}
+                  onChange={(e) => {
+                    const newOps = [...(node.config?.operations || [])];
+                    newOps[idx] = { ...op, type: e.target.value };
+                    onChange({ operations: newOps });
+                  }}
+                >
+                  <option value="SET">=</option>
+                  <option value="ADD">+</option>
+                  <option value="SUBTRACT">-</option>
+                </select>
+                <input
+                  className="flex-1 min-w-0 px-2 py-1.5 text-xs border border-gray-200 rounded"
+                  placeholder="值"
+                  value={op.value}
+                  onChange={(e) => {
+                    const newOps = [...(node.config?.operations || [])];
+                    newOps[idx] = { ...op, value: e.target.value };
+                    onChange({ operations: newOps });
+                  }}
+                />
+                <button
+                  onClick={() => {
+                    const newOps = (node.config?.operations || []).filter((_: any, i: number) => i !== idx);
+                    onChange({ operations: newOps });
+                  }}
+                  className="text-slate-300 hover:text-red-500"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+            <button
+              onClick={() => {
+                const newOp = { variableId: '', type: 'SET', value: '' };
+                onChange({ operations: [...(node.config?.operations || []), newOp] });
+              }}
+              className="w-full py-2 border border-dashed border-gray-300 rounded text-xs text-slate-500 hover:text-primary hover:border-primary transition-colors flex items-center justify-center"
+            >
+              <Plus size={14} className="mr-1" /> 添加操作
+            </button>
+          </div>
+        )}
+
+        {/* Extraction Mode - New Feature */}
+        {mode === 'EXTRACTION' && (
+          <div className="space-y-4">
+            {/* Voice Collection Toggle */}
+            <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-100 rounded">
+              <div>
+                <span className="text-sm font-medium text-slate-700">对话变量赋值</span>
+                <p className="text-[10px] text-slate-400 mt-0.5">开启后从对话中提取变量</p>
+              </div>
+              <button
+                onClick={() => onChange({ voiceCollectionEnabled: !node.config?.voiceCollectionEnabled })}
+                className={`relative w-11 h-6 rounded-full transition-colors ${
+                  node.config?.voiceCollectionEnabled ? 'bg-blue-500' : 'bg-slate-300'
+                }`}
+              >
+                <span
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                    node.config?.voiceCollectionEnabled ? 'left-6' : 'left-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Extraction Rules */}
+            {node.config?.voiceCollectionEnabled && (
+              <ExtractionRuleConfig
+                rules={node.config?.extractionRules || []}
+                onChange={(rules) => onChange({ extractionRules: rules })}
+                availableVariables={['userName', 'phone', 'email', 'address', 'company', 'orderNo', 'age']}
+                variableTypes={localVariableTypes}
+                onAddVariableType={handleAddVariableType}
+              />
+            )}
+          </div>
+        )}
       </div>
     );
   }
