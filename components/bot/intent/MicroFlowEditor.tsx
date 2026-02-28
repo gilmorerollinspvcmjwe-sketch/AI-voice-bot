@@ -500,7 +500,7 @@ export default function MicroFlowEditor({
 
       {/* --- Property Panel (Drawer) --- */}
       {selectedNode && !readOnly && (
-         <div className="absolute top-0 right-0 bottom-0 w-80 bg-white shadow-2xl border-l border-gray-200 z-40 flex flex-col animate-in slide-in-from-right-10 duration-200">
+         <div className="absolute top-0 right-0 bottom-0 w-[420px] bg-white shadow-2xl border-l border-gray-200 z-40 flex flex-col animate-in slide-in-from-right-10 duration-200">
             {/* Drawer Header */}
             <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-slate-50/80 backdrop-blur-sm">
                <div>
