@@ -20,7 +20,7 @@ const LogicConfig: React.FC<Props> = ({ node, onChange, availableNodes = [], lab
         {(node.config?.expressions || []).map((expr: any, idx: number) => (
           <div key={idx} className="p-3 bg-amber-50 border border-amber-100 rounded text-xs space-y-3 relative">
             {/* Branch Name */}
-            <input 
+            <input
               className="w-full px-2 py-1.5 bg-white border border-amber-200 rounded font-bold text-amber-800 text-sm"
               placeholder="分支名称 (如: 已收集姓名)"
               value={expr.name}
@@ -30,7 +30,7 @@ const LogicConfig: React.FC<Props> = ({ node, onChange, availableNodes = [], lab
                 onChange({ expressions: newExprs });
               }}
             />
-            
+
             {/* Visual Condition Builder */}
             <div className="bg-white border border-amber-100 rounded p-2">
               <VisualConditionBuilder
@@ -43,11 +43,11 @@ const LogicConfig: React.FC<Props> = ({ node, onChange, availableNodes = [], lab
                 availableVariables={['userName', 'phone', 'email', 'address', 'age', 'status', 'tags']}
               />
             </div>
-            
+
             {/* Target Node Selector for Branch */}
             <div className="flex items-center space-x-2 pt-2 border-t border-amber-200/50">
                <span className="text-[10px] text-amber-700 font-bold whitespace-nowrap">满足条件后跳转至:</span>
-               <select 
+               <select
                   className="flex-1 px-2 py-1.5 text-[10px] border border-amber-200 rounded bg-white outline-none"
                   value={expr.targetNodeId || ''}
                   onChange={(e) => {
@@ -63,7 +63,7 @@ const LogicConfig: React.FC<Props> = ({ node, onChange, availableNodes = [], lab
                </select>
             </div>
 
-            <button 
+            <button
               onClick={() => {
                 const newExprs = (node.config?.expressions || []).filter((_: any, i: number) => i !== idx);
                 onChange({ expressions: newExprs });
@@ -74,7 +74,7 @@ const LogicConfig: React.FC<Props> = ({ node, onChange, availableNodes = [], lab
             </button>
           </div>
         ))}
-        <button 
+        <button
           onClick={() => {
             const newExpr = { id: Date.now().toString(), name: '新分支', logic: '' };
             onChange({ expressions: [...(node.config?.expressions || []), newExpr] });
@@ -83,6 +83,27 @@ const LogicConfig: React.FC<Props> = ({ node, onChange, availableNodes = [], lab
         >
           <Plus size={14} className="mr-1" /> 添加条件分支
         </button>
+
+        {/* Else Branch - 均不满足配置 */}
+        <div className="p-3 bg-slate-50 border border-slate-200 rounded text-xs space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-bold text-slate-700">均不满足时</span>
+            <span className="text-[10px] text-slate-400">当所有条件都不满足时</span>
+          </div>
+          <div className="flex items-center space-x-2 pt-1">
+             <span className="text-[10px] text-slate-600 font-bold whitespace-nowrap">跳转至:</span>
+             <select
+                className="flex-1 px-2 py-1.5 text-[10px] border border-slate-200 rounded bg-white outline-none"
+                value={node.config?.elseTargetId || ''}
+                onChange={(e) => onChange({ elseTargetId: e.target.value })}
+             >
+                <option value="">-- 选择节点 --</option>
+                {availableNodes.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+             </select>
+          </div>
+        </div>
       </div>
     );
   }

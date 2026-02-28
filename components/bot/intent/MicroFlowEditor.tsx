@@ -556,10 +556,11 @@ export default function MicroFlowEditor({
                         availableNodes={getConnectableNodes(selectedNode.id)}
                         labelGroups={labelGroups}
                      />
-                     <DataConfig 
-                        node={selectedNode} 
-                        onChange={(updates) => updateNodeConfig(selectedNode.id, updates)} 
+                     <DataConfig
+                        node={selectedNode}
+                        onChange={(updates) => updateNodeConfig(selectedNode.id, updates)}
                         extractionConfigs={extractionConfigs}
+                        availableNodes={getConnectableNodes(selectedNode.id)}
                      />
                      
                      {/* Standard Next Step Selector (For Non-Branch/Non-End Nodes) */}

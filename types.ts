@@ -180,8 +180,8 @@ export interface TagNodeConfig extends NodeCommonConfig {
 }
 
 export interface HttpRequestNodeConfig extends NodeCommonConfig {
-  apiId?: string; 
-  paramMapping?: Array<{ paramKey: string; variableId: string }>; 
+  apiId?: string;
+  paramMapping?: Array<{ paramKey: string; variableId: string }>;
   url?: string;
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   headers?: Record<string, string>;
@@ -189,10 +189,14 @@ export interface HttpRequestNodeConfig extends NodeCommonConfig {
   body?: string;
   timeoutMs?: number;
   responseMapping?: Array<{
-    responsePath: string; 
+    responsePath: string;
     targetVariable: string;
   }>;
-  errorTargetId?: string; 
+  // 多分支结果配置
+  successTargetId?: string;
+  errorTargetId?: string;
+  timeoutTargetId?: string;
+  notCalledTargetId?: string;
 }
 
 export interface SmsNodeConfig extends NodeCommonConfig {
