@@ -377,7 +377,6 @@ export default function KnowledgeDiscovery() {
                             value={batchCategory}
                             onChange={setBatchCategory}
                             categories={categories}
-                            onAddCategory={handleAddCategory}
                             placeholder="选择分类"
                           />
                           <label className="flex items-center mt-2 text-xs text-slate-600">
@@ -405,7 +404,6 @@ export default function KnowledgeDiscovery() {
                             value={batchCategory}
                             onChange={setBatchCategory}
                             categories={categories}
-                            onAddCategory={handleAddCategory}
                             placeholder="选择新分类"
                           />
                           <button
@@ -494,15 +492,31 @@ export default function KnowledgeDiscovery() {
                       </div>
                     </td>
                     <td className="px-4 py-4 align-top">
-                      <CategorySelector
-                        value={item.category || ''}
-                        onChange={(category) => handleUpdateCategory(item.id, category)}
-                        categories={categories}
-                        onAddCategory={handleAddCategory}
-                        showConfidence={true}
-                        confidence={item.categoryConfidence}
-                        autoCategory={item.autoCategory}
-                      />
+                      {filter === 'pending' ? (
+                        <CategorySelector
+                          value={item.category || ''}
+                          onChange={(category) => handleUpdateCategory(item.id, category)}
+                          categories={categories}
+                          showConfidence={true}
+                          confidence={item.categoryConfidence}
+                          autoCategory={item.autoCategory}
+                        />
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-slate-700">{item.category || '-'}</span>
+                          {item.categoryConfidence && item.categoryConfidence > 0 && (
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                              item.categoryConfidence > 0.8
+                                ? 'bg-green-100 text-green-700'
+                                : item.categoryConfidence > 0.6
+                                ? 'bg-yellow-100 text-yellow-700'
+                                : 'bg-slate-100 text-slate-500'
+                            }`}>
+                              {Math.round(item.categoryConfidence * 100)}%
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-4 align-top">
                        <div className="flex flex-col gap-1">
