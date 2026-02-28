@@ -94,11 +94,17 @@ export interface AudioMarketItem {
 }
 
 export interface PlayNodeConfig extends NodeCommonConfig {
-  // 新的录音选择字段
+  // 播放类型
+  playType?: 'audio' | 'tts';  // audio: 播放录音, tts: TTS合成
+  // 录音选择字段
   audioId?: string;           // 录音ID
   audioName?: string;         // 录音名称（用于显示）
   audioUrl?: string;          // 录音URL（从录音市场获取）
   duration?: number;          // 录音时长（秒）
+  // TTS合成字段
+  ttsText?: string;           // TTS合成文本
+  ttsVoice?: string;          // TTS音色
+  // 异常处理
   onErrorNodeId?: string;     // 播放异常时跳转节点
   // 保留向后兼容的字段
   type?: 'tts' | 'audio_file' | 'ssml';  // 已废弃，仅用于兼容旧数据
