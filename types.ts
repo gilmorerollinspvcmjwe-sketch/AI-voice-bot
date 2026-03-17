@@ -756,6 +756,7 @@ export interface NodeExecutionInfo {
   duration?: number;
   error?: string;
   attemptCount: number;
+  logs?: string[];  // 执行日志
 }
 
 export interface DebugBreakpoint {

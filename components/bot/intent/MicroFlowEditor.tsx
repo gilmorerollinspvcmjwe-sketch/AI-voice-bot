@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { 
   Play, Settings, X, 
   MessageSquare, Globe, ArrowLeft, 
@@ -8,9 +8,11 @@ import {
   Bot, UserCog, Search, Clock, Calculator, Loader, Smartphone, Mail, Database, Activity, Volume2,
   Smile, ZoomIn, ZoomOut, Maximize, Minimize, RotateCcw,
   Mic, Split, Trash2, Hash, Music, Tag, Code, Layers, AlertCircle, Check, ChevronDown, List,
-  Flag, Timer, PhoneForwarded
+  Flag, Timer, PhoneForwarded,
+  Pause, Square, StepForward, CornerDownRight, Bug, Eye, EyeOff,
+  ChevronRight, ChevronDown as ChevronDownIcon, FileText, Copy, Maximize2, RefreshCw, Circle
 } from 'lucide-react';
-import { IntentNode, IntentEdge, IntentNodeType, ModelType, TTSModel, ASRModel, ExtractionConfig, LabelGroup } from '../../../types';
+import { IntentNode, IntentEdge, IntentNodeType, ModelType, TTSModel, ASRModel, ExtractionConfig, LabelGroup, DebugExecutionState, ExecutionStep } from '../../../types';
 import { Input, Label, Select, Switch, Slider } from '../../ui/FormComponents';
 import { StringList } from './NodeFormHelpers';
 
@@ -111,8 +113,29 @@ export default function MicroFlowEditor({
   // Hover Tooltip
   const [hoveredTool, setHoveredTool] = useState<{ item: ToolboxItem, rect: DOMRect } | null>(null);
   
+  // Edge Drawing State
+  const [isDrawingEdge, setIsDrawingEdge] = useState(false);
+  const [edgeStartNodeId, setEdgeStartNodeId] = useState<string | null>(null);
+  const [edgeStartBranchIndex, setEdgeStartBranchIndex] = useState<number | null>(null);
+  const [edgeMousePos, setEdgeMousePos] = useState({ x: 0, y: 0 });
+  
+  // Debug Mode State
+  const [isDebugMode, setIsDebugMode] = useState(false);
+  const [debugState, setDebugState] = useState<DebugExecutionState>('idle');
+  const [currentNodeId, setCurrentNodeId] = useState<string | null>(null);
+  const [executionHistory, setExecutionHistory] = useState<ExecutionStep[]>([]);
+  const [debugVariables, setDebugVariables] = useState<Record<string, any>>({});
+  const [showDebugVariables, setShowDebugVariables] = useState(false);
+  const [executionSpeed, setExecutionSpeed] = useState(1);
+  const [showDebugSidebar, setShowDebugSidebar] = useState(true);
+  const [expandedSteps, setExpandedSteps] = useState<Set<string>>(new Set());
+  const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
+  const [userInput, setUserInput] = useState('');
+  const [chatHistory, setChatHistory] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
+  
   const canvasRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const executionTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Auto-generate edges when nodes change
   useEffect(() => {
@@ -191,6 +214,23 @@ export default function MicroFlowEditor({
     }
   };
 
+  const handleBranchHandleMouseDown = (e: React.MouseEvent, nodeId: string, branchIndex: number) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (readOnly) return;
+    
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    
+    setIsDrawingEdge(true);
+    setEdgeStartNodeId(nodeId);
+    setEdgeStartBranchIndex(branchIndex);
+    
+    const clientX = e.clientX - rect.left;
+    const clientY = e.clientY - rect.top;
+    setEdgeMousePos({ x: (clientX - viewport.x) / zoom, y: (clientY - viewport.y) / zoom });
+  };
+
   const handleMouseMove = (e: React.MouseEvent) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -206,12 +246,50 @@ export default function MicroFlowEditor({
         n.id === selectedNodeId ? { ...n, x: n.x + (deltaX / zoom), y: n.y + (deltaY / zoom) } : n
       ));
       setLastMousePos({ x: e.clientX, y: e.clientY });
+    } else if (isDrawingEdge && edgeStartNodeId !== null) {
+      const clientX = e.clientX - rect.left;
+      const clientY = e.clientY - rect.top;
+      setEdgeMousePos({ x: (clientX - viewport.x) / zoom, y: (clientY - viewport.y) / zoom });
     }
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (e?: React.MouseEvent) => {
+    if (isDrawingEdge && edgeStartNodeId && edgeStartBranchIndex !== null && e) {
+      // Check if released over a valid node
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (rect) {
+        const mouseX = (e.clientX - rect.left - viewport.x) / zoom;
+        const mouseY = (e.clientY - rect.top - viewport.y) / zoom;
+        
+        // Find if mouse is over any node
+        const targetNode = nodes.find(n => 
+          mouseX >= n.x && mouseX <= n.x + 180 &&
+          mouseY >= n.y && mouseY <= n.y + 60 &&
+          n.id !== edgeStartNodeId
+        );
+        
+        if (targetNode) {
+          // Establish connection
+          const startNode = nodes.find(n => n.id === edgeStartNodeId);
+          if (startNode && startNode.subType === 'condition' && startNode.config?.expressions) {
+            const newExpressions = [...(startNode.config.expressions || [])];
+            if (newExpressions[edgeStartBranchIndex]) {
+              newExpressions[edgeStartBranchIndex] = {
+                ...newExpressions[edgeStartBranchIndex],
+                targetNodeId: targetNode.id
+              };
+              updateNodeConfig(edgeStartNodeId, { expressions: newExpressions });
+            }
+          }
+        }
+      }
+    }
+    
     setIsPanning(false);
     setIsDraggingNode(false);
+    setIsDrawingEdge(false);
+    setEdgeStartNodeId(null);
+    setEdgeStartBranchIndex(null);
   };
 
   const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 2));
@@ -294,11 +372,335 @@ export default function MicroFlowEditor({
     }
   };
 
+  const deleteEdge = (sourceNodeId: string, branchIndex: number) => {
+    if (readOnly) return;
+    const sourceNode = nodes.find(n => n.id === sourceNodeId);
+    if (sourceNode && sourceNode.subType === 'condition' && sourceNode.config?.expressions) {
+      const newExpressions = [...(sourceNode.config.expressions || [])];
+      if (newExpressions[branchIndex]) {
+        newExpressions[branchIndex] = { ...newExpressions[branchIndex], targetNodeId: undefined };
+        updateNodeConfig(sourceNodeId, { expressions: newExpressions });
+      }
+    }
+  };
+
   const updateNodeConfig = (nodeId: string, updates: any) => {
     setNodes(prev => prev.map(n => 
       n.id === nodeId ? { ...n, config: { ...(n.config || {}), ...updates } } : n
     ));
   };
+
+  // --- Debug Execution Logic ---
+  
+  // Get next node based on current node and variables
+  const getNextNodeId = useCallback((nodeId: string): string | null => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return null;
+
+    // For condition/branch nodes, evaluate expressions
+    if (node.subType === 'condition' && node.config?.expressions) {
+      // Find first matching expression
+      for (let i = 0; i < node.config.expressions.length; i++) {
+        const expr = node.config.expressions[i];
+        if (expr.targetNodeId) {
+          // In production, you would evaluate expr.logic here
+          // For now, just return the first target that exists
+          const targetNode = nodes.find(n => n.id === expr.targetNodeId);
+          if (targetNode) {
+            return expr.targetNodeId;
+          }
+        }
+      }
+      // If no match, use else target
+      if (node.config.elseTargetId) {
+        const elseNode = nodes.find(n => n.id === node.config.elseTargetId);
+        if (elseNode) {
+          return node.config.elseTargetId;
+        }
+      }
+      return null;
+    }
+
+    // For other nodes, use nextNodeId
+    if (node.config?.nextNodeId) {
+      const nextNode = nodes.find(n => n.id === node.config.nextNodeId);
+      if (nextNode) {
+        return node.config.nextNodeId;
+      }
+    }
+    
+    return null;
+  }, [nodes]);
+
+  // Execute a single node
+  const executeNode = useCallback(async (nodeId: string) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return;
+
+    const startTime = Date.now();
+    const logs: string[] = [];
+    
+    // Log: Start execution
+    logs.push(`[${new Date().toLocaleTimeString()}] 开始执行节点：${node.label} (${node.subType})`);
+    
+    // Update current node
+    setCurrentNodeId(nodeId);
+
+    // Simulate execution delay
+    const delay = Math.random() * 500 + 200;
+    logs.push(`[${new Date().toLocaleTimeString()}] 执行延迟：${delay.toFixed(0)}ms`);
+    await new Promise(r => setTimeout(r, delay / executionSpeed));
+
+    // Simulate execution result (always success for now)
+    const success = true;
+    const endTime = Date.now();
+    logs.push(`[${new Date().toLocaleTimeString()}] 节点执行${success ? '成功' : '失败'}`);
+
+    // Update variables based on node type
+    const newVariables = { ...debugVariables };
+    if (node.subType === 'set_variable' && node.config?.operations) {
+      logs.push(`[${new Date().toLocaleTimeString()}] 设置变量操作`);
+      node.config.operations.forEach((op: any) => {
+        if (op.variableId && op.value !== undefined) {
+          newVariables[op.variableId] = op.value;
+          logs.push(`  - ${op.variableId} = ${JSON.stringify(op.value)}`);
+        }
+      });
+    } else if (node.subType === 'condition') {
+      logs.push(`[${new Date().toLocaleTimeString()}] 条件分支判断`);
+      if (node.config?.expressions) {
+        node.config.expressions.forEach((expr: any, idx: number) => {
+          if (expr.logic) {
+            logs.push(`  - 分支${idx + 1} (${expr.name}): ${expr.logic}`);
+          }
+        });
+      }
+    } else if (node.type === 'LISTEN') {
+      logs.push(`[${new Date().toLocaleTimeString()}] 监听用户输入`);
+      newVariables['lastInput'] = '用户输入内容';
+    } else if (node.type === 'ACTION') {
+      logs.push(`[${new Date().toLocaleTimeString()}] 执行动作：${node.subType}`);
+    }
+
+    logs.push(`[${new Date().toLocaleTimeString()}] 执行完成，耗时：${endTime - startTime}ms`);
+
+    // Add to execution history
+    const step: ExecutionStep = {
+      id: `step_${Date.now()}`,
+      nodeId,
+      timestamp: endTime,
+      executionInfo: {
+        nodeId,
+        status: success ? 'success' : 'error',
+        input: { ...debugVariables },
+        output: newVariables,
+        startTime,
+        endTime: success ? endTime : undefined,
+        duration: endTime - startTime,
+        error: success ? undefined : '执行失败',
+        attemptCount: 1,
+        logs
+      },
+      variablesSnapshot: newVariables
+    };
+
+    setExecutionHistory(prev => [...prev, step]);
+    setDebugVariables(newVariables);
+
+    if (!success) {
+      setDebugState('paused');
+      setCurrentNodeId(null);
+      return;
+    }
+
+    // Get next node
+    const nextNodeId = getNextNodeId(nodeId);
+    
+    if (nextNodeId && nodes.find(n => n.id === nextNodeId)) {
+      // Continue execution if not paused
+      if (debugState === 'running') {
+        executeNode(nextNodeId);
+      }
+    } else {
+      // End of flow
+      setDebugState('completed');
+      setCurrentNodeId(null);
+    }
+  }, [nodes, debugVariables, executionSpeed, debugState, getNextNodeId]);
+
+  // Start debug execution
+  const startDebugExecution = useCallback(() => {
+    const startNode = nodes.find(n => n.type === 'START' || n.subType === 'start');
+    if (startNode) {
+      setDebugState('running');
+      setExecutionHistory([]);
+      setDebugVariables({});
+      executeNode(startNode.id);
+    } else {
+      alert('未找到 START 节点，无法开始执行');
+    }
+  }, [nodes, executeNode]);
+
+  // Pause debug execution
+  const pauseDebugExecution = useCallback(() => {
+    setDebugState('paused');
+    if (executionTimerRef.current) {
+      clearTimeout(executionTimerRef.current);
+    }
+  }, []);
+
+  // Resume debug execution
+  const resumeDebugExecution = useCallback(() => {
+    if (currentNodeId) {
+      setDebugState('running');
+      const nextNodeId = getNextNodeId(currentNodeId);
+      if (nextNodeId) {
+        executeNode(nextNodeId);
+      }
+    }
+  }, [currentNodeId, getNextNodeId, executeNode]);
+
+  // Stop debug execution
+  const stopDebugExecution = useCallback(() => {
+    setDebugState('idle');
+    setCurrentNodeId(null);
+    if (executionTimerRef.current) {
+      clearTimeout(executionTimerRef.current);
+    }
+  }, []);
+
+  // Reset debug execution
+  const resetDebugExecution = useCallback(() => {
+    setDebugState('idle');
+    setCurrentNodeId(null);
+    setExecutionHistory([]);
+    setDebugVariables({});
+  }, []);
+
+  // Step over (execute current node and pause at next)
+  const stepOver = useCallback(() => {
+    if (debugState !== 'paused' || !currentNodeId) return;
+    
+    const nextNodeId = getNextNodeId(currentNodeId);
+    if (nextNodeId) {
+      setDebugState('running');
+      executeNode(nextNodeId);
+    }
+  }, [debugState, currentNodeId, getNextNodeId, executeNode]);
+
+  // Get node execution status
+  const getNodeExecutionStatus = useCallback((nodeId: string) => {
+    const status = executionHistory.find(h => h.nodeId === nodeId)?.executionInfo?.status;
+    const isCurrent = currentNodeId === nodeId;
+    return { status, isCurrent };
+  }, [executionHistory, currentNodeId]);
+
+  // Toggle step expansion
+  const toggleStepExpansion = (stepId: string) => {
+    const newExpanded = new Set(expandedSteps);
+    if (newExpanded.has(stepId)) {
+      newExpanded.delete(stepId);
+    } else {
+      newExpanded.add(stepId);
+    }
+    setExpandedSteps(newExpanded);
+  };
+
+  // Scroll to node
+  const scrollToNode = (nodeId: string) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (node && canvasRef.current) {
+      const canvas = canvasRef.current;
+      const rect = canvas.getBoundingClientRect();
+      canvas.scrollTo({
+        left: node.x - rect.width / 2,
+        top: node.y - rect.height / 2,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  // Copy to clipboard
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
+
+  // Handle user input submission
+  const handleUserInputSubmit = () => {
+    if (!userInput.trim()) return;
+    
+    // Add to chat history
+    setChatHistory(prev => [...prev, { role: 'user', content: userInput }]);
+    
+    // Update debug variables with user input
+    setDebugVariables(prev => ({
+      ...prev,
+      'sys.query': userInput,
+      'lastUserInput': userInput
+    }));
+    
+    // Clear input
+    setUserInput('');
+    
+    // If debug is not running, start it
+    if (debugState === 'idle') {
+      startDebugExecution();
+    }
+  };
+
+  // Handle key press in input
+  const handleInputKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleUserInputSubmit();
+    }
+  };
+
+  // Keyboard shortcuts for debug mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isDebugMode) return;
+      
+      // Ignore if typing in input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      switch (e.key) {
+        case 'F5':
+          e.preventDefault();
+          if (debugState === 'idle' || debugState === 'completed') {
+            startDebugExecution();
+          }
+          break;
+        case 'F6':
+          e.preventDefault();
+          if (debugState === 'running') {
+            pauseDebugExecution();
+          } else if (debugState === 'paused') {
+            resumeDebugExecution();
+          }
+          break;
+        case 'F10':
+          e.preventDefault();
+          if (debugState === 'paused') {
+            stepOver();
+          }
+          break;
+        case 'Escape':
+          e.preventDefault();
+          if (debugState === 'running' || debugState === 'paused') {
+            stopDebugExecution();
+          }
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isDebugMode, debugState, startDebugExecution, pauseDebugExecution, resumeDebugExecution, stepOver, stopDebugExecution]);
 
   // --- Helpers for Dropdown Options ---
   // Returns list of nodes that can be connected to (excluding self and start)
@@ -321,6 +723,22 @@ export default function MicroFlowEditor({
       case 'DATA': return 'bg-purple-50 border-purple-200 text-purple-700';
       default: return 'bg-white border-gray-200';
     }
+  };
+
+  // Get node execution style for debug mode
+  const getNodeExecutionStyle = (nodeId: string) => {
+    if (!isDebugMode) return '';
+    
+    const { status, isCurrent } = getNodeExecutionStatus(nodeId);
+    
+    if (isCurrent) {
+      return 'ring-4 ring-purple-400 ring-opacity-60 animate-pulse z-20';
+    } else if (status === 'success') {
+      return 'border-green-400 shadow-green-100';
+    } else if (status === 'error') {
+      return 'border-red-400 shadow-red-100';
+    }
+    return '';
   };
 
   const getNodeIcon = (node: IntentNode) => {
@@ -389,6 +807,17 @@ export default function MicroFlowEditor({
         onDrop={handleDrop}
         onDragOver={handleDragOver}
       >
+         {/* Debug Mode Toggle Button */}
+         {!isDebugMode && !readOnly && (
+           <button
+             onClick={() => setIsDebugMode(true)}
+             className="absolute top-4 right-4 z-20 flex items-center gap-2 px-4 py-2 bg-purple-50 hover:bg-purple-100 text-purple-600 border border-purple-200 rounded-lg text-xs font-medium transition-colors shadow-sm"
+             title="进入调试模式"
+           >
+             <Bug className="w-4 h-4" />
+             调试模式
+           </button>
+         )}
          {/* Transformed Content Layer */}
          <div 
             style={{ 
@@ -422,8 +851,21 @@ export default function MicroFlowEditor({
                     const end = nodes.find(n => n.id === edge.target);
                     if (!start || !end) return null;
                     
-                    const startX = start.x + 180; 
-                    const startY = start.y + 30; 
+                    // Calculate startY based on branch index for condition nodes
+                     let startY = start.y + 30;
+                     if (start.subType === 'condition' && edge.id.includes('_br_')) {
+                       const parts = edge.id.split('_br_');
+                       if (parts.length === 2) {
+                         const branchIndex = parseInt(parts[1]);
+                         const totalBranches = start.config?.expressions?.length || 1;
+                         const branchSpacing = 22; // Match the gap-1 (4px) + handle height (12px)
+                         const totalHeight = (totalBranches - 1) * branchSpacing;
+                         // Start from center, distribute evenly
+                         startY = start.y + 30 - (totalHeight / 2) + (branchIndex * branchSpacing);
+                       }
+                     }
+                     
+                     const startX = start.x + 180; 
                     const endX = end.x;
                     const endY = end.y + 30;
                     
@@ -446,16 +888,67 @@ export default function MicroFlowEditor({
                                 </div>
                              </foreignObject>
                           )}
+                          {/* Clickable area for edge deletion */}
+                          <path 
+                            d={renderBezierCurve(startX, startY, endX, endY)} 
+                            stroke="transparent" 
+                            strokeWidth="10"
+                            fill="none"
+                            className="hover:stroke-red-100 cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              // Find branch index from edge id
+                              const parts = edge.id.split('_br_');
+                              if (parts.length === 2 && edge.source) {
+                                const branchIndex = parseInt(parts[1]);
+                                deleteEdge(edge.source, branchIndex);
+                              }
+                            }}
+                          />
                        </g>
                     );
                  })}
+                 
+                 {/* Drawing edge (while dragging) */}
+                  {isDrawingEdge && edgeStartNodeId !== null && edgeStartBranchIndex !== null && (
+                    <g>
+                      {(() => {
+                         const startNode = nodes.find(n => n.id === edgeStartNodeId);
+                         if (!startNode) return null;
+                         
+                         // Calculate startY based on branch index and total branches
+                         let startY = startNode.y + 30;
+                         const totalBranches = startNode.config?.expressions?.length || 1;
+                         const branchSpacing = 22;
+                         const totalHeight = (totalBranches - 1) * branchSpacing;
+                         startY = startNode.y + 30 - (totalHeight / 2) + (edgeStartBranchIndex * branchSpacing);
+                         const startX = startNode.x + 180;
+                         const endX = edgeMousePos.x;
+                         const endY = edgeMousePos.y;
+                         
+                         return (
+                           <>
+                             <path 
+                               d={renderBezierCurve(startX, startY, endX, endY)} 
+                               stroke="#f97316" 
+                               strokeWidth="2"
+                               strokeDasharray="5,5"
+                               fill="none" 
+                               className="animate-pulse"
+                             />
+                             <circle cx={endX} cy={endY} r="4" fill="#f97316" />
+                           </>
+                         );
+                       })()}
+                    </g>
+                  )}
              </svg>
 
              {/* Nodes */}
              {nodes.map(node => (
                 <div 
                    key={node.id}
-                   className={`absolute w-[180px] h-[60px] rounded-lg border shadow-sm flex items-center px-3 cursor-pointer transition-all select-none ${getNodeColor(node.type, node.subType)} ${selectedNodeId === node.id ? 'ring-2 ring-primary ring-offset-2 z-20' : 'z-10'}`}
+                   className={`absolute w-[180px] h-[60px] rounded-lg border shadow-sm flex items-center px-3 cursor-pointer transition-all select-none ${getNodeColor(node.type, node.subType)} ${selectedNodeId === node.id ? 'ring-2 ring-primary ring-offset-2 z-20' : 'z-10'} ${getNodeExecutionStyle(node.id)}`}
                    style={{ left: node.x, top: node.y }}
                    onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
                 >
@@ -470,9 +963,41 @@ export default function MicroFlowEditor({
                    </div>
                    {node.type !== 'START' && <div className="absolute -left-1 w-2 h-2 bg-slate-300 rounded-full border border-white" />}
                    
-                   {/* Output Indicator (Visual Only now) */}
+                   {/* Output Handles - Multiple for condition nodes */}
                    {node.subType !== 'end_flow' && (
-                      <div className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-slate-300 rounded-full border border-white"></div>
+                     <>
+                       {node.subType === 'condition' && node.config?.expressions && node.config.expressions.length > 0 ? (
+                         // Multiple branch handles for condition nodes
+                         <div className="absolute -right-1 top-1/2 -translate-y-1/2 flex flex-col justify-center gap-1">
+                           {node.config.expressions.map((_: any, idx: number) => {
+                             const totalBranches = node.config.expressions.length;
+                             const isConnected = !!node.config.expressions[idx]?.targetNodeId;
+                             return (
+                               <div
+                                 key={idx}
+                                 className={`w-3 h-3 rounded-full cursor-crosshair hover:scale-125 transition-all relative group border-2 ${
+                                   isConnected 
+                                     ? 'bg-green-400 border-green-600 hover:bg-green-500' 
+                                     : 'bg-orange-300 border-orange-500 hover:bg-orange-400'
+                                 }`}
+                                 onMouseDown={(e) => handleBranchHandleMouseDown(e, node.id, idx)}
+                                 title={`拖拽连接到目标节点 - ${node.config.expressions[idx]?.name || `分支 ${idx + 1}`}${isConnected ? ' (已连接)' : ' (未连接)'}`}
+                               >
+                                 {/* Connection status indicator */}
+                                 {isConnected && (
+                                   <div className="absolute inset-0 flex items-center justify-center">
+                                     <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+                                   </div>
+                                 )}
+                               </div>
+                             );
+                           })}
+                         </div>
+                       ) : (
+                         // Single handle for other nodes
+                         <div className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-slate-300 rounded-full border border-white"></div>
+                       )}
+                     </>
                    )}
                 </div>
              ))}
@@ -497,6 +1022,301 @@ export default function MicroFlowEditor({
             </button>
          )}
       </div>
+
+      {/* Debug Variables Panel */}
+      {isDebugMode && showDebugVariables && (
+        <div className="absolute right-4 bottom-20 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-30 overflow-hidden">
+          <div className="px-3 py-2 bg-slate-50 border-b border-gray-200 flex justify-between items-center">
+            <span className="text-xs font-bold text-slate-700">变量监视器</span>
+            <button onClick={() => setShowDebugVariables(false)} className="text-slate-400 hover:text-slate-600">
+              <X size={14} />
+            </button>
+          </div>
+          <div className="max-h-48 overflow-y-auto p-2">
+            {Object.keys(debugVariables).length === 0 ? (
+              <div className="text-xs text-slate-400 text-center py-4">暂无变量</div>
+            ) : (
+              <div className="space-y-1">
+                {Object.entries(debugVariables).map(([key, value]) => (
+                  <div key={key} className="flex justify-between items-center text-xs p-1.5 bg-slate-50 rounded">
+                    <span className="font-medium text-slate-600">{key}</span>
+                    <span className="text-slate-500 truncate max-w-[120px]">{String(value)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Debug Sidebar */}
+      {isDebugMode && showDebugSidebar && (
+        <div className="absolute top-0 right-0 bottom-0 w-96 bg-white border-l border-gray-200 shadow-lg z-30 flex flex-col">
+          {/* Header */}
+          <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between bg-slate-50">
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-purple-600" />
+              <span className="text-sm font-bold text-slate-700">执行轨迹</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {executionHistory.length > 0 && (
+                <button
+                  onClick={() => {
+                    setExecutionHistory([]);
+                    setExpandedSteps(new Set());
+                    setSelectedStepId(null);
+                  }}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 rounded hover:bg-slate-100 transition-colors"
+                  title="清空历史"
+                >
+                  <RefreshCw size={14} />
+                </button>
+              )}
+              <button
+                onClick={() => setShowDebugSidebar(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded hover:bg-slate-100 transition-colors"
+                title="关闭侧边栏"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+
+          {/* Steps List */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            {/* User Input History as First Step */}
+            {chatHistory.length > 0 && (
+              <div className="mb-3 pb-3 border-b border-gray-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <MessageSquare className="w-4 h-4 text-blue-600" />
+                  <span className="text-xs font-bold text-slate-600">用户输入</span>
+                </div>
+                <div className="space-y-1.5">
+                  {chatHistory.map((chat, idx) => (
+                    <div key={idx} className="bg-blue-50 border border-blue-100 rounded p-2">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] font-bold text-blue-600">用户</span>
+                        <span className="text-[10px] text-slate-400">#{idx + 1}</span>
+                      </div>
+                      <div className="text-xs text-slate-700">{chat.content}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {executionHistory.length === 0 ? (
+              <div className="text-center text-xs text-slate-400 py-8">
+                <Activity className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <div>暂无执行记录</div>
+                <div className="mt-1">点击"开始"按钮运行流程</div>
+              </div>
+            ) : (
+              executionHistory.map((step, index) => {
+                const node = nodes.find(n => n.id === step.nodeId);
+                const isExpanded = expandedSteps.has(step.id);
+                const isSelected = selectedStepId === step.id;
+                const isCurrent = currentNodeId === step.nodeId;
+                const status = step.executionInfo.status;
+                
+                return (
+                  <div
+                    key={step.id}
+                    className={`border rounded-lg overflow-hidden transition-all ${
+                      isSelected ? 'border-purple-300 shadow-md' : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    {/* Step Header */}
+                    <div
+                      className={`px-3 py-2.5 flex items-center gap-2 cursor-pointer ${
+                        isCurrent ? 'bg-purple-50' : 'bg-white'
+                      }`}
+                      onClick={() => {
+                        setSelectedStepId(step.id);
+                        toggleStepExpansion(step.id);
+                        scrollToNode(step.nodeId);
+                      }}
+                    >
+                      <button className="text-slate-400 hover:text-slate-600">
+                        {isExpanded ? <ChevronDownIcon size={16} /> : <ChevronRight size={16} />}
+                      </button>
+                      
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        status === 'success' ? 'bg-green-100 text-green-600' :
+                        status === 'error' ? 'bg-red-100 text-red-600' :
+                        status === 'running' ? 'bg-blue-100 text-blue-600 animate-pulse' :
+                        'bg-slate-100 text-slate-400'
+                      }`}>
+                        {status === 'success' ? <Check size={12} strokeWidth={3} /> :
+                         status === 'error' ? <AlertCircle size={12} strokeWidth={3} /> :
+                         status === 'running' ? <Activity size={12} /> :
+                         <Circle size={12} />}
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-medium text-slate-700 truncate">
+                          {index + 1}. {node?.label || '未知节点'}
+                        </div>
+                        <div className="text-[10px] text-slate-400">
+                          {step.executionInfo.duration?.toFixed(0)}ms
+                        </div>
+                      </div>
+                      
+                      {isCurrent && (
+                        <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+                      )}
+                    </div>
+
+                    {/* Step Details */}
+                    {isExpanded && (
+                      <div className="border-t border-gray-200 bg-slate-50">
+                        {/* Input */}
+                        <div className="px-3 py-2">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase">输入</span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                copyToClipboard(JSON.stringify(step.executionInfo.input, null, 2));
+                              }}
+                              className="p-1 text-slate-400 hover:text-slate-600"
+                              title="复制"
+                            >
+                              <Copy size={12} />
+                            </button>
+                          </div>
+                          <div className="bg-white border border-gray-200 rounded p-2 max-h-32 overflow-y-auto">
+                            <pre className="text-[10px] font-mono text-slate-600 whitespace-pre-wrap">
+                              {JSON.stringify(step.executionInfo.input, null, 2)}
+                            </pre>
+                          </div>
+                        </div>
+
+                        {/* Output */}
+                        <div className="px-3 py-2">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase">输出</span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                copyToClipboard(JSON.stringify(step.executionInfo.output, null, 2));
+                              }}
+                              className="p-1 text-slate-400 hover:text-slate-600"
+                              title="复制"
+                            >
+                              <Copy size={12} />
+                            </button>
+                          </div>
+                          <div className="bg-white border border-gray-200 rounded p-2 max-h-32 overflow-y-auto">
+                            <pre className="text-[10px] font-mono text-slate-600 whitespace-pre-wrap">
+                              {JSON.stringify(step.executionInfo.output, null, 2)}
+                            </pre>
+                          </div>
+                        </div>
+
+                        {/* Logs */}
+                        {step.executionInfo.logs && step.executionInfo.logs.length > 0 && (
+                          <div className="px-3 py-2">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-[10px] font-bold text-slate-500 uppercase">日志</span>
+                            </div>
+                            <div className="bg-white border border-gray-200 rounded p-2 max-h-40 overflow-y-auto">
+                              <div className="space-y-0.5">
+                                {step.executionInfo.logs.map((log, idx) => (
+                                  <div key={idx} className="text-[10px] font-mono text-slate-600">
+                                    {log}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Error */}
+                        {step.executionInfo.error && (
+                          <div className="px-3 py-2">
+                            <div className="flex items-center gap-1 mb-1">
+                              <AlertCircle size={12} className="text-red-500" />
+                              <span className="text-[10px] font-bold text-red-500 uppercase">错误</span>
+                            </div>
+                            <div className="bg-red-50 border border-red-200 rounded p-2">
+                              <div className="text-[10px] font-mono text-red-600">
+                                {step.executionInfo.error}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Footer Stats */}
+          {executionHistory.length > 0 && (
+            <div className="px-4 py-3 border-t border-gray-200 bg-slate-50">
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-3">
+                  <span className="text-slate-500">总计：{executionHistory.length} 步</span>
+                  <span className="text-slate-500">
+                    成功：{executionHistory.filter(s => s.executionInfo.status === 'success').length}
+                  </span>
+                  <span className="text-slate-500">
+                    失败：{executionHistory.filter(s => s.executionInfo.status === 'error').length}
+                  </span>
+                </div>
+                <div className="text-slate-400">
+                  总耗时：{executionHistory.reduce((sum, s) => sum + (s.executionInfo.duration || 0), 0).toFixed(0)}ms
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* User Input Area - Fixed at Bottom */}
+          <div className="border-t border-gray-200 p-3 bg-white">
+            <textarea
+              value={userInput}
+              onChange={(e) => setUserInput(e.target.value)}
+              onKeyPress={handleInputKeyPress}
+              placeholder="输入用户说的话，按 Enter 发送..."
+              className="w-full px-3 py-2 pr-10 border border-gray-200 rounded-lg text-sm resize-none focus:border-purple-300 focus:ring-2 focus:ring-purple-100 outline-none"
+              rows={2}
+            />
+            <div className="mt-2 flex justify-end">
+              <button
+                onClick={handleUserInputSubmit}
+                disabled={!userInput.trim()}
+                className="flex items-center gap-1.5 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors text-xs font-medium"
+              >
+                <CornerDownRight size={14} />
+                发送
+              </button>
+            </div>
+            
+            {/* Chat History Mini Preview */}
+            {chatHistory.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-gray-100">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <MessageSquare size={10} className="text-slate-400" />
+                  <span className="text-[9px] text-slate-500">对话历史 ({chatHistory.length})</span>
+                </div>
+                <div className="max-h-16 overflow-y-auto space-y-1">
+                  {chatHistory.slice(-2).map((chat, idx) => (
+                    <div key={idx} className="text-[9px] flex items-start gap-1">
+                      <span className={`font-bold ${chat.role === 'user' ? 'text-blue-600' : 'text-green-600'}`}>
+                        {chat.role === 'user' ? '用户' : '机器人'}:
+                      </span>
+                      <span className="text-slate-600 truncate">{chat.content}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* --- Property Panel (Drawer) --- */}
       {selectedNode && !readOnly && (

@@ -2,12 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, Trash2, Edit3, Target, AlertCircle, 
-  GitBranch, X, Save, Crown, Bug
+  GitBranch, X, Save, Crown
 } from 'lucide-react';
 import { BotIntent, BotConfiguration, ExtractionConfig } from '../../../types';
-import { Switch, Input, Label, TagInput } from '../../ui/FormComponents';
+import { Switch, Input, TagInput } from '../../ui/FormComponents';
 import MicroFlowEditor from './MicroFlowEditor';
-import IntentFlowDebugger from './IntentFlowDebugger';
 
 interface BotIntentConfigProps {
   config: BotConfiguration;
@@ -32,7 +31,6 @@ export default function BotIntentConfig({ config, updateField, extractionConfigs
   const [activeIntentId, setActiveIntentId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingIntentData, setEditingIntentData] = useState<BotIntent>(DEFAULT_INTENT);
-  const [isDebugMode, setIsDebugMode] = useState(false);
   
   const intents = config.intents || [];
   const activeIntent = intents.find(i => i.id === activeIntentId);
@@ -220,13 +218,6 @@ export default function BotIntentConfig({ config, updateField, extractionConfigs
                      <span className="text-xs text-slate-500">流程编排</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => setIsDebugMode(true)}
-                      className="flex items-center px-3 py-1.5 bg-purple-50 text-purple-600 border border-purple-200 rounded text-xs font-medium hover:bg-purple-100 transition-colors"
-                    >
-                      <Bug className="w-3 h-3 mr-1" />
-                      调试
-                    </button>
                     <button 
                       onClick={() => openModal(activeIntent)} 
                       className="text-xs text-primary hover:underline flex items-center"
@@ -323,20 +314,6 @@ export default function BotIntentConfig({ config, updateField, extractionConfigs
               </div>
            </div>
         </div>
-      )}
-
-      {/* Debug Mode */}
-      {isDebugMode && activeIntent && (
-        <IntentFlowDebugger
-          nodes={activeIntent.flowCanvas?.nodes || []}
-          edges={activeIntent.flowCanvas?.edges || []}
-          initialVariables={{
-            '客户姓名': '张三',
-            '客户电话': '13800138000',
-            '当前时间': new Date().toLocaleTimeString()
-          }}
-          onClose={() => setIsDebugMode(false)}
-        />
       )}
 
     </div>

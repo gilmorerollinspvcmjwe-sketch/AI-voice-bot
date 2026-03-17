@@ -46,10 +46,13 @@ const LogicConfig: React.FC<Props> = ({ node, onChange, availableNodes = [], lab
               />
             </div>
 
-            {/* Target Node Selector for Branch */}
-            <div className="flex items-center space-x-2 pt-2 border-t border-amber-200/50">
-               <span className="text-[10px] text-amber-700 font-bold whitespace-nowrap">满足条件后跳转至:</span>
-               <select
+            {/* Connection Status Indicator */}
+            <div className="flex items-center justify-between pt-2 border-t border-amber-100">
+              <div className="flex items-center space-x-2 flex-1">
+                <span className="text-[10px] text-amber-700 font-bold whitespace-nowrap">
+                  {expr.targetNodeId ? '✓ 已连接' : '未连接'}:
+                </span>
+                <select
                   className="flex-1 px-2 py-1.5 text-[10px] border border-amber-200 rounded bg-white outline-none"
                   value={expr.targetNodeId || ''}
                   onChange={(e) => {
@@ -57,12 +60,26 @@ const LogicConfig: React.FC<Props> = ({ node, onChange, availableNodes = [], lab
                     newExprs[idx] = { ...expr, targetNodeId: e.target.value };
                     onChange({ expressions: newExprs });
                   }}
-               >
+                >
                   <option value="">-- 选择节点 --</option>
                   {availableNodes.map(opt => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
-               </select>
+                </select>
+              </div>
+              {expr.targetNodeId && (
+                <button
+                  onClick={() => {
+                    const newExprs = [...(node.config?.expressions || [])];
+                    newExprs[idx] = { ...expr, targetNodeId: undefined };
+                    onChange({ expressions: newExprs });
+                  }}
+                  className="ml-2 text-slate-300 hover:text-red-500 p-1"
+                  title="断开连接"
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
 
             <button
