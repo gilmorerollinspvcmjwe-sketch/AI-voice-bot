@@ -51,6 +51,7 @@ const BotBasicConfig: React.FC<BotBasicConfigProps> = ({
   onCancel
 }) => {
   const [showGenerator, setShowGenerator] = useState(false);
+  const [replyStyle, setReplyStyle] = useState<'规范' | '标准' | '灵活' | '高级'>('标准');
 
   const addParameter = () => {
     // Only add if there are available variables
@@ -159,10 +160,51 @@ const BotBasicConfig: React.FC<BotBasicConfigProps> = ({
               />
             </div>
             <div className="lg:col-span-4">
-              <Slider label="温度 (Temperature)" min={0} max={1} step={0.1} value={config.temperature} onChange={(v) => updateField('temperature', v)} tooltip="控制生成文本的随机性" />
+              <div className="mb-5">
+                <div className="flex items-center mb-2">
+                  <label className="text-sm font-medium text-slate-700">回复风格</label>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button 
+                    className={`px-3 py-1 text-xs rounded ${replyStyle === '规范' ? 'bg-primary text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                    onClick={() => setReplyStyle('规范')}
+                  >
+                    规范
+                  </button>
+                  <button 
+                    className={`px-3 py-1 text-xs rounded ${replyStyle === '标准' ? 'bg-primary text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                    onClick={() => setReplyStyle('标准')}
+                  >
+                    标准
+                  </button>
+                  <button 
+                    className={`px-3 py-1 text-xs rounded ${replyStyle === '灵活' ? 'bg-primary text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                    onClick={() => setReplyStyle('灵活')}
+                  >
+                    灵活
+                  </button>
+                  <button 
+                    className={`px-3 py-1 text-xs rounded ${replyStyle === '高级' ? 'bg-primary text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                    onClick={() => setReplyStyle('高级')}
+                  >
+                    高级设置
+                  </button>
+                </div>
+                <div className="mt-2 text-xs text-slate-500">
+                  {replyStyle === '规范' && '措辞严谨规范，适合金融、医疗等场景'}
+                  {replyStyle === '标准' && '稳定自然，适合大多数客服场景'}
+                  {replyStyle === '灵活' && '表达多样，适合销售、消费类场景'}
+                  {replyStyle === '高级' && '自定义生成参数，精细控制输出效果'}
+                </div>
+              </div>
             </div>
             <div className="lg:col-span-4">
-              <Slider label="核采样 (Top-P)" min={0} max={1} step={0.1} value={config.topP} onChange={(v) => updateField('topP', v)} tooltip="另一种控制生成多样性的采样方式" />
+              {replyStyle === '高级' && (
+                <div className="space-y-4">
+                  <Slider label="温度 (Temperature)" min={0} max={1} step={0.1} value={config.temperature} onChange={(v) => updateField('temperature', v)} tooltip="控制生成文本的随机性" />
+                  <Slider label="核采样 (Top-P)" min={0} max={1} step={0.1} value={config.topP} onChange={(v) => updateField('topP', v)} tooltip="另一种控制生成多样性的采样方式" />
+                </div>
+              )}
             </div>
           </div>
         </div>
