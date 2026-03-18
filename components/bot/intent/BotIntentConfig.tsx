@@ -1,11 +1,11 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Plus, Trash2, Edit3, Target, AlertCircle, 
   GitBranch, X, Save, Crown
 } from 'lucide-react';
 import { BotIntent, BotConfiguration, ExtractionConfig } from '../../../types';
-import { Switch, Input, TagInput } from '../../ui/FormComponents';
+import { Switch, Input, TagInput, Label } from '../../ui/FormComponents';
 import MicroFlowEditor from './MicroFlowEditor';
 
 interface BotIntentConfigProps {
@@ -109,13 +109,13 @@ export default function BotIntentConfig({ config, updateField, extractionConfigs
     }
   };
 
-  const updateActiveIntentFlow = (nodes: any[], edges: any[]) => {
+  const updateActiveIntentFlow = useCallback((nodes: any[], edges: any[]) => {
     if (!activeIntentId) return;
     const updatedIntents = intents.map(i => 
       i.id === activeIntentId ? { ...i, flowCanvas: { nodes, edges } } : i
     );
     updateField('intents', updatedIntents);
-  };
+  }, [activeIntentId, intents, updateField]);
 
   return (
     <div className="flex h-[calc(100vh-280px)] bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
@@ -234,7 +234,7 @@ export default function BotIntentConfig({ config, updateField, extractionConfigs
                      <MicroFlowEditor 
                         initialNodes={activeIntent.flowCanvas?.nodes || []}
                         initialEdges={activeIntent.flowCanvas?.edges || []}
-                        onSave={(nodes, edges) => updateActiveIntentFlow(nodes, edges)}
+                        onSave={updateActiveIntentFlow}
                         extractionConfigs={extractionConfigs}
                         labelGroups={config.labelGroups}
                      />
