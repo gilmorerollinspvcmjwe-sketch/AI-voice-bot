@@ -17,6 +17,7 @@ import TemplateMarket from './components/market/TemplateMarket';
 import NumberManagement from './components/number/NumberManagement';
 import GeoGroupManager from './components/settings/GeoGroupManager';
 import BusinessHoursManager from './components/settings/BusinessHoursManager';
+import ModelTraining from './components/settings/ModelTraining';
 import IVRManager from './components/ivr/IVRManager';
 import FileManager from './components/files/FileManager';
 import OutboundTemplates from './components/outbound/OutboundTemplates';
@@ -25,6 +26,7 @@ import ContactLists from './components/outbound/ContactLists';
 import CampaignManager, { MOCK_CAMPAIGNS as INITIAL_CAMPAIGNS } from './components/marketing/CampaignManager';
 import CustomerProfileManager from './components/marketing/CustomerProfileManager';
 import MonitoringReport from './components/report/MonitoringReport';
+import { AGENT_DEMO_BOT } from './services/agentDemoBot';
 
 // --- CONSTANTS & DEFAULTS ---
 const INITIAL_LABEL_GROUPS: LabelGroup[] = [
@@ -355,7 +357,7 @@ const INITIAL_EXTRACTION_CONFIGS: ExtractionConfig[] = [
 
 export default function App() {
   const [activeMenu, setActiveMenu] = useState('机器人配置');
-  const [bots, setBots] = useState<BotConfiguration[]>([DIDI_BOT]); // Pre-load Didi Bot
+  const [bots, setBots] = useState<BotConfiguration[]>([DIDI_BOT, AGENT_DEMO_BOT]); // Pre-load Didi Bot and Agent Demo Bot
   const [editingBot, setEditingBot] = useState<BotConfiguration | null>(null);
   const [view, setView] = useState<'LIST' | 'FORM'>('LIST');
 
@@ -416,6 +418,8 @@ export default function App() {
         return <BusinessHoursManager />;
       case '文件管理':
         return <FileManager />;
+      case '模型训练':
+        return <ModelTraining />;
       case '智呼坐席管理':
         return <SeatManager bots={bots} />;
       // --- Outbound Routes ---
