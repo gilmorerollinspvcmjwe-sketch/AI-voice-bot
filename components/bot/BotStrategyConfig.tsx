@@ -433,6 +433,21 @@ const BotStrategyConfig: React.FC<BotStrategyConfigProps> = ({ config, updateFie
              </div>
           </div>
         </div>
+        
+        <div className="mt-8 border-t border-gray-100 pt-8">
+          <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+            <div className="flex items-center">
+              <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-slate-200 mr-3 shadow-sm text-primary">
+                <Mic size={18} />
+              </div>
+              <div>
+                <div className="text-sm font-bold text-slate-800">连续打断优化</div>
+                <div className="text-[11px] text-slate-500">当检测到客户与机器人连续抢话时，自动延长静音检测时长，帮助机器人等待客户说完，减少抢话循环。</div>
+              </div>
+            </div>
+            <Switch label="" checked={config.continuousInterruptionOptimizationEnabled || false} onChange={(v) => updateField('continuousInterruptionOptimizationEnabled', v)} />
+          </div>
+        </div>
       </StrategyCard>
       
       <div className="flex justify-start space-x-4 pt-4 border-t border-gray-100">
