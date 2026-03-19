@@ -88,8 +88,7 @@ interface DetectedScenario {
   detectedAt: string;
 }
 
-type ScenarioType = 
-  | 'unknown'           // 未知场景
+type ScenarioType =
   | 'dissatisfied'      // 客户不满意
   | 'transfer'          // 转人工
   | 'repetition'        // 重复回答
@@ -126,7 +125,6 @@ interface AutoRecognitionConfig {
   schedule: string;  // cron表达式
   lastRunAt?: string;
   nextRunAt?: string;
-  model: string;
   confidenceThreshold: number;
   enabledScenarios: ScenarioType[];
   targetBots: string[];
@@ -146,15 +144,6 @@ interface ScenarioDefinition {
 // ==================== 场景定义 ====================
 
 const SCENARIO_DEFINITIONS: ScenarioDefinition[] = [
-  {
-    type: 'unknown',
-    name: '未知场景',
-    description: '机器人回答不知道或无法理解用户意图',
-    icon: <HelpCircle size={16} />,
-    color: 'text-orange-600',
-    bgColor: 'bg-orange-50',
-    prompt: '识别机器人回答"不知道"、"不明白"、"无法理解"等无法回答用户问题的场景'
-  },
   {
     type: 'dissatisfied',
     name: '客户不满意',
@@ -367,18 +356,15 @@ const MOCK_RECORDS: CallRecord[] = [
 
 const ModelTraining: React.FC = () => {
   // 视图状态
-  const [activeView, setActiveView] = useState<'dashboard' | 'records' | 'config'>('dashboard');
+  const [activeView, setActiveView] = useState<'records' | 'config'>('records');
   const [selectedRecords, setSelectedRecords] = useState<string[]>([]);
   const [detailRecord, setDetailRecord] = useState<CallRecord | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [showDebugModal, setShowDebugModal] = useState(false);
-  const [debuggingRecord, setDebuggingRecord] = useState<CallRecord | null>(null);
   
   // 筛选状态
   const [filters, setFilters] = useState({
     dateRange: { start: '', end: '' },
     scenarioTypes: [] as ScenarioType[],
-    annotationStatus: 'all' as 'all' | 'pending' | 'confirmed' | 'corrected' | 'rejected',
     botId: 'all',
     severity: 'all' as 'all' | 'high' | 'medium' | 'low',
   });
@@ -389,12 +375,77 @@ const ModelTraining: React.FC = () => {
     schedule: '0 22 * * *',  // 每晚22点
     lastRunAt: '2024-01-15 22:05:00',
     nextRunAt: '2024-01-16 22:00:00',
-    model: 'gemini-pro',
     confidenceThreshold: 0.7,
-    enabledScenarios: ['unknown', 'dissatisfied', 'transfer', 'repetition', 'interruption', 'other_negative'],
+    enabledScenarios: ['dissatisfied', 'transfer', 'repetition', 'interruption', 'other_negative'],
     targetBots: ['bot1', 'bot2'],
     lookbackDays: 1,
   });
+
+  // 场景提示词配置
+  const [scenarioPrompts, setScenarioPrompts] = useState<Record<ScenarioType, string>>({
+    dissatisfied: `你是对话分析专家。请仔细分析以下机器人与客户的对话，识别出所有客户表达不满、抱怨、生气、质疑、讽刺或负面情绪的情况。
+
+需要识别的情况包括但不限于：
+1. 客户使用负面评价词：如"不好"、"差"、"失望"、"生气"、"不满"、"垃圾"、"太差了"等
+2. 客户语气激动、情绪化：出现大量感叹号、问号或重复表达
+3. 客户明确抱怨：如"你们服务太差"、"我不满意"、"我要投诉"等
+4. 客户质疑机器人能力：如"你懂吗"、"你知道吗"、"你会不会搞错"等
+5. 客户叹气、无奈表达：如"唉"、"算了"、"真是的"等
+
+请判断客户的整体情绪状态，如存在上述任何一种情况，且情绪较为明显（置信度>0.7），请标记为"客户不满意"场景。`,
+    transfer: `你是对话分析专家。请仔细分析以下机器人与客户的对话，识别出所有客户明确要求转接人工客服的情况。
+
+需要识别的情况包括但不限于：
+1. 客户明确要求找人工：如"转人工"、"找人工"、"人工服务"、"人工客服"、"真人"、"真人客服"等
+2. 客户对机器人不满意而要求转人工：如"你帮我转人工吧"、"我不想和你说了，找个人"等
+3. 客户多次要求未能解决后要求转人工
+4. 客户提到与人工相关的业务：如"人工办理"、"人工激活"、"人工查询"等明确需要人工操作的需求
+
+注意：仅当客户明确、主动地要求转人工时才标记为此场景。不要将客户只是在对话中提到"人工"这个词的情况误判。`,
+    repetition: `你是对话分析专家。请仔细分析以下机器人与客户的对话，识别出机器人在连续多轮对话中重复相同或高度相似内容的情况。
+
+需要识别的情况包括但不限于：
+1. 机器人连续两次给出完全相同的回答
+2. 机器人连续两次给出核心意思相同、仅措辞略有不同的回答
+3. 机器人陷入循环：相同的问答模式重复出现2次以上
+4. 机器人重复使用相同的开场白或结束语
+
+判断标准：
+- 字面重复：完全相同的句子或段落
+- 语义重复：表达相同意思但用词不同，如"抱歉我无法理解"和"对不起我不明白您的问题"
+- 模式重复：固定的问答套路反复出现
+
+如机器人连续给出2次及以上相同或高度相似的回答，请标记为"重复回答"场景。`,
+    interruption: `你是对话分析专家。请仔细分析以下机器人与客户的对话，识别出机器人打断客户说话或客户话未说完就被机器人打断的情况。
+
+需要识别的情况包括但不限于：
+1. 客户正在表达一句话，被机器人中途插话打断
+2. 客户话还没说完（出现省略号、语句不完整），机器人就开始回应
+3. 客户表达了部分信息（如只说了日期但没说具体时间），机器人就当作理解完整并回答
+4. 机器人在客户还在说话时就开始播放提示音或做出回应
+
+判断方法：
+- 查看对话时间戳，相邻两条客户回复间隔过短
+- 客户回复被截断或语义不完整
+- 机器人的回答与客户当前句子的前半部分呼应，但未等客户说完
+
+如存在上述情况，请标记为"打断场景"。`,
+    other_negative: `你是对话分析专家。请仔细分析以下机器人与客户的对话，识别出所有其他导致客户体验不佳或可能影响服务质量的情况。
+
+需要特别关注但不限于以下情况：
+1. 机器人答非所问：客户问A，机器人回答B，两者不相关
+2. 机器人回答混乱：逻辑不清、前后矛盾、表述模糊让人无法理解
+3. 机器人过度打扰：在客户正常表达过程中频繁插话或打断
+4. 机器人态度不当：过于机械、冷漠、敷衍或不专业
+5. 知识缺失：机器人表示不知道、无法回答、不在服务范围内等
+6. 交互体验差：等待时间过长、重复确认、流程繁琐等
+7. 客户失去耐心：客户开始催促、使用不耐烦的语气
+
+如发现除"客户不满意"、"转人工"、"重复回答"、"打断场景"之外的任何负面体验，请标记为"其他负向"场景，并简要说明具体问题。`,
+  });
+
+  const [editingPrompt, setEditingPrompt] = useState<ScenarioType | null>(null);
+  const [editingPromptValue, setEditingPromptValue] = useState('');
 
   // 统计数据
   const stats = {
@@ -422,10 +473,6 @@ const ModelTraining: React.FC = () => {
         const hasMatchingType = record.scenarios.some(s => filters.scenarioTypes.includes(s.type));
         if (!hasMatchingType) return false;
       }
-      if (filters.annotationStatus !== 'all') {
-        if (!record.annotation && filters.annotationStatus !== 'pending') return false;
-        if (record.annotation && record.annotation.status !== filters.annotationStatus) return false;
-      }
       if (filters.botId !== 'all' && record.botId !== filters.botId) return false;
       if (filters.severity !== 'all') {
         const hasMatchingSeverity = record.scenarios.some(s => s.severity === filters.severity);
@@ -441,27 +488,14 @@ const ModelTraining: React.FC = () => {
     console.log('Annotation:', { recordId, status, notes, correctedType });
   };
 
-  // 打开调试
-  const handleDebug = (record: CallRecord) => {
-    setDebuggingRecord(record);
-    setShowDebugModal(true);
-  };
-
   // 导出数据
-  const handleExport = (format: 'json' | 'csv' | 'qa') => {
-    const records = selectedRecords.length > 0 
+  const handleExport = (format: 'json' | 'csv') => {
+    const records = selectedRecords.length > 0
       ? MOCK_RECORDS.filter(r => selectedRecords.includes(r.id))
       : getFilteredRecords();
-    
-    if (format === 'qa') {
-      // 导出到QA系统
-      console.log('Export to QA:', records);
-      alert(`已将 ${records.length} 条记录导出到问答对管理`);
-    } else {
-      // 导出文件
-      console.log('Export:', format, records);
-      alert(`已导出 ${records.length} 条记录 (${format.toUpperCase()}格式)`);
-    }
+
+    console.log('Export:', format, records);
+    alert(`已导出 ${records.length} 条记录 (${format.toUpperCase()}格式)`);
   };
 
   // ==================== 渲染视图 ====================
@@ -469,17 +503,6 @@ const ModelTraining: React.FC = () => {
   // 渲染导航栏
   const renderNav = () => (
     <div className="flex items-center gap-6 border-b border-gray-200 mb-6">
-      <button
-        className={`pb-4 text-sm font-medium flex items-center gap-2 transition-colors ${
-          activeView === 'dashboard' 
-            ? 'text-primary border-b-2 border-primary' 
-            : 'text-gray-500 hover:text-gray-700'
-        }`}
-        onClick={() => setActiveView('dashboard')}
-      >
-        <LayoutGrid size={18} />
-        数据看板
-      </button>
       <button
         className={`pb-4 text-sm font-medium flex items-center gap-2 transition-colors ${
           activeView === 'records' 
@@ -721,19 +744,7 @@ const ModelTraining: React.FC = () => {
             onChange={(e) => setFilters(prev => ({ ...prev, dateRange: { ...prev.dateRange, end: e.target.value } }))}
           />
 
-          <select 
-            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
-            value={filters.annotationStatus}
-            onChange={(e) => setFilters(prev => ({ ...prev, annotationStatus: e.target.value as any }))}
-          >
-            <option value="all">全部状态</option>
-            <option value="pending">待标注</option>
-            <option value="confirmed">已确认</option>
-            <option value="corrected">已修正</option>
-            <option value="rejected">已拒绝</option>
-          </select>
-
-          <select 
+          <select
             className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
             value={filters.severity}
             onChange={(e) => setFilters(prev => ({ ...prev, severity: e.target.value as any }))}
@@ -749,7 +760,6 @@ const ModelTraining: React.FC = () => {
             onClick={() => setFilters({
               dateRange: { start: '', end: '' },
               scenarioTypes: [],
-              annotationStatus: 'all',
               botId: 'all',
               severity: 'all',
             })}
@@ -794,29 +804,12 @@ const ModelTraining: React.FC = () => {
             已选择 {selectedRecords.length} 条记录
           </span>
           <div className="flex gap-2">
-            <button 
+            <button
               className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors flex items-center gap-1"
               onClick={() => handleExport('json')}
             >
               <Download size={14} />
               导出选中
-            </button>
-            <button 
-              className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors flex items-center gap-1"
-              onClick={() => handleExport('qa')}
-            >
-              <BookOpen size={14} />
-              添加到QA
-            </button>
-            <button 
-              className="px-3 py-1.5 bg-primary text-white rounded-lg text-sm hover:bg-primary/90 transition-colors flex items-center gap-1"
-              onClick={() => {
-                // 批量调试
-                alert(`开始对 ${selectedRecords.length} 条记录进行批量调试`);
-              }}
-            >
-              <Play size={14} />
-              批量调试
             </button>
           </div>
         </div>
@@ -845,7 +838,6 @@ const ModelTraining: React.FC = () => {
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">通话信息</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">识别场景</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">严重程度</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">标注状态</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
             </tr>
           </thead>
@@ -899,82 +891,14 @@ const ModelTraining: React.FC = () => {
                   )}
                 </td>
                 <td className="px-4 py-4">
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    !record.annotation || record.annotation.status === 'pending'
-                      ? 'bg-gray-100 text-gray-600'
-                      : record.annotation.status === 'confirmed'
-                        ? 'bg-green-100 text-green-600'
-                        : record.annotation.status === 'corrected'
-                          ? 'bg-blue-100 text-blue-600'
-                          : 'bg-red-100 text-red-600'
-                  }`}>
-                    {!record.annotation || record.annotation.status === 'pending' ? '待标注' :
-                      record.annotation.status === 'confirmed' ? '已确认' :
-                      record.annotation.status === 'corrected' ? '已修正' : '已拒绝'}
-                  </span>
-                </td>
-                <td className="px-4 py-4">
                   <div className="flex items-center gap-2">
-                    <button 
+                    <button
                       className="p-1.5 text-gray-400 hover:text-primary transition-colors"
                       onClick={() => { setDetailRecord(record); setShowDetailModal(true); }}
                       title="查看详情"
                     >
                       <Eye size={16} />
                     </button>
-                    <button 
-                      className="p-1.5 text-gray-400 hover:text-green-600 transition-colors"
-                      onClick={() => handleDebug(record)}
-                      title="调试验证"
-                    >
-                      <Play size={16} />
-                    </button>
-                    <div className="relative group">
-                      <button className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors">
-                        <MoreHorizontal size={16} />
-                      </button>
-                      <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
-                        <button 
-                          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
-                          onClick={() => handleAnnotation(record.id, 'confirmed')}
-                        >
-                          <CheckCircle size={14} className="text-green-500" />
-                          标记为确认
-                        </button>
-                        <button 
-                          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
-                          onClick={() => handleAnnotation(record.id, 'corrected')}
-                        >
-                          <Edit3 size={14} className="text-blue-500" />
-                          标记为修正
-                        </button>
-                        <button 
-                          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
-                          onClick={() => handleAnnotation(record.id, 'rejected')}
-                        >
-                          <XCircle size={14} className="text-red-500" />
-                          标记为错误
-                        </button>
-                        <div className="border-t border-gray-200 my-1" />
-                        <button 
-                          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
-                          onClick={() => handleExport('qa')}
-                        >
-                          <BookOpen size={14} className="text-primary" />
-                          添加到QA
-                        </button>
-                        <button 
-                          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
-                          onClick={() => {
-                            // 优化提示词
-                            alert('打开提示词优化界面');
-                          }}
-                        >
-                          <Sparkles size={14} className="text-purple-500" />
-                          优化提示词
-                        </button>
-                      </div>
-                    </div>
                   </div>
                 </td>
               </tr>
@@ -1054,21 +978,6 @@ const ModelTraining: React.FC = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              选择大模型
-            </label>
-            <select 
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-              value={autoConfig.model}
-              onChange={(e) => setAutoConfig(prev => ({ ...prev, model: e.target.value }))}
-            >
-              <option value="gemini-pro">Gemini Pro</option>
-              <option value="gpt-4">GPT-4</option>
-              <option value="claude-3">Claude 3</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
               置信度阈值
             </label>
             <div className="flex items-center gap-4">
@@ -1089,33 +998,80 @@ const ModelTraining: React.FC = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               启用的识别场景
             </label>
-            <div className="space-y-2">
-              {SCENARIO_DEFINITIONS.map(def => (
-                <label key={def.type} className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
-                  <input 
-                    type="checkbox"
-                    checked={autoConfig.enabledScenarios.includes(def.type)}
-                    onChange={(e) => {
-                      setAutoConfig(prev => ({
-                        ...prev,
-                        enabledScenarios: e.target.checked
-                          ? [...prev.enabledScenarios, def.type]
-                          : prev.enabledScenarios.filter(t => t !== def.type)
-                      }));
-                    }}
-                    className="mt-1 h-4 w-4 text-primary rounded border-gray-300"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      {def.icon}
-                      <span className="font-medium text-gray-900">{def.name}</span>
+            <div className="space-y-3">
+              {SCENARIO_DEFINITIONS.filter(def => autoConfig.enabledScenarios.includes(def.type)).map(def => (
+                <div key={def.type} className="p-3 border border-gray-200 rounded-lg bg-gray-50">
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={autoConfig.enabledScenarios.includes(def.type)}
+                      onChange={(e) => {
+                        setAutoConfig(prev => ({
+                          ...prev,
+                          enabledScenarios: e.target.checked
+                            ? [...prev.enabledScenarios, def.type]
+                            : prev.enabledScenarios.filter(t => t !== def.type)
+                        }));
+                      }}
+                      className="mt-1 h-4 w-4 text-primary rounded border-gray-300"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {def.icon}
+                          <span className="font-medium text-gray-900">{def.name}</span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setEditingPrompt(def.type);
+                            setEditingPromptValue(scenarioPrompts[def.type]);
+                          }}
+                          className="text-xs text-primary hover:underline flex items-center gap-1"
+                        >
+                          <Edit3 size={12} />
+                          编辑提示词
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">{scenarioPrompts[def.type]}</p>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">{def.description}</p>
                   </div>
-                </label>
+                </div>
               ))}
             </div>
           </div>
+
+          {editingPrompt && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-xl w-full max-w-lg p-6">
+                <h4 className="text-lg font-semibold text-gray-900 mb-4">
+                  编辑提示词 - {SCENARIO_DEFINITIONS.find(d => d.type === editingPrompt)?.name}
+                </h4>
+                <textarea
+                  className="w-full h-32 px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none"
+                  value={editingPromptValue}
+                  onChange={(e) => setEditingPromptValue(e.target.value)}
+                  placeholder="输入场景识别提示词..."
+                />
+                <div className="flex justify-end gap-2 mt-4">
+                  <button
+                    onClick={() => setEditingPrompt(null)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={() => {
+                      setScenarioPrompts(prev => ({ ...prev, [editingPrompt]: editingPromptValue }));
+                      setEditingPrompt(null);
+                    }}
+                    className="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90"
+                  >
+                    保存
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="mt-6 pt-6 border-t border-gray-200 flex gap-3">
@@ -1217,173 +1173,13 @@ const ModelTraining: React.FC = () => {
 
           {/* 底部操作 */}
           <div className="border-t border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex gap-2">
-                <button 
-                  className="px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors flex items-center gap-2"
-                  onClick={() => {
-                    handleAnnotation(detailRecord.id, 'confirmed');
-                    setShowDetailModal(false);
-                  }}
-                >
-                  <CheckCircle size={16} />
-                  确认正确
-                </button>
-                <button 
-                  className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors flex items-center gap-2"
-                  onClick={() => {
-                    handleAnnotation(detailRecord.id, 'corrected');
-                    setShowDetailModal(false);
-                  }}
-                >
-                  <Edit3 size={16} />
-                  需要修正
-                </button>
-                <button 
-                  className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors flex items-center gap-2"
-                  onClick={() => {
-                    handleAnnotation(detailRecord.id, 'rejected');
-                    setShowDetailModal(false);
-                  }}
-                >
-                  <XCircle size={16} />
-                  识别错误
-                </button>
-              </div>
-              <button 
+            <div className="flex items-center justify-end">
+              <button
                 className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2"
-                onClick={() => {
-                  setShowDetailModal(false);
-                  handleDebug(detailRecord);
-                }}
-              >
-                <Play size={16} />
-                调试验证
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // 渲染调试弹窗
-  const renderDebugModal = () => {
-    if (!showDebugModal || !debuggingRecord) return null;
-
-    return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-          {/* 头部 */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">调试验证</h3>
-              <p className="text-sm text-gray-500">
-                {debuggingRecord.callId} · 使用 {debuggingRecord.botName} 进行调试
-              </p>
-            </div>
-            <button 
-              className="text-gray-400 hover:text-gray-600"
-              onClick={() => setShowDebugModal(false)}
-            >
-              <XCircle size={24} />
-            </button>
-          </div>
-
-          {/* 调试内容 */}
-          <div className="flex-1 overflow-hidden flex">
-            {/* 左侧：原始对话 */}
-            <div className="w-1/2 border-r border-gray-200 p-4 overflow-y-auto">
-              <h4 className="text-sm font-medium text-gray-700 mb-3">原始对话</h4>
-              <div className="space-y-3">
-                {debuggingRecord.transcription.map(turn => (
-                  <div 
-                    key={turn.id}
-                    className={`flex gap-2 ${turn.speaker === 'customer' ? 'flex-row' : 'flex-row-reverse'}`}
-                  >
-                    <div className={`max-w-[90%] p-2 rounded-lg text-sm ${
-                      turn.speaker === 'customer'
-                        ? 'bg-gray-100'
-                        : 'bg-primary/10'
-                    }`}>
-                      <span className="text-xs text-gray-500 block mb-1">
-                        {turn.speaker === 'customer' ? '客户' : '机器人'}
-                      </span>
-                      {turn.content}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* 右侧：调试结果 */}
-            <div className="w-1/2 p-4 overflow-y-auto">
-              <h4 className="text-sm font-medium text-gray-700 mb-3">调试结果</h4>
-              <div className="space-y-3">
-                {debuggingRecord.transcription.map(turn => (
-                  <div 
-                    key={turn.id}
-                    className={`flex gap-2 ${turn.speaker === 'customer' ? 'flex-row' : 'flex-row-reverse'}`}
-                  >
-                    <div className={`max-w-[90%] p-2 rounded-lg text-sm ${
-                      turn.speaker === 'customer'
-                        ? 'bg-gray-100'
-                        : 'bg-green-50 border border-green-200'
-                    }`}>
-                      <span className="text-xs text-gray-500 block mb-1">
-                        {turn.speaker === 'customer' ? '客户' : '机器人（调试）'}
-                      </span>
-                      {turn.speaker === 'customer' 
-                        ? turn.content 
-                        : `【优化后的回答】根据您的问题，我帮您查询到...`
-                      }
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* 对比分析 */}
-              <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-                <h5 className="text-sm font-medium text-blue-900 mb-2">对比分析</h5>
-                <ul className="text-sm text-blue-700 space-y-1">
-                  <li>• 原始回答存在重复问题</li>
-                  <li>• 优化后回答更加精准</li>
-                  <li>• 建议更新提示词模板</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          {/* 底部操作 */}
-          <div className="border-t border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <button 
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                onClick={() => setShowDebugModal(false)}
+                onClick={() => setShowDetailModal(false)}
               >
                 关闭
               </button>
-              <div className="flex gap-2">
-                <button 
-                  className="px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors flex items-center gap-2"
-                  onClick={() => {
-                    alert('已生成提示词优化建议');
-                  }}
-                >
-                  <Sparkles size={16} />
-                  优化提示词
-                </button>
-                <button 
-                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2"
-                  onClick={() => {
-                    alert('已添加到QA系统');
-                    setShowDebugModal(false);
-                  }}
-                >
-                  <BookOpen size={16} />
-                  添加到QA
-                </button>
-              </div>
             </div>
           </div>
         </div>
@@ -1400,7 +1196,7 @@ const ModelTraining: React.FC = () => {
           模型训练数据平台
         </h1>
         <p className="text-gray-500 mt-1">
-          自动识别问题通话记录，进行人工标注和调试验证，持续提升机器人服务质量
+          自动识别问题通话记录，持续提升机器人服务质量
         </p>
       </div>
 
@@ -1409,14 +1205,12 @@ const ModelTraining: React.FC = () => {
 
       {/* 内容区域 */}
       <div>
-        {activeView === 'dashboard' && renderDashboard()}
         {activeView === 'records' && renderRecords()}
         {activeView === 'config' && renderConfig()}
       </div>
 
       {/* 弹窗 */}
       {renderDetailModal()}
-      {renderDebugModal()}
     </div>
   );
 };
