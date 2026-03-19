@@ -89,7 +89,7 @@ interface DetectedScenario {
 }
 
 type ScenarioType = 
-  | 'unknown'           // 未知说辞
+  | 'unknown'           // 未知场景
   | 'dissatisfied'      // 客户不满意
   | 'transfer'          // 转人工
   | 'repetition'        // 重复回答
@@ -148,7 +148,7 @@ interface ScenarioDefinition {
 const SCENARIO_DEFINITIONS: ScenarioDefinition[] = [
   {
     type: 'unknown',
-    name: '未知说辞',
+    name: '未知场景',
     description: '机器人回答不知道或无法理解用户意图',
     icon: <HelpCircle size={16} />,
     color: 'text-orange-600',
@@ -225,7 +225,7 @@ const MOCK_RECORDS: CallRecord[] = [
       { 
         id: 's1', 
         type: 'unknown', 
-        name: '未知说辞', 
+        name: '未知场景', 
         confidence: 0.92, 
         description: '机器人两次无法理解用户关于退款的问题',
         relatedTurns: ['t3', 't5'],

@@ -120,6 +120,7 @@ const DEFAULT_SETTINGS: KnowledgeSettings = {
 const DEFAULT_CATEGORIES = ['售后服务', '物流配送', '支付相关', '产品咨询', '账户问题', '优惠活动', '未分类'];
 
 export default function KnowledgeDiscovery() {
+  const [activeTab, setActiveTab] = useState<'answered' | 'unknown'>('answered');
   const [candidates, setCandidates] = useState<KnowledgeCandidate[]>(MOCK_CANDIDATES);
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [settings, setSettings] = useState<KnowledgeSettings>(DEFAULT_SETTINGS);
@@ -323,6 +324,32 @@ export default function KnowledgeDiscovery() {
            >
              <Settings size={14} className="mr-1.5" /> 知识运营设置
            </button>
+        </div>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="mb-6 shrink-0">
+        <div className="flex items-center gap-2 border-b border-slate-200">
+          <button
+            onClick={() => setActiveTab('answered')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'answered'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            有答案抽取
+          </button>
+          <button
+            onClick={() => setActiveTab('unknown')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'unknown'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            未知说辞
+          </button>
         </div>
       </div>
 
