@@ -98,6 +98,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeSubItem, onNavigate }) =
         { label: '地理组合', id: '地理组合' },
         { label: '工作时间', id: '工作时间' },
         { label: '文件管理', id: '文件管理', icon: FolderOpen },
+        { label: '模型训练', id: '模型训练' },
         { label: '参数设置', id: '参数设置' },
       ]
     },

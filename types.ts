@@ -336,7 +336,7 @@ export interface AgentTool {
   id: string;
   name: string; // The function name for LLM (e.g. check_order)
   description: string; // The function description
-  type: 'API' | 'SMS'; // Added SMS
+  type: 'API' | 'SMS' | 'TRANSFER' | 'EMAIL' | 'CUSTOM'; // 扩展工具类型
   
   // Link to existing resources
   refId?: string; // ExtractionConfig ID for API
@@ -355,6 +355,27 @@ export interface AgentTool {
     fillerContent: string; // TTS text or Audio URL
     backgroundMusicId?: string;
   };
+  
+  // === 新增字段 (用于 Demo 增强) ===
+  // 工具分类
+  category?: 'api_call' | 'communication' | 'transfer' | 'other';
+  // 工具图标 (emoji)
+  icon?: string;
+  // 平均执行时长（毫秒），用于进度估算
+  averageDuration?: number;
+  // 是否支持并行执行
+  supportsParallel?: boolean;
+  // 测试配置
+  testConfig?: {
+    enabled: boolean;
+    testParams: Record<string, any>;
+  };
+  // 错误处理策略
+  errorHandling?: {
+    retryCount: number;
+    fallbackAction: 'transfer_human' | 'hangup' | 'goto_node';
+    fallbackTargetId?: string;
+  };
 }
 
 export interface AgentConfig {
@@ -365,6 +386,24 @@ export interface AgentConfig {
     content: string;
   };
   functionCallModel?: string; // Optional override
+}
+
+// === 增强工具类型 (用于 Demo) ===
+export interface EnhancedAgentTool extends AgentTool {
+  category: 'api_call' | 'communication' | 'transfer' | 'other';
+  icon: string;
+  averageDuration: number;
+  supportsParallel: boolean;
+}
+
+// 预设工具类型
+export interface PresetTool {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  category: 'api_call' | 'communication' | 'transfer';
+  defaultType: 'API' | 'SMS' | 'TRANSFER';
 }
 
 // ------------------------------
