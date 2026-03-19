@@ -378,8 +378,23 @@ export interface AgentTool {
   };
 }
 
+// MCP 服务器配置
+export interface McpServer {
+  id: string;
+  name: string;
+  description: string;
+  type: 'stdio' | 'http' | 'websocket';
+  command?: string;
+  args?: string[];
+  url?: string;
+  headers?: Record<string, string>;
+  env?: Record<string, string>;
+  enabled: boolean;
+}
+
 export interface AgentConfig {
   tools: AgentTool[];
+  mcpServers?: McpServer[]; // MCP 服务器列表
   generalFiller: {
     enabled: boolean;
     type: 'TTS' | 'AUDIO';

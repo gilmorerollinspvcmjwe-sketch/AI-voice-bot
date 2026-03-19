@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { 
-  Wrench, Plus, Trash2, Edit3, Volume2, MessageSquare, Zap
+  Wrench, Plus, Trash2, Edit3, Volume2, MessageSquare, Zap, Link
 } from 'lucide-react';
 import { BotConfiguration, AgentTool, ExtractionConfig } from '../../types';
 import AgentToolModal from './agent/AgentToolModal';
+import McpServerModal from './agent/McpServerModal';
 // import ToolCategorySection from './agent/ToolCategorySection';
 // import QuickAddToolPanel from './agent/QuickAddToolPanel';
 // import { getAllPresetTools, getPresetToolConfig } from '../../services/presetTools';
@@ -17,10 +18,12 @@ interface Props {
 export default function BotAgentConfig({ config, updateField, extractionConfigs }: Props) {
   const [editingTool, setEditingTool] = useState<AgentTool | null>(null);
   const [isToolModalOpen, setIsToolModalOpen] = useState(false);
+  const [isMcpModalOpen, setIsMcpModalOpen] = useState(false);
 
   // Helper to ensure agentConfig exists
   const agentConfig = config.agentConfig || {
     tools: [],
+    mcpServers: [], // MCP 服务器列表
     generalFiller: { enabled: true, type: 'TTS', content: '请稍等...' },
     functionCallModel: 'gemini-pro'
   };
@@ -92,12 +95,21 @@ export default function BotAgentConfig({ config, updateField, extractionConfigs 
             </h3>
             <p className="text-xs text-slate-500 mt-1">配置智能体可调用的外部能力。提示词请在"基础配置"中设置。</p>
          </div>
-         <button 
-           onClick={() => openToolModal()}
-           className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 shadow-sm flex items-center"
-         >
-            <Plus size={14} className="mr-1.5" /> 添加工具
-         </button>
+         <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setIsMcpModalOpen(true)}
+              className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 shadow-sm flex items-center"
+              title="添加 MCP 服务器"
+            >
+               <Link size={14} className="mr-1.5" /> 添加 MCP
+            </button>
+            <button 
+              onClick={() => openToolModal()}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 shadow-sm flex items-center"
+            >
+               <Plus size={14} className="mr-1.5" /> 添加工具
+            </button>
+         </div>
       </div>
       
       {/* TOOL LIST */}
@@ -159,6 +171,18 @@ export default function BotAgentConfig({ config, updateField, extractionConfigs 
             onSave={handleSaveTool}
             onClose={() => setIsToolModalOpen(false)}
             extractionConfigs={extractionConfigs}
+         />
+      )}
+
+      {/* MCP Server Modal */}
+      {isMcpModalOpen && (
+         <McpServerModal 
+            onClose={() => setIsMcpModalOpen(false)}
+            onSave={(mcpServer) => {
+              const newServers = [...(agentConfig.mcpServers || []), mcpServer];
+              updateAgentConfig({ mcpServers: newServers });
+              setIsMcpModalOpen(false);
+            }}
          />
       )}
 
