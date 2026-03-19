@@ -26,6 +26,7 @@ import ContactLists from './components/outbound/ContactLists';
 import CampaignManager, { MOCK_CAMPAIGNS as INITIAL_CAMPAIGNS } from './components/marketing/CampaignManager';
 import CustomerProfileManager from './components/marketing/CustomerProfileManager';
 import MonitoringReport from './components/report/MonitoringReport';
+import { AGENT_DEMO_BOT } from './services/agentDemoBot';
 
 // --- CONSTANTS & DEFAULTS ---
 const INITIAL_LABEL_GROUPS: LabelGroup[] = [
