@@ -1,10 +1,10 @@
 
 // Enums
 export enum ModelType {
-  QWEN_PLUS = 'qwen-plus',
-  QWEN_35_FLASH = 'qwen3.5-flash',
-  DOBAO_SEED = 'doubao-seed-2-0-mini-260215',
-  GPT_41_MINI = 'GPT-4.1 mini'
+  GEMINI_FLASH = 'Gemini Flash 2.0',
+  GEMINI_PRO = 'Gemini Pro 1.5',
+  GPT4_O = 'GPT-4o',
+  CLAUDE_35 = 'Claude 3.5 Sonnet'
 }
 
 export enum TTSModel {
@@ -434,6 +434,14 @@ export interface BotConfiguration {
   transferIntentCustomEnabled?: boolean;
   transferCustomIntents?: string[];
   transferIntentThreshold: number;
+  
+  // Scene-based transfer
+  transferSceneEnabled?: boolean;
+  transferScenes?: Array<{
+    id: string;
+    scene: string;
+    description: string;
+  }>;
   transferConditionRoundsEnabled?: boolean;
   transferConditionRounds?: number;
   transferConditionDurationEnabled?: boolean;
@@ -454,9 +462,6 @@ export interface BotConfiguration {
   noAnswerInterval?: number;
   noAnswerMaxRepeats?: number;
   noAnswerSpeech?: string;
-  
-  // Continuous Interruption Optimization
-  continuousInterruptionOptimizationEnabled?: boolean;
 
   // Marketing Config
   marketingEnabled?: boolean;

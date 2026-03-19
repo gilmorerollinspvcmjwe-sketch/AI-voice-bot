@@ -2,7 +2,7 @@
 import React from 'react';
 import { 
   Headset, Search, RotateCcw, Clock, PhoneOff, CheckCircle2, 
-  MessageSquare, UserX, PlusCircle, X, Volume2, MicOff, Mic
+  MessageSquare, UserX, PlusCircle, X, Volume2, MicOff, Mic, Plus, Trash2
 } from 'lucide-react';
 import { Switch, Label, TagInput, Select } from '../ui/FormComponents';
 import { BotConfiguration } from '../../types';
@@ -141,6 +141,97 @@ const BotStrategyConfig: React.FC<BotStrategyConfigProps> = ({ config, updateFie
                         disabled={config.transferIntentThreshold >= 5}
                       >+</button>
                    </div>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100 mt-4">
+                <div className="flex items-center">
+                  <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-slate-200 mr-3 shadow-sm text-primary">
+                    <CheckCircle2 size={18} />
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold text-slate-800">场景识别转人工</div>
+                    <div className="text-[11px] text-slate-500">当检测到特定场景时自动转接人工</div>
+                  </div>
+                </div>
+                <Switch label="" checked={config.transferSceneEnabled || false} onChange={(v) => updateField('transferSceneEnabled', v)} />
+              </div>
+              
+              <div className={`bg-white p-4 border border-slate-100 rounded-xl shadow-sm ${!config.transferSceneEnabled ? 'opacity-50 pointer-events-none' : ''}`}>
+                <div className="flex items-center justify-between mb-3">
+                   <Label label="转人工场景" tooltip="添加特定场景，当检测到这些场景时自动转接人工" />
+                   <button 
+                     onClick={() => {
+                       const newScene = {
+                         id: Date.now().toString(),
+                         scene: '',
+                         description: ''
+                       };
+                       updateField('transferScenes', [...(config.transferScenes || []), newScene]);
+                     }}
+                     className="text-primary text-xs flex items-center hover:underline bg-sky-50 px-2 py-0.5 rounded-full border border-sky-100 transition-colors font-bold"
+                     disabled={!config.transferSceneEnabled}
+                   >
+                     <Plus size={12} className="mr-1" />
+                     添加场景
+                   </button>
+                </div>
+                
+                <div className="space-y-3">
+                  {config.transferScenes?.map((scene) => (
+                    <div key={scene.id} className="flex flex-col space-y-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                      <div className="flex items-center justify-between">
+                        <input 
+                          type="text" 
+                          className="w-1/3 px-3 py-1 text-sm border border-gray-200 rounded focus:border-primary outline-none"
+                          placeholder="场景名称（四五个字）"
+                          value={scene.scene}
+                          onChange={(e) => {
+                            const updatedScenes = config.transferScenes?.map(s => 
+                              s.id === scene.id ? { ...s, scene: e.target.value } : s
+                            );
+                            updateField('transferScenes', updatedScenes);
+                          }}
+                          disabled={!config.transferSceneEnabled}
+                        />
+                        <button 
+                          onClick={() => {
+                            const updatedScenes = config.transferScenes?.filter(s => s.id !== scene.id);
+                            updateField('transferScenes', updatedScenes);
+                          }}
+                          className="text-slate-300 hover:text-red-500 shrink-0"
+                          disabled={!config.transferSceneEnabled}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                      <textarea 
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded focus:border-primary outline-none resize-none h-16"
+                        placeholder="详细场景描述"
+                        value={scene.description}
+                        onChange={(e) => {
+                          const updatedScenes = config.transferScenes?.map(s => 
+                            s.id === scene.id ? { ...s, description: e.target.value } : s
+                          );
+                          updateField('transferScenes', updatedScenes);
+                        }}
+                        disabled={!config.transferSceneEnabled}
+                      />
+                    </div>
+                  ))}
+                  {(!config.transferScenes || config.transferScenes.length === 0) && (
+                    <div className="text-[10px] text-slate-400 text-center py-4">
+                      暂无场景，请点击上方"添加场景"按钮添加
+                    </div>
+                  )}
+                </div>
+                
+                <div className="mt-4 pt-3 border-t border-dashed border-gray-100">
+                  <div className="text-xs text-slate-500">
+                    <span className="font-bold text-slate-700">示例场景：</span>
+                    <span className="bg-slate-100 px-2 py-1 rounded">加微信被拒绝</span>
+                    <span className="text-[10px] text-slate-400 ml-2">机器人申请添加客户微信，当客户表示拒绝时</span>
+                  </div>
                 </div>
               </div>
 
@@ -431,21 +522,6 @@ const BotStrategyConfig: React.FC<BotStrategyConfigProps> = ({ config, updateFie
                 />
                 <p className="text-[10px] text-slate-400 mt-2">当用户长时间不说话时，机器人自动播放的提示语。</p>
              </div>
-          </div>
-        </div>
-        
-        <div className="mt-8 border-t border-gray-100 pt-8">
-          <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
-            <div className="flex items-center">
-              <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-slate-200 mr-3 shadow-sm text-primary">
-                <Mic size={18} />
-              </div>
-              <div>
-                <div className="text-sm font-bold text-slate-800">连续打断优化</div>
-                <div className="text-[11px] text-slate-500">当检测到客户与机器人连续抢话时，自动延长静音检测时长，帮助机器人等待客户说完，减少抢话循环。</div>
-              </div>
-            </div>
-            <Switch label="" checked={config.continuousInterruptionOptimizationEnabled || false} onChange={(v) => updateField('continuousInterruptionOptimizationEnabled', v)} />
           </div>
         </div>
       </StrategyCard>
