@@ -107,42 +107,43 @@ const BotStrategyConfig: React.FC<BotStrategyConfigProps> = ({ config, updateFie
                 <Switch label="" checked={config.transferIntentDefaultEnabled} onChange={(v) => updateField('transferIntentDefaultEnabled', v)} />
               </div>
               
-              <div className={`bg-white p-4 border border-slate-100 rounded-xl shadow-sm ${!config.transferIntentDefaultEnabled ? 'opacity-50 pointer-events-none' : ''}`}>
-                <div className="flex items-center justify-between mb-3">
-                   <Label label="自定义转人工关键词" tooltip="添加特定的词汇来强制触发转人工流程" />
+              {config.transferIntentDefaultEnabled && (
+                <div className="bg-white p-4 border border-slate-100 rounded-xl shadow-sm">
+                  <div className="flex items-center justify-between mb-3">
+                     <Label label="自定义转人工关键词" tooltip="添加特定的词汇来强制触发转人工流程" />
+                  </div>
+                  <TagInput 
+                    label="" 
+                    placeholder="输入词汇后回车..." 
+                    tags={config.transferCustomIntents} 
+                    onChange={(tags) => updateField('transferCustomIntents', tags)} 
+                  />
+                  
+                  <div className="mt-4 pt-3 border-t border-dashed border-gray-100 flex items-center justify-between">
+                     <div className="text-xs text-slate-500 flex flex-col">
+                        <span className="font-bold text-slate-700">意图确认阈值</span>
+                        <span className="scale-90 origin-left opacity-70">连续识别到 N 次才执行动作</span>
+                     </div>
+                     <div className="flex items-center bg-slate-50 rounded-lg border border-slate-200 px-1">
+                        <button 
+                          className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-primary disabled:opacity-30"
+                          onClick={() => updateField('transferIntentThreshold', Math.max(1, (config.transferIntentThreshold || 1) - 1))}
+                          disabled={config.transferIntentThreshold <= 1}
+                        >-</button>
+                        <input 
+                           className="w-8 text-center bg-transparent text-xs font-bold outline-none" 
+                           value={config.transferIntentThreshold || 1} 
+                           readOnly 
+                        />
+                        <button 
+                          className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-primary disabled:opacity-30"
+                          onClick={() => updateField('transferIntentThreshold', Math.min(5, (config.transferIntentThreshold || 1) + 1))}
+                          disabled={config.transferIntentThreshold >= 5}
+                        >+</button>
+                     </div>
+                  </div>
                 </div>
-                <TagInput 
-                  label="" 
-                  placeholder="输入词汇后回车..." 
-                  tags={config.transferCustomIntents} 
-                  onChange={(tags) => updateField('transferCustomIntents', tags)} 
-                  disabled={!config.transferIntentDefaultEnabled}
-                />
-                
-                <div className="mt-4 pt-3 border-t border-dashed border-gray-100 flex items-center justify-between">
-                   <div className="text-xs text-slate-500 flex flex-col">
-                      <span className="font-bold text-slate-700">意图确认阈值</span>
-                      <span className="scale-90 origin-left opacity-70">连续识别到 N 次才执行动作</span>
-                   </div>
-                   <div className="flex items-center bg-slate-50 rounded-lg border border-slate-200 px-1">
-                      <button 
-                        className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-primary disabled:opacity-30"
-                        onClick={() => updateField('transferIntentThreshold', Math.max(1, (config.transferIntentThreshold || 1) - 1))}
-                        disabled={config.transferIntentThreshold <= 1}
-                      >-</button>
-                      <input 
-                         className="w-8 text-center bg-transparent text-xs font-bold outline-none" 
-                         value={config.transferIntentThreshold || 1} 
-                         readOnly 
-                      />
-                      <button 
-                        className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-primary disabled:opacity-30"
-                        onClick={() => updateField('transferIntentThreshold', Math.min(5, (config.transferIntentThreshold || 1) + 1))}
-                        disabled={config.transferIntentThreshold >= 5}
-                      >+</button>
-                   </div>
-                </div>
-              </div>
+              )}
               
               <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100 mt-4">
                 <div className="flex items-center">
@@ -157,83 +158,81 @@ const BotStrategyConfig: React.FC<BotStrategyConfigProps> = ({ config, updateFie
                 <Switch label="" checked={config.transferSceneEnabled || false} onChange={(v) => updateField('transferSceneEnabled', v)} />
               </div>
               
-              <div className={`bg-white p-4 border border-slate-100 rounded-xl shadow-sm ${!config.transferSceneEnabled ? 'opacity-50 pointer-events-none' : ''}`}>
-                <div className="flex items-center justify-between mb-3">
-                   <Label label="转人工场景" tooltip="添加特定场景，当检测到这些场景时自动转接人工" />
-                   <button 
-                     onClick={() => {
-                       const newScene = {
-                         id: Date.now().toString(),
-                         scene: '',
-                         description: ''
-                       };
-                       updateField('transferScenes', [...(config.transferScenes || []), newScene]);
-                     }}
-                     className="text-primary text-xs flex items-center hover:underline bg-sky-50 px-2 py-0.5 rounded-full border border-sky-100 transition-colors font-bold"
-                     disabled={!config.transferSceneEnabled}
-                   >
-                     <Plus size={12} className="mr-1" />
-                     添加场景
-                   </button>
-                </div>
-                
-                <div className="space-y-3">
-                  {config.transferScenes?.map((scene) => (
-                    <div key={scene.id} className="flex flex-col space-y-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                      <div className="flex items-center justify-between">
-                        <input 
-                          type="text" 
-                          className="w-1/3 px-3 py-1 text-sm border border-gray-200 rounded focus:border-primary outline-none"
-                          placeholder="场景名称（四五个字）"
-                          value={scene.scene}
+              {config.transferSceneEnabled && (
+                <div className="bg-white p-4 border border-slate-100 rounded-xl shadow-sm">
+                  <div className="flex items-center justify-between mb-3">
+                     <Label label="转人工场景" tooltip="添加特定场景，当检测到这些场景时自动转接人工" />
+                     <button 
+                       onClick={() => {
+                         const newScene = {
+                           id: Date.now().toString(),
+                           scene: '',
+                           description: ''
+                         };
+                         updateField('transferScenes', [...(config.transferScenes || []), newScene]);
+                       }}
+                       className="text-primary text-xs flex items-center hover:underline bg-sky-50 px-2 py-0.5 rounded-full border border-sky-100 transition-colors font-bold"
+                     >
+                       <Plus size={12} className="mr-1" />
+                       添加场景
+                     </button>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {config.transferScenes?.map((scene) => (
+                      <div key={scene.id} className="flex flex-col space-y-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                        <div className="flex items-center justify-between">
+                          <input 
+                            type="text" 
+                            className="w-1/3 px-3 py-1 text-sm border border-gray-200 rounded focus:border-primary outline-none"
+                            placeholder="场景名称（四五个字）"
+                            value={scene.scene}
+                            onChange={(e) => {
+                              const updatedScenes = config.transferScenes?.map(s => 
+                                s.id === scene.id ? { ...s, scene: e.target.value } : s
+                              );
+                              updateField('transferScenes', updatedScenes);
+                            }}
+                          />
+                          <button 
+                            onClick={() => {
+                              const updatedScenes = config.transferScenes?.filter(s => s.id !== scene.id);
+                              updateField('transferScenes', updatedScenes);
+                            }}
+                            className="text-slate-300 hover:text-red-500 shrink-0"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                        <textarea 
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded focus:border-primary outline-none resize-none h-16"
+                          placeholder="详细场景描述"
+                          value={scene.description}
                           onChange={(e) => {
                             const updatedScenes = config.transferScenes?.map(s => 
-                              s.id === scene.id ? { ...s, scene: e.target.value } : s
+                              s.id === scene.id ? { ...s, description: e.target.value } : s
                             );
                             updateField('transferScenes', updatedScenes);
                           }}
-                          disabled={!config.transferSceneEnabled}
                         />
-                        <button 
-                          onClick={() => {
-                            const updatedScenes = config.transferScenes?.filter(s => s.id !== scene.id);
-                            updateField('transferScenes', updatedScenes);
-                          }}
-                          className="text-slate-300 hover:text-red-500 shrink-0"
-                          disabled={!config.transferSceneEnabled}
-                        >
-                          <Trash2 size={14} />
-                        </button>
                       </div>
-                      <textarea 
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded focus:border-primary outline-none resize-none h-16"
-                        placeholder="详细场景描述"
-                        value={scene.description}
-                        onChange={(e) => {
-                          const updatedScenes = config.transferScenes?.map(s => 
-                            s.id === scene.id ? { ...s, description: e.target.value } : s
-                          );
-                          updateField('transferScenes', updatedScenes);
-                        }}
-                        disabled={!config.transferSceneEnabled}
-                      />
+                    ))}
+                    {(!config.transferScenes || config.transferScenes.length === 0) && (
+                      <div className="text-[10px] text-slate-400 text-center py-4">
+                        暂无场景，请点击上方"添加场景"按钮添加
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="mt-4 pt-3 border-t border-dashed border-gray-100">
+                    <div className="text-xs text-slate-500">
+                      <span className="font-bold text-slate-700">示例场景：</span>
+                      <span className="bg-slate-100 px-2 py-1 rounded">加微信被拒绝</span>
+                      <span className="text-[10px] text-slate-400 ml-2">机器人申请添加客户微信，当客户表示拒绝时</span>
                     </div>
-                  ))}
-                  {(!config.transferScenes || config.transferScenes.length === 0) && (
-                    <div className="text-[10px] text-slate-400 text-center py-4">
-                      暂无场景，请点击上方"添加场景"按钮添加
-                    </div>
-                  )}
-                </div>
-                
-                <div className="mt-4 pt-3 border-t border-dashed border-gray-100">
-                  <div className="text-xs text-slate-500">
-                    <span className="font-bold text-slate-700">示例场景：</span>
-                    <span className="bg-slate-100 px-2 py-1 rounded">加微信被拒绝</span>
-                    <span className="text-[10px] text-slate-400 ml-2">机器人申请添加客户微信，当客户表示拒绝时</span>
                   </div>
                 </div>
-              </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className={`flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100 transition-opacity ${config.transferConditionDurationEnabled ? 'opacity-40' : 'opacity-100'}`}>

@@ -4,9 +4,9 @@ import {
 } from 'lucide-react';
 import { BotConfiguration, AgentTool, ExtractionConfig } from '../../types';
 import AgentToolModal from './agent/AgentToolModal';
-import ToolCategorySection from './agent/ToolCategorySection';
-import QuickAddToolPanel from './agent/QuickAddToolPanel';
-import { getAllPresetTools, getPresetToolConfig } from '../../services/presetTools';
+// import ToolCategorySection from './agent/ToolCategorySection';
+// import QuickAddToolPanel from './agent/QuickAddToolPanel';
+// import { getAllPresetTools, getPresetToolConfig } from '../../services/presetTools';
 
 interface Props {
   config: BotConfiguration;
@@ -55,10 +55,10 @@ export default function BotAgentConfig({ config, updateField, extractionConfigs 
 
   // Quick add tool handler
   const handleQuickAddTool = (presetId: string) => {
-    const presetTool = getPresetToolConfig(presetId);
-    if (presetTool) {
-      openToolModal(presetTool);
-    }
+    // const presetTool = getPresetToolConfig(presetId);
+    // if (presetTool) {
+    //   openToolModal(presetTool);
+    // }
   };
 
   // Group tools by category
@@ -112,20 +112,44 @@ export default function BotAgentConfig({ config, updateField, extractionConfigs 
           <div>
             {Object.entries(groupedTools).map(([category, tools]) => 
               tools.length > 0 && (
-                <ToolCategorySection
-                  key={category}
-                  category={category}
-                  tools={tools}
-                  onEditTool={openToolModal}
-                  onDeleteTool={handleDeleteTool}
-                />
+                // <ToolCategorySection
+                //   key={category}
+                //   category={category}
+                //   tools={tools}
+                //   onEditTool={openToolModal}
+                //   onDeleteTool={handleDeleteTool}
+                // />
+                <div key={category} className="mb-4">
+                  <h3 className="text-sm font-bold text-slate-700 mb-2">{category}</h3>
+                  {tools.map(tool => (
+                    <div key={tool.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200 mb-2">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-white rounded flex items-center justify-center border border-slate-200">
+                          <span className="text-sm">{tool.icon || '🔧'}</span>
+                        </div>
+                        <div>
+                          <div className="text-sm font-bold text-slate-800">{tool.name}</div>
+                          <div className="text-[10px] text-slate-500">{tool.description}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button onClick={() => openToolModal(tool)} className="text-slate-400 hover:text-primary">
+                          <Edit3 size={14} />
+                        </button>
+                        <button onClick={() => handleDeleteTool(tool.id)} className="text-slate-400 hover:text-red-500">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )
             )}
           </div>
         )}
 
         {/* Quick Add Panel */}
-        <QuickAddToolPanel onAddTool={handleQuickAddTool} />
+        {/* <QuickAddToolPanel onAddTool={handleQuickAddTool} /> */}
       </div>
 
       {/* Tool Modal */}
