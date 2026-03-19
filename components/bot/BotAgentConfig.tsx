@@ -7,7 +7,7 @@ import AgentToolModal from './agent/AgentToolModal';
 import McpServerModal from './agent/McpServerModal';
 // import ToolCategorySection from './agent/ToolCategorySection';
 // import QuickAddToolPanel from './agent/QuickAddToolPanel';
-// import { getAllPresetTools, getPresetToolConfig } from '../../services/presetTools';
+import { getAllPresetTools, getPresetToolConfig } from '../../services/presetTools';
 
 interface Props {
   config: BotConfiguration;
@@ -58,10 +58,10 @@ export default function BotAgentConfig({ config, updateField, extractionConfigs 
 
   // Quick add tool handler
   const handleQuickAddTool = (presetId: string) => {
-    // const presetTool = getPresetToolConfig(presetId);
-    // if (presetTool) {
-    //   openToolModal(presetTool);
-    // }
+    const presetTool = getPresetToolConfig(presetId);
+    if (presetTool) {
+      openToolModal(presetTool);
+    }
   };
 
   // Group tools by category
