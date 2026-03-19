@@ -493,6 +493,9 @@ export interface BotConfiguration {
   noAnswerInterval?: number;
   noAnswerMaxRepeats?: number;
   noAnswerSpeech?: string;
+  
+  // Continuous Interruption Optimization
+  continuousInterruptionOptimizationEnabled?: boolean;
 
   // Marketing Config
   marketingEnabled?: boolean;
