@@ -142,3 +142,13 @@ export const TagInput: React.FC<{ label: string; tags: string[]; onChange: (tags
     </div>
   );
 };
+
+export const TextArea: React.FC<React.TextareaHTMLAttributes<HTMLTextAreaElement> & { label?: string; required?: boolean; tooltip?: string }> = ({ label, required, tooltip, className, ...props }) => (
+  <div className="mb-5">
+    {label && <Label label={label} required={required} tooltip={tooltip} />}
+    <textarea
+      className={`w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:bg-gray-100 disabled:text-gray-500 ${className}`}
+      {...props}
+    />
+  </div>
+);

@@ -8,6 +8,7 @@ import BotStrategyConfig from './BotStrategyConfig';
 import BotBusinessConfig from './BotBusinessConfig';
 import BotVariableConfig from './BotVariableConfig';
 import BotDebugConfig from './BotDebugConfig';
+import BotTestConfig from './BotTestConfig';
 import BotIntentConfig from './intent/BotIntentConfig';
 import BotMarketingConfig from './BotMarketingConfig';
 import BotAgentConfig from './BotAgentConfig';
@@ -26,7 +27,7 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
     orchestrationType: initialData.orchestrationType || 'WORKFLOW' 
   });
   
-  const [activeTab, setActiveTab] = useState<'BASIC' | 'FLOW' | 'TOOLS' | 'STRATEGY' | 'BUSINESS' | 'VARIABLES' | 'DEBUG' | 'MARKETING'>('BASIC');
+  const [activeTab, setActiveTab] = useState<'BASIC' | 'FLOW' | 'TOOLS' | 'STRATEGY' | 'BUSINESS' | 'VARIABLES' | 'DEBUG' | 'TEST' | 'MARKETING'>('BASIC');
   const [isGenerating, setIsGenerating] = useState(false);
 
   const updateField = <K extends keyof BotConfiguration>(key: K, value: BotConfiguration[K]) => {
@@ -92,6 +93,7 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
           { id: 'BUSINESS', label: '业务分析' },
           { id: 'MARKETING', label: '营销活动' }, 
           { id: 'DEBUG', label: '模型调试' },
+          { id: 'TEST', label: '批量评测' },
         ].map(tab => (
           <button
             key={tab.id}
@@ -207,6 +209,15 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
         {activeTab === 'DEBUG' && (
           <div className="animate-in fade-in duration-500 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
              <BotDebugConfig config={config} />
+          </div>
+        )}
+
+        {activeTab === 'TEST' && (
+          <div className="animate-in fade-in duration-500 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+             <BotTestConfig 
+               config={config} 
+               updateField={updateField}
+             />
           </div>
         )}
       </div>

@@ -505,6 +505,11 @@ export interface BotConfiguration {
 
   hangupIntentDefaultEnabled?: boolean;
   hangupIntentCustomEnabled?: boolean;
+
+  // Test Management
+  testSuites?: TestSuite[];
+
+  // Hangup settings
   hangupCustomIntents?: string[];
   hangupIntentThreshold: number;
   hangupConditionRoundsEnabled?: boolean;
@@ -513,13 +518,14 @@ export interface BotConfiguration {
   hangupConditionDuration?: number;
   hangupSpeech?: string;
 
+  // No answer settings
   noAnswerInterval?: number;
   noAnswerMaxRepeats?: number;
   noAnswerSpeech?: string;
 
   // Marketing Config
   marketingEnabled?: boolean;
-  marketingTimings?: string[]; 
+  marketingTimings?: string[];
   marketingConflictStrategy?: 'service_first' | 'marketing_first';
   activeCampaignIds?: string[];
 
@@ -527,6 +533,43 @@ export interface BotConfiguration {
   profileCollectionEnabled?: boolean;
   profileExtractionPrompt?: string;
   profileExtractionRules?: ProfileExtractionRule[];
+}
+
+// Test Suite and Case Definitions
+export interface TestCase {
+  id: string;
+  name: string;
+  suiteName: string; // 所属测试集名称
+  sourceTag?: string; // 来源标注
+  conversations: TestConversation[]; // 对话轮次（仅用户输入）
+  expectedOutcome?: string; // 预期结果
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TestConversation {
+  id: string;
+  userInput: string; // 用户输入内容
+  expectedResponse?: string; // 期望的机器人回复（可选）
+  timestamp: number;
+}
+
+// 测试结果
+export interface TestResult {
+  caseId: string;
+  status: 'pending' | 'running' | 'passed' | 'failed' | 'error';
+  actualResponses: string[]; // 实际LLM返回内容
+  duration: number; // 测试耗时
+  errorMessage?: string;
+  completedAt?: string;
+}
+
+// 测试集（由测试用例按suiteName聚合而成）
+export interface TestSuite {
+  name: string; // 测试集名称
+  description?: string;
+  caseCount: number;
+  testCases: TestCase[];
 }
 
 // ... (Rest of types unchanged)
