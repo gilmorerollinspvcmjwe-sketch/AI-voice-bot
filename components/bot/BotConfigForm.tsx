@@ -12,6 +12,7 @@ import BotTestConfig from './BotTestConfig';
 import BotIntentConfig from './intent/BotIntentConfig';
 import BotMarketingConfig from './BotMarketingConfig';
 import BotAgentConfig from './BotAgentConfig';
+import BotKnowledgeConfig from './BotKnowledgeConfig';
 
 interface BotConfigFormProps {
   initialData: BotConfiguration;
@@ -27,7 +28,7 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
     orchestrationType: initialData.orchestrationType || 'WORKFLOW' 
   });
   
-  const [activeTab, setActiveTab] = useState<'BASIC' | 'FLOW' | 'TOOLS' | 'STRATEGY' | 'BUSINESS' | 'VARIABLES' | 'DEBUG' | 'TEST' | 'MARKETING'>('BASIC');
+  const [activeTab, setActiveTab] = useState<'BASIC' | 'FLOW' | 'TOOLS' | 'STRATEGY' | 'BUSINESS' | 'VARIABLES' | 'DEBUG' | 'TEST' | 'MARKETING' | 'KNOWLEDGE'>('BASIC');
   const [isGenerating, setIsGenerating] = useState(false);
 
   const updateField = <K extends keyof BotConfiguration>(key: K, value: BotConfiguration[K]) => {
@@ -94,6 +95,7 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
           { id: 'MARKETING', label: '营销活动' }, 
           { id: 'DEBUG', label: '模型调试' },
           { id: 'TEST', label: '批量评测' },
+          { id: 'KNOWLEDGE', label: '知识检索配置' },
         ].map(tab => (
           <button
             key={tab.id}
@@ -215,6 +217,15 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
         {activeTab === 'TEST' && (
           <div className="animate-in fade-in duration-500 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
              <BotTestConfig 
+               config={config} 
+               updateField={updateField}
+             />
+          </div>
+        )}
+
+        {activeTab === 'KNOWLEDGE' && (
+          <div className="animate-in fade-in duration-500 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+             <BotKnowledgeConfig 
                config={config} 
                updateField={updateField}
              />
