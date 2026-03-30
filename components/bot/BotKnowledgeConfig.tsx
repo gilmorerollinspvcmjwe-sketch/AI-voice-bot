@@ -14,6 +14,7 @@ interface MultiSelectDropdownProps {
   onChange: (selected: string[]) => void;
   placeholder?: string;
   tagColor?: 'blue' | 'green';
+  disabled?: boolean;
 }
 
 const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ 
@@ -21,7 +22,8 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   selected, 
   onChange, 
   placeholder = '请选择...',
-  tagColor = 'blue'
+  tagColor = 'blue',
+  disabled = false
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -50,8 +52,8 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
     <div className="relative">
       {/* Trigger */}
       <div 
-        className="w-full px-3 py-2 text-sm border border-gray-200 rounded bg-white cursor-pointer min-h-[38px]"
-        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full px-3 py-2 text-sm border border-gray-200 rounded bg-white cursor-pointer min-h-[38px] ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+        onClick={() => !disabled && setIsOpen(!isOpen)}
       >
         {selected.length === 0 ? (
           <span className="text-slate-400">{placeholder}</span>
@@ -67,7 +69,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
                 <X 
                   size={12} 
                   className="ml-1 cursor-pointer hover:opacity-70" 
-                  onClick={(e) => removeTag(item, e)}
+                  onClick={(e) => !disabled && removeTag(item, e)}
                 />
               </span>
             ))}
@@ -76,7 +78,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
       </div>
 
       {/* Dropdown */}
-      {isOpen && (
+      {isOpen && !disabled && (
         <>
           <div 
             className="fixed inset-0 z-10" 
@@ -109,6 +111,79 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   );
 };
 
+// --- Knowledge Space Item Component ---
+interface KnowledgeSpaceItemProps {
+  item: any;
+  isEditMode: boolean;
+  onToggle: (id: string) => void;
+  level?: number;
+}
+
+const KnowledgeSpaceItem: React.FC<KnowledgeSpaceItemProps> = ({ item, isEditMode, onToggle, level = 0 }) => {
+  const [expanded, setExpanded] = useState(true);
+  const indent = level * 20;
+
+  const getIcon = (type: string) => {
+    switch (type) {
+      case 'space': return '🌐';
+      case 'folder': return '📁';
+      case 'file': return '📄';
+      default: return '📦';
+    }
+  };
+
+  return (
+    <div className="border border-gray-200 rounded-lg overflow-hidden bg-white mb-3">
+      {/* Space/Folder Header */}
+      <div 
+        className="flex items-center justify-between p-3 bg-gray-50 cursor-pointer"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div className="flex items-center" style={{ marginLeft: indent }}>
+          {isEditMode && (
+            <input
+              type="checkbox"
+              checked={item.checked}
+              onChange={() => onToggle(item.id)}
+              className="mr-2 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+            />
+          )}
+          <div className="flex items-center">
+            <span className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2 text-xs">
+              {getIcon(item.type)}
+            </span>
+            <span className="font-medium text-slate-800 text-sm">{item.name}</span>
+            {item.type === 'space' && (
+              <span className="text-xs text-slate-400 ml-2">知识空间</span>
+            )}
+          </div>
+        </div>
+        {item.children && item.children.length > 0 && (
+          <ChevronDown 
+            size={16} 
+            className={`text-slate-400 transition-transform ${expanded ? 'rotate-180' : ''}`} 
+          />
+        )}
+      </div>
+      
+      {/* Children */}
+      {expanded && item.children && item.children.length > 0 && (
+        <div>
+          {item.children.map((child: any) => (
+            <KnowledgeSpaceItem 
+              key={child.id} 
+              item={child} 
+              isEditMode={isEditMode}
+              onToggle={onToggle}
+              level={level + 1}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface BotKnowledgeConfigProps {
   config: BotConfiguration;
   updateField: <K extends keyof BotConfiguration>(key: K, value: BotConfiguration[K]) => void;
@@ -121,7 +196,7 @@ const BotKnowledgeConfig: React.FC<BotKnowledgeConfigProps> = ({ config, updateF
   const [kcsEnabled, setKcsEnabled] = useState(false);
 
   // 模拟知识空间数据
-  const knowledgeSpaces = [
+  const [knowledgeSpaces, setKnowledgeSpaces] = useState([
     {
       id: '1',
       name: '全公司公用空间',
@@ -164,7 +239,38 @@ const BotKnowledgeConfig: React.FC<BotKnowledgeConfigProps> = ({ config, updateF
       checked: true,
       children: []
     }
-  ];
+  ]);
+
+  // 切换知识空间选择状态
+  const toggleKnowledgeSpace = (id: string) => {
+    const updateItem = (items: any[]): any[] => {
+      return items.map(item => {
+        if (item.id === id) {
+          const newChecked = !item.checked;
+          // 递归更新子项目
+          const updateChildren = (children: any[]): any[] => {
+            return children.map(child => ({
+              ...child,
+              checked: newChecked,
+              children: child.children ? updateChildren(child.children) : []
+            }));
+          };
+          return {
+            ...item,
+            checked: newChecked,
+            children: item.children ? updateChildren(item.children) : []
+          };
+        } else if (item.children) {
+          return {
+            ...item,
+            children: updateItem(item.children)
+          };
+        }
+        return item;
+      });
+    };
+    setKnowledgeSpaces(updateItem(knowledgeSpaces));
+  };
 
   return (
     <div className="p-6">
@@ -192,30 +298,6 @@ const BotKnowledgeConfig: React.FC<BotKnowledgeConfigProps> = ({ config, updateF
             知识库配置
           </button>
         </div>
-        
-        {isEditMode ? (
-          <div className="flex space-x-3">
-            <button
-              onClick={() => setIsEditMode(false)}
-              className="px-4 py-1.5 bg-gray-100 text-slate-700 rounded text-sm font-medium hover:bg-gray-200 transition-all"
-            >
-              取消
-            </button>
-            <button 
-              onClick={() => setIsEditMode(false)}
-              className="px-4 py-1.5 bg-primary text-white rounded text-sm font-medium hover:bg-sky-600 transition-all"
-            >
-              保存配置
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => setIsEditMode(true)}
-            className="px-4 py-1.5 bg-primary text-white rounded text-sm font-medium hover:bg-sky-600 transition-all"
-          >
-            编辑
-          </button>
-        )}
       </div>
 
       {/* 问答库配置 */}
@@ -256,6 +338,7 @@ const BotKnowledgeConfig: React.FC<BotKnowledgeConfigProps> = ({ config, updateF
                   selected={config.kbQACategories || []}
                   onChange={(selected) => updateField('kbQACategories', selected)}
                   placeholder="选择问答对分类"
+                  disabled={!config.kbEnabled}
                 />
               </div>
               
@@ -268,6 +351,7 @@ const BotKnowledgeConfig: React.FC<BotKnowledgeConfigProps> = ({ config, updateF
                   onChange={(selected) => updateField('kbLexiconCategories', selected)}
                   placeholder="选择词库分类"
                   tagColor="green"
+                  disabled={!config.kbEnabled}
                 />
               </div>
             </div>
@@ -306,11 +390,40 @@ const BotKnowledgeConfig: React.FC<BotKnowledgeConfigProps> = ({ config, updateF
                     <p className="text-xs text-slate-500 mt-1">开启后，机器人将使用知识库中的文档内容回答用户提问。</p>
                   </div>
                 </div>
-                <Switch 
-                  label="" 
-                  checked={config.kcsEnabled || false} 
-                  onChange={(v) => updateField('kcsEnabled', v)} 
-                />
+                <div className="flex items-center space-x-3">
+                  <Switch 
+                    label="" 
+                    checked={config.kcsEnabled || false} 
+                    onChange={(v) => updateField('kcsEnabled', v)} 
+                  />
+                  {config.kcsEnabled && (
+                    <div className="flex space-x-2">
+                      {isEditMode ? (
+                        <>
+                          <button
+                            onClick={() => setIsEditMode(false)}
+                            className="px-3 py-1.5 bg-gray-100 text-slate-700 rounded text-sm font-medium hover:bg-gray-200 transition-all"
+                          >
+                            取消
+                          </button>
+                          <button 
+                            onClick={() => setIsEditMode(false)}
+                            className="px-3 py-1.5 bg-primary text-white rounded text-sm font-medium hover:bg-sky-600 transition-all"
+                          >
+                            保存
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => setIsEditMode(true)}
+                          className="px-3 py-1.5 bg-primary text-white rounded text-sm font-medium hover:bg-sky-600 transition-all"
+                        >
+                          编辑
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className={`space-y-6 transition-opacity duration-300 ${!config.kcsEnabled ? 'opacity-50 pointer-events-none' : ''}`}>
@@ -326,65 +439,12 @@ const BotKnowledgeConfig: React.FC<BotKnowledgeConfigProps> = ({ config, updateF
                   {/* 知识空间列表 */}
                   <div className="space-y-3">
                     {knowledgeSpaces.map((space) => (
-                      <div key={space.id} className="border border-gray-200 rounded-lg overflow-hidden bg-white">
-                        <div className="flex items-center justify-between p-3 bg-gray-50">
-                          <div className="flex items-center">
-                            {isEditMode && (
-                              <input
-                                type="checkbox"
-                                checked={space.checked}
-                                onChange={() => {}}
-                                className="mr-2"
-                              />
-                            )}
-                            <div className="flex items-center">
-                              <span className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2 text-xs">
-                                🌐
-                              </span>
-                              <span className="font-medium text-slate-800 text-sm">{space.name}</span>
-                              <span className="text-xs text-slate-400 ml-2">知识空间</span>
-                            </div>
-                          </div>
-                          <ChevronDown size={16} className="text-slate-400" />
-                        </div>
-                        
-                        {space.children.map((folder) => (
-                          <div key={folder.id} className="pl-10 pr-4 py-2 border-t border-gray-100">
-                            <div className="flex items-center">
-                              {isEditMode && (
-                                <input
-                                  type="checkbox"
-                                  checked={folder.checked}
-                                  onChange={() => {}}
-                                  className="mr-2"
-                                />
-                              )}
-                              <div className="flex items-center">
-                                <span className="w-5 h-5 flex items-center justify-center mr-2 text-xs">
-                                  📁
-                                </span>
-                                <span className="text-slate-700 text-sm">{folder.name}</span>
-                              </div>
-                            </div>
-                            
-                            {folder.children.map((file) => (
-                              <div key={file.id} className="pl-7 py-1">
-                                <div className="flex items-center">
-                                  {isEditMode && (
-                                    <input
-                                      type="checkbox"
-                                      checked={file.checked}
-                                      onChange={() => {}}
-                                      className="mr-2"
-                                    />
-                                  )}
-                                  <span className="text-slate-600 text-xs">{file.name}</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ))}
-                      </div>
+                      <KnowledgeSpaceItem 
+                        key={space.id} 
+                        item={space} 
+                        isEditMode={isEditMode}
+                        onToggle={toggleKnowledgeSpace}
+                      />
                     ))}
                   </div>
                 </div>
