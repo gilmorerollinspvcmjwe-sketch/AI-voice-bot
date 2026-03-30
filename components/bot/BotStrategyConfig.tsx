@@ -548,7 +548,11 @@ const BotStrategyConfig: React.FC<BotStrategyConfigProps> = ({ config, updateFie
                   className="w-full h-20 px-4 py-3 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 outline-none resize-none bg-white leading-relaxed mt-2"
                   value={config.longContentScenarios || ''}
                   onChange={(e) => updateField('longContentScenarios', e.target.value)}
-                  placeholder="例如：订单号、身份证号、银行卡号等"
+                  placeholder="例如：
+1. 物流场景：查询订单号（示例：123455666）
+2. 金融场景：报身份证号（示例：110101199001011234）
+3. 支付场景：报银行卡号（示例：6222021234567890123）
+4. 客服场景：报会员号（示例：VIP12345678）"
                 />
               </div>
             </div>
