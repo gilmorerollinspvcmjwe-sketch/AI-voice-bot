@@ -117,7 +117,7 @@ interface BotKnowledgeConfigProps {
 const BotKnowledgeConfig: React.FC<BotKnowledgeConfigProps> = ({ config, updateField }) => {
   const [activeTab, setActiveTab] = useState<'QA' | 'KB'>('QA');
   const [isEditMode, setIsEditMode] = useState(false);
-  // 模拟KCS开通状态
+  // 模拟KCS开通状态（仅用于知识库配置）
   const [kcsEnabled, setKcsEnabled] = useState(false);
 
   // 模拟知识空间数据
@@ -165,29 +165,6 @@ const BotKnowledgeConfig: React.FC<BotKnowledgeConfigProps> = ({ config, updateF
       children: []
     }
   ];
-
-  // 未开通KCS时显示开通页面
-  if (!kcsEnabled) {
-    return (
-      <div className="p-8">
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-            <span className="text-2xl">🔒</span>
-          </div>
-          <h3 className="text-lg font-bold text-slate-800 mb-2">知识检索配置</h3>
-          <p className="text-slate-500 mb-6 max-w-md">
-            知识检索功能需要开通KCS（知识管理系统）后使用。开通后，您可以配置问答库和知识库，为机器人提供知识检索能力。
-          </p>
-          <button
-            onClick={() => setKcsEnabled(true)}
-            className="px-6 py-2 bg-primary text-white rounded hover:bg-sky-600 text-sm font-medium transition-all"
-          >
-            开通KCS
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="p-6">
@@ -301,99 +278,119 @@ const BotKnowledgeConfig: React.FC<BotKnowledgeConfigProps> = ({ config, updateF
       {/* 知识库配置 */}
       {activeTab === 'KB' && (
         <div className="bg-white rounded border border-gray-200 shadow-sm p-8 space-y-8 animate-in fade-in">
-          <div className="flex justify-between items-start">
-            <div className="flex items-center">
-              <div className="p-3 bg-indigo-50 text-indigo-600 rounded-lg mr-4">
-                <Database size={24} />
+          {!kcsEnabled ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                <span className="text-2xl">🔒</span>
               </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-800">启用知识库检索</h3>
-                <p className="text-xs text-slate-500 mt-1">开启后，机器人将使用知识库中的文档内容回答用户提问。</p>
-              </div>
+              <h3 className="text-lg font-bold text-slate-800 mb-2">知识库检索</h3>
+              <p className="text-slate-500 mb-6 max-w-md">
+                知识库检索功能需要开通KCS（知识管理系统）后使用。开通后，您可以配置知识空间、目录和文件，为机器人提供知识检索能力。
+              </p>
+              <button
+                onClick={() => setKcsEnabled(true)}
+                className="px-6 py-2 bg-primary text-white rounded hover:bg-sky-600 text-sm font-medium transition-all"
+              >
+                开通KCS
+              </button>
             </div>
-            <Switch 
-              label="" 
-              checked={config.kcsEnabled || false} 
-              onChange={(v) => updateField('kcsEnabled', v)} 
-            />
-          </div>
+          ) : (
+            <>
+              <div className="flex justify-between items-start">
+                <div className="flex items-center">
+                  <div className="p-3 bg-indigo-50 text-indigo-600 rounded-lg mr-4">
+                    <Database size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-800">启用知识库检索</h3>
+                    <p className="text-xs text-slate-500 mt-1">开启后，机器人将使用知识库中的文档内容回答用户提问。</p>
+                  </div>
+                </div>
+                <Switch 
+                  label="" 
+                  checked={config.kcsEnabled || false} 
+                  onChange={(v) => updateField('kcsEnabled', v)} 
+                />
+              </div>
 
-          <div className={`space-y-6 transition-opacity duration-300 ${!config.kcsEnabled ? 'opacity-50 pointer-events-none' : ''}`}>
-            <div className="p-4 bg-slate-50 border border-slate-100 rounded-lg">
-              <div className="flex items-center mb-4">
-                <span className="text-sm font-bold text-slate-700">知识空间选择</span>
-                <HelpCircle size={14} className="ml-1 text-slate-400" />
-              </div>
-              <div className="text-xs text-slate-500 mb-4">
-                选择要使用的知识空间和目录，用于知识库文档检索。
-              </div>
-              
-              {/* 知识空间列表 */}
-              <div className="space-y-3">
-                {knowledgeSpaces.map((space) => (
-                  <div key={space.id} className="border border-gray-200 rounded-lg overflow-hidden bg-white">
-                    <div className="flex items-center justify-between p-3 bg-gray-50">
-                      <div className="flex items-center">
-                        {isEditMode && (
-                          <input
-                            type="checkbox"
-                            checked={space.checked}
-                            onChange={() => {}}
-                            className="mr-2"
-                          />
-                        )}
-                        <div className="flex items-center">
-                          <span className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2 text-xs">
-                            🌐
-                          </span>
-                          <span className="font-medium text-slate-800 text-sm">{space.name}</span>
-                          <span className="text-xs text-slate-400 ml-2">知识空间</span>
-                        </div>
-                      </div>
-                      <ChevronDown size={16} className="text-slate-400" />
-                    </div>
-                    
-                    {space.children.map((folder) => (
-                      <div key={folder.id} className="pl-10 pr-4 py-2 border-t border-gray-100">
-                        <div className="flex items-center">
-                          {isEditMode && (
-                            <input
-                              type="checkbox"
-                              checked={folder.checked}
-                              onChange={() => {}}
-                              className="mr-2"
-                            />
-                          )}
+              <div className={`space-y-6 transition-opacity duration-300 ${!config.kcsEnabled ? 'opacity-50 pointer-events-none' : ''}`}>
+                <div className="p-4 bg-slate-50 border border-slate-100 rounded-lg">
+                  <div className="flex items-center mb-4">
+                    <span className="text-sm font-bold text-slate-700">知识空间选择</span>
+                    <HelpCircle size={14} className="ml-1 text-slate-400" />
+                  </div>
+                  <div className="text-xs text-slate-500 mb-4">
+                    选择要使用的知识空间和目录，用于知识库文档检索。
+                  </div>
+                  
+                  {/* 知识空间列表 */}
+                  <div className="space-y-3">
+                    {knowledgeSpaces.map((space) => (
+                      <div key={space.id} className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+                        <div className="flex items-center justify-between p-3 bg-gray-50">
                           <div className="flex items-center">
-                            <span className="w-5 h-5 flex items-center justify-center mr-2 text-xs">
-                              📁
-                            </span>
-                            <span className="text-slate-700 text-sm">{folder.name}</span>
+                            {isEditMode && (
+                              <input
+                                type="checkbox"
+                                checked={space.checked}
+                                onChange={() => {}}
+                                className="mr-2"
+                              />
+                            )}
+                            <div className="flex items-center">
+                              <span className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2 text-xs">
+                                🌐
+                              </span>
+                              <span className="font-medium text-slate-800 text-sm">{space.name}</span>
+                              <span className="text-xs text-slate-400 ml-2">知识空间</span>
+                            </div>
                           </div>
+                          <ChevronDown size={16} className="text-slate-400" />
                         </div>
                         
-                        {folder.children.map((file) => (
-                          <div key={file.id} className="pl-7 py-1">
+                        {space.children.map((folder) => (
+                          <div key={folder.id} className="pl-10 pr-4 py-2 border-t border-gray-100">
                             <div className="flex items-center">
                               {isEditMode && (
                                 <input
                                   type="checkbox"
-                                  checked={file.checked}
+                                  checked={folder.checked}
                                   onChange={() => {}}
                                   className="mr-2"
                                 />
                               )}
-                              <span className="text-slate-600 text-xs">{file.name}</span>
+                              <div className="flex items-center">
+                                <span className="w-5 h-5 flex items-center justify-center mr-2 text-xs">
+                                  📁
+                                </span>
+                                <span className="text-slate-700 text-sm">{folder.name}</span>
+                              </div>
                             </div>
+                            
+                            {folder.children.map((file) => (
+                              <div key={file.id} className="pl-7 py-1">
+                                <div className="flex items-center">
+                                  {isEditMode && (
+                                    <input
+                                      type="checkbox"
+                                      checked={file.checked}
+                                      onChange={() => {}}
+                                      className="mr-2"
+                                    />
+                                  )}
+                                  <span className="text-slate-600 text-xs">{file.name}</span>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         ))}
                       </div>
                     ))}
                   </div>
-                ))}
+                </div>
               </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
       )}
     </div>
