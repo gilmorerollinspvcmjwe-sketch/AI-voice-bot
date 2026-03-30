@@ -109,6 +109,11 @@ const DEFAULT_STRATEGY_DEFAULTS = {
   noAnswerInterval: 6,
   noAnswerMaxRepeats: 2,
   noAnswerSpeech: '喂？请问您还在听吗？',
+
+  // 长业务内容智能等待
+  longContentSmartWaitEnabled: false,
+  longContentWaitTime: 5,
+  longContentScenarios: '',
 };
 
 // --- SPLIT INTENTS ---
