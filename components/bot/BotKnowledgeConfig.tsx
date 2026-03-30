@@ -140,7 +140,7 @@ const BotKnowledgeConfig: React.FC<BotKnowledgeConfigProps> = ({ config, updateF
         <button className="px-3 py-1 border border-gray-200 rounded text-xs text-slate-700 mr-2">
           法务审计专用范围
         </button>
-        <button className="px-3 py-1 border border-gray-200 rounded text-xs text-slate-700">
+        <button className="px-3 py-1 border border-dashed border-gray-300 rounded text-xs text-slate-700">
           + 存为预设
         </button>
       </div>
@@ -181,24 +181,19 @@ const BotKnowledgeConfig: React.FC<BotKnowledgeConfigProps> = ({ config, updateF
             
             {space.children.map((folder) => (
               <div key={folder.id} className="pl-12 pr-4 py-3 border-t border-gray-100">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={folder.checked}
+                    onChange={() => {}}
+                    className="mr-2"
+                  />
                   <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={folder.checked}
-                      onChange={() => {}}
-                      className="mr-2"
-                    />
-                    <div className="flex items-center">
-                      <span className="w-5 h-5 flex items-center justify-center mr-2">
-                        📁
-                      </span>
-                      <span className="text-slate-700">{folder.name}</span>
-                    </div>
+                    <span className="w-5 h-5 flex items-center justify-center mr-2">
+                      📁
+                    </span>
+                    <span className="text-slate-700">{folder.name}</span>
                   </div>
-                  <select className="text-xs border border-gray-200 rounded px-2 py-1">
-                    <option>所有</option>
-                  </select>
                 </div>
                 
                 {folder.children.map((file) => (
