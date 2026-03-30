@@ -85,18 +85,23 @@ const BotKnowledgeConfig: React.FC<BotKnowledgeConfigProps> = ({ config, updateF
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-lg font-bold text-slate-800">知识检索配置</h3>
         {isEditMode ? (
-          <button
-            onClick={() => setIsEditMode(false)}
-            className="px-4 py-1.5 bg-gray-100 text-slate-700 rounded text-sm font-medium hover:bg-gray-200 transition-all"
-          >
-            查看模式
-          </button>
+          <div className="flex space-x-3">
+            <button
+              onClick={() => setIsEditMode(false)}
+              className="px-4 py-1.5 bg-gray-100 text-slate-700 rounded text-sm font-medium hover:bg-gray-200 transition-all"
+            >
+              取消
+            </button>
+            <button className="px-4 py-1.5 bg-primary text-white rounded text-sm font-medium hover:bg-sky-600 transition-all">
+              保存配置
+            </button>
+          </div>
         ) : (
           <button
             onClick={() => setIsEditMode(true)}
             className="px-4 py-1.5 bg-primary text-white rounded text-sm font-medium hover:bg-sky-600 transition-all"
           >
-            编辑模式
+            编辑
           </button>
         )}
       </div>
@@ -168,18 +173,7 @@ const BotKnowledgeConfig: React.FC<BotKnowledgeConfigProps> = ({ config, updateF
         ))}
       </div>
 
-      {/* 底部按钮 */}
-      {isEditMode && (
-        <div className="flex justify-end mt-8 space-x-4">
-          <button className="px-6 py-2 border border-gray-200 text-slate-600 rounded hover:bg-slate-50 text-sm font-medium transition-all">
-            取消
-          </button>
-          <button className="px-6 py-2 bg-primary text-white rounded hover:bg-sky-600 text-sm font-medium transition-all flex items-center">
-            确认应用
-            <span className="ml-1 text-xs">⚡</span>
-          </button>
-        </div>
-      )}
+
     </div>
   );
 };
