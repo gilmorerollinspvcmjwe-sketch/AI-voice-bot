@@ -331,62 +331,14 @@ const BotBusinessConfig: React.FC<BotBusinessConfigProps> = ({ config, updateFie
         </div>
       )}
 
-      {/* KNOWLEDGE BASE SETTINGS */}
+      {/* KNOWLEDGE BASE SETTINGS - 已转移到知识检索配置 */}
       {activeSubTab === 'KNOWLEDGE' && (
-        <div className="bg-white rounded border border-gray-200 shadow-sm p-8 space-y-8 animate-in fade-in">
-           
-           <div className="flex justify-between items-start">
-              <div className="flex items-center">
-                 <div className="p-3 bg-blue-50 text-blue-600 rounded-lg mr-4">
-                    <BookOpen size={24} />
-                 </div>
-                 <div>
-                    <h3 className="text-base font-bold text-slate-800">启用知识库问答</h3>
-                    <p className="text-xs text-slate-500 mt-1">开启后，机器人将使用问答库中的内容回答用户提问。</p>
-                 </div>
-              </div>
-              <Switch 
-                 label="" 
-                 checked={config.kbEnabled || false} 
-                 onChange={(v) => updateField('kbEnabled', v)} 
-              />
-           </div>
-
-           <div className={`space-y-6 transition-opacity duration-300 ${!config.kbEnabled ? 'opacity-50 pointer-events-none' : ''}`}>
-              <div className="p-4 bg-slate-50 border border-slate-100 rounded-lg space-y-4">
-                 <div className="flex items-center mb-2">
-                    <span className="text-sm font-bold text-slate-700">生效分类 (Allowed Categories)</span>
-                    <HelpCircle size={14} className="ml-1 text-slate-400" />
-                 </div>
-                 <div className="text-xs text-slate-500 mb-3">
-                    选择要使用的问答对分类和词库分类，用于知识库问答匹配。
-                 </div>
-                 
-                 {/* 问答对分类选择 */}
-                 <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-2">问答对分类</label>
-                    <MultiSelectDropdown
-                       options={QA_CATEGORIES}
-                       selected={config.kbQACategories || []}
-                       onChange={(selected) => updateField('kbQACategories', selected)}
-                       placeholder="选择问答对分类"
-                    />
-                 </div>
-                 
-                 {/* 词库分类选择 */}
-                 <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-2">词库分类</label>
-                    <MultiSelectDropdown
-                       options={LEXICON_CATEGORIES}
-                       selected={config.kbLexiconCategories || []}
-                       onChange={(selected) => updateField('kbLexiconCategories', selected)}
-                       placeholder="选择词库分类"
-                       tagColor="green"
-                    />
-                 </div>
-              </div>
-           </div>
-
+        <div className="bg-white rounded border border-gray-200 shadow-sm p-12 text-center text-slate-400">
+          <div className="flex flex-col items-center">
+            <BookOpen size={48} className="text-slate-300 mb-4" />
+            <p className="text-sm">知识库设置已转移到「知识检索配置」页面</p>
+            <p className="text-xs text-slate-400 mt-2">请前往知识检索配置进行问答库和知识库的设置</p>
+          </div>
         </div>
       )}
 
