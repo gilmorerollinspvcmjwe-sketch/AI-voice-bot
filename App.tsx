@@ -112,7 +112,6 @@ const DEFAULT_STRATEGY_DEFAULTS = {
 
   // 长业务内容智能等待
   longContentSmartWaitEnabled: false,
-  longContentWaitTime: 5,
   longContentScenarios: '',
 };
 
