@@ -379,7 +379,7 @@ const BotKnowledgeConfig: React.FC<BotKnowledgeConfigProps> = ({ config, updateF
               </button>
             </div>
           ) : (
-            <>
+            <div className="space-y-6">
               <div className="flex justify-between items-start">
                 <div className="flex items-center">
                   <div className="p-3 bg-indigo-50 text-indigo-600 rounded-lg mr-4">
@@ -390,40 +390,11 @@ const BotKnowledgeConfig: React.FC<BotKnowledgeConfigProps> = ({ config, updateF
                     <p className="text-xs text-slate-500 mt-1">开启后，机器人将使用知识库中的文档内容回答用户提问。</p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <Switch 
-                    label="" 
-                    checked={config.kcsEnabled || false} 
-                    onChange={(v) => updateField('kcsEnabled', v)} 
-                  />
-                  {config.kcsEnabled && (
-                    <div className="flex space-x-2">
-                      {isEditMode ? (
-                        <>
-                          <button
-                            onClick={() => setIsEditMode(false)}
-                            className="px-3 py-1.5 bg-gray-100 text-slate-700 rounded text-sm font-medium hover:bg-gray-200 transition-all"
-                          >
-                            取消
-                          </button>
-                          <button 
-                            onClick={() => setIsEditMode(false)}
-                            className="px-3 py-1.5 bg-primary text-white rounded text-sm font-medium hover:bg-sky-600 transition-all"
-                          >
-                            保存
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          onClick={() => setIsEditMode(true)}
-                          className="px-3 py-1.5 bg-primary text-white rounded text-sm font-medium hover:bg-sky-600 transition-all"
-                        >
-                          编辑
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
+                <Switch 
+                  label="" 
+                  checked={config.kcsEnabled || false} 
+                  onChange={(v) => updateField('kcsEnabled', v)} 
+                />
               </div>
 
               <div className={`space-y-6 transition-opacity duration-300 ${!config.kcsEnabled ? 'opacity-50 pointer-events-none' : ''}`}>
@@ -449,7 +420,36 @@ const BotKnowledgeConfig: React.FC<BotKnowledgeConfigProps> = ({ config, updateF
                   </div>
                 </div>
               </div>
-            </>
+
+              {/* 按钮移到右下方 */}
+              {config.kcsEnabled && (
+                <div className="flex justify-end space-x-3 pt-4 border-t border-slate-100">
+                  {isEditMode ? (
+                    <>
+                      <button
+                        onClick={() => setIsEditMode(false)}
+                        className="px-4 py-2 bg-gray-100 text-slate-700 rounded text-sm font-medium hover:bg-gray-200 transition-all"
+                      >
+                        取消
+                      </button>
+                      <button 
+                        onClick={() => setIsEditMode(false)}
+                        className="px-4 py-2 bg-primary text-white rounded text-sm font-medium hover:bg-sky-600 transition-all"
+                      >
+                        保存
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setIsEditMode(true)}
+                      className="px-4 py-2 bg-primary text-white rounded text-sm font-medium hover:bg-sky-600 transition-all"
+                    >
+                      编辑
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}
