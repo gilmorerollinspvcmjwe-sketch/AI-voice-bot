@@ -237,6 +237,8 @@ export default function BotIntentConfig({ config, updateField, extractionConfigs
                         onSave={updateActiveIntentFlow}
                         extractionConfigs={extractionConfigs}
                         labelGroups={config.labelGroups}
+                        availableTools={config.agentConfig?.tools || []}
+                        availableFunctions={[]}
                      />
                   </div>
                </div>

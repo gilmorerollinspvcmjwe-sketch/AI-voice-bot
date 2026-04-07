@@ -6,6 +6,7 @@ import InformationExtraction from './InformationExtraction';
 import BotConfigForm from './components/bot/BotConfigForm';
 import BotListView from './components/bot/BotListView';
 import FlowOrchestration from './components/flow/FlowOrchestration';
+import FunctionManager from './components/flow/FunctionManager';
 import IntegrationCenter from './components/integration/IntegrationCenter';
 import GatewayCenter from './components/gateway/GatewayCenter';
 import QAManager from './components/knowledge/QAManager';
@@ -456,6 +457,8 @@ export default function App() {
         );
       case '流程编排':
         return <FlowOrchestration bots={bots} extractionConfigs={extractionConfigs} />;
+      case '函数管理':
+        return <FunctionManager />;
       case '信息提取配置':
         return <InformationExtraction configs={extractionConfigs} onUpdateConfigs={setExtractionConfigs} />;
       case '机器人模版':

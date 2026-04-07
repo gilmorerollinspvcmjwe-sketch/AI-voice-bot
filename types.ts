@@ -138,13 +138,14 @@ export interface CollectNodeConfig extends NodeCommonConfig {
   maxDurationSeconds?: number;
   silenceThresholdMs?: number;
   bargeIn?: boolean;
+  asrBiasing?: 'default' | 'alphanumeric' | 'name' | 'datetime' | 'number' | 'address';
   dtmfConfig?: {
     maxDigits: number;
     terminator: string;
     timeoutMs: number;
   };
   retryStrategy?: RetryStrategy;
-  onCollectErrorNodeId?: string;  // 收集异常时跳转节点
+  onCollectErrorNodeId?: string;
 }
 
 export interface LLMNodeConfig extends NodeCommonConfig {
@@ -158,9 +159,11 @@ export interface LLMNodeConfig extends NodeCommonConfig {
     output: string;
   }>;
   knowledgeBaseIds?: string[];
+  toolIds?: string[];
+  functionIds?: string[];
   outputFormat?: 'text' | 'json';
   jsonSchema?: string;
-  onErrorNodeId?: string;  // 异常时跳转节点
+  onErrorNodeId?: string;
 }
 
 export interface IntentRoute {
@@ -377,6 +380,162 @@ export interface AgentTool {
     fallbackTargetId?: string;
   };
 }
+
+// Flow 函数类型 - 用于流程内的可调用函数，类似 Poly.ai 的 Transition Functions
+export interface FlowFunction {
+  id: string;
+  name: string;           // 函数名称，如 save_confirmation_code
+  description: string;    // 函数描述，用于 LLM 理解何时调用
+  parameters: FlowFunctionParameter[];  // 参数定义
+  code?: string;          // 函数实现代码（可选）
+  scope: 'flow' | 'global';  // 作用域：流程级别或全局
+  flowId?: string;        // 如果是 flow 级别，关联的 flow ID
+  isBuiltIn: boolean;     // 是否内置函数
+}
+
+export interface FlowFunctionParameter {
+  name: string;
+  type: 'string' | 'number' | 'boolean' | 'object';
+  description: string;
+  required: boolean;
+  defaultValue?: any;
+}
+
+// 内置 Flow 函数列表
+export const BUILT_IN_FUNCTIONS: FlowFunction[] = [
+  {
+    id: 'builtin_save_state',
+    name: 'save_state',
+    description: '保存变量到对话状态',
+    parameters: [
+      { name: 'key', type: 'string', description: '变量名', required: true },
+      { name: 'value', type: 'string', description: '变量值', required: true }
+    ],
+    code: `def save_state(conv: Conversation, flow: Flow, key: str, value: str):
+    """保存变量到对话状态，供后续步骤使用"""
+    conv.state[key] = value
+    return`,
+    scope: 'global',
+    isBuiltIn: true
+  },
+  {
+    id: 'builtin_goto_step',
+    name: 'goto_step',
+    description: '跳转到指定步骤，控制流程走向',
+    parameters: [
+      { name: 'step_id', type: 'string', description: '目标步骤名称', required: true }
+    ],
+    code: `def goto_step(conv: Conversation, flow: Flow, step_id: str):
+    """跳转到当前流程中的指定步骤"""
+    flow.goto_step(step_id)
+    return`,
+    scope: 'global',
+    isBuiltIn: true
+  },
+  {
+    id: 'builtin_collect_value',
+    name: 'collect_value',
+    description: '收集用户输入并保存到变量',
+    parameters: [
+      { name: 'variable_name', type: 'string', description: '存储变量名', required: true },
+      { name: 'prompt', type: 'string', description: '收集提示语', required: false }
+    ],
+    code: `def collect_value(conv: Conversation, flow: Flow, variable_name: str, prompt: str = None):
+    """收集用户输入并保存到变量"""
+    # 如果有 prompt，引导 LLM 询问用户
+    if prompt:
+        return {"utterance": prompt}
+    # 否则等待用户输入，存储到 conv.state
+    return`,
+    scope: 'global',
+    isBuiltIn: true
+  },
+  {
+    id: 'builtin_transfer',
+    name: 'transfer_call',
+    description: '转接到人工客服或指定技能组',
+    parameters: [
+      { name: 'destination', type: 'string', description: '目标技能组或坐席', required: true },
+      { name: 'reason', type: 'string', description: '转接原因', required: false },
+      { name: 'utterance', type: 'string', description: '转接话语', required: false }
+    ],
+    code: `def transfer_call(conv: Conversation, flow: Flow, destination: str, reason: str = None, utterance: str = None):
+    """转接到人工客服或指定技能组"""
+    # 构建转接话语
+    if not utterance:
+        utterance = "好的，我帮您转接人工客服，请稍等。"
+    return {
+        "action": "transfer",
+        "destination": destination,
+        "reason": reason,
+        "utterance": utterance
+    }`,
+    scope: 'global',
+    isBuiltIn: true
+  },
+  {
+    id: 'builtin_confirm',
+    name: 'confirm_reservation',
+    description: '确认预约信息',
+    parameters: [
+      { name: 'confirmation_code', type: 'string', description: '确认码', required: true },
+      { name: 'first_name', type: 'string', description: '名', required: true },
+      { name: 'last_name', type: 'string', description: '姓', required: true }
+    ],
+    code: `def confirm_reservation(conv: Conversation, flow: Flow, confirmation_code: str, first_name: str, last_name: str):
+    """确认预约信息是否匹配"""
+    # 保存确认信息到状态
+    conv.state.confirmation_code = confirmation_code
+    conv.state.first_name = first_name
+    conv.state.last_name = last_name
+
+    # 检查是否匹配（这里需要连接外部系统验证）
+    # 假设验证通过，跳转到确认成功步骤
+    flow.goto_step("Confirm success")
+    return`,
+    scope: 'global',
+    isBuiltIn: true
+  },
+  {
+    id: 'builtin_hangup',
+    name: 'hangup',
+    description: '挂断电话',
+    parameters: [
+      { name: 'reason', type: 'string', description: '挂断原因', required: false }
+    ],
+    code: `def hangup(conv: Conversation, flow: Flow, reason: str = None):
+    """挂断当前通话"""
+    return {
+        "action": "hangup",
+        "reason": reason
+    }`,
+    scope: 'global',
+    isBuiltIn: true
+  },
+  {
+    id: 'builtin_check_verification',
+    name: 'check_verification',
+    description: '检查用户验证状态，支持重试机制',
+    parameters: [
+      { name: 'max_attempts', type: 'number', description: '最大验证尝试次数', required: false }
+    ],
+    code: `def check_verification(conv: Conversation, flow: Flow, max_attempts: int = 3):
+    """检查用户验证状态，失败则重试，超过次数转人工"""
+    attempts = conv.state.verification_attempts or 0
+    if not conv.state.is_verified:
+        attempts += 1
+        conv.state.verification_attempts = attempts
+        if attempts >= max_attempts:
+            conv.goto_flow("Escalation")
+            return
+        flow.goto_step("Retry verification")
+        return
+    flow.goto_step("Continue")
+    return`,
+    scope: 'global',
+    isBuiltIn: true
+  }
+];
 
 // MCP 服务器配置
 export interface McpServer {
@@ -613,6 +772,7 @@ export interface QAPair {
   lastUpdated: number;
   isActive: boolean;
   audioResources?: Record<string, string>;
+  toolIds?: string[];
 }
 
 export interface KnowledgeCandidate {

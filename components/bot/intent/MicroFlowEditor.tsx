@@ -12,7 +12,7 @@ import {
   Pause, Square, StepForward, CornerDownRight, Bug, Eye, EyeOff,
   ChevronRight, ChevronDown as ChevronDownIcon, FileText, Copy, Maximize2, RefreshCw, Circle
 } from 'lucide-react';
-import { IntentNode, IntentEdge, IntentNodeType, ModelType, TTSModel, ASRModel, ExtractionConfig, LabelGroup, DebugExecutionState, ExecutionStep } from '../../../types';
+import { IntentNode, IntentEdge, IntentNodeType, ModelType, TTSModel, ASRModel, ExtractionConfig, LabelGroup, DebugExecutionState, ExecutionStep, AgentTool } from '../../../types';
 import { Input, Label, Select, Switch, Slider } from '../../ui/FormComponents';
 import { StringList } from './NodeFormHelpers';
 
@@ -27,8 +27,10 @@ interface MicroFlowEditorProps {
   initialEdges: IntentEdge[];
   onSave: (nodes: IntentNode[], edges: IntentEdge[]) => void;
   readOnly?: boolean;
-  extractionConfigs?: ExtractionConfig[]; // Global APIs
-  labelGroups?: LabelGroup[]; // Global Labels
+  extractionConfigs?: ExtractionConfig[];
+  labelGroups?: LabelGroup[];
+  availableTools?: AgentTool[];
+  availableFunctions?: FlowFunction[];
 }
 
 interface ToolboxItem {
@@ -91,7 +93,7 @@ const INTENT_TOOLBOX_GROUPS: { name: string; color: string; items: ToolboxItem[]
 
 export default function MicroFlowEditor({ 
   initialNodes, initialEdges, onSave, readOnly,
-  extractionConfigs = [], labelGroups = [] 
+  extractionConfigs = [], labelGroups = [], availableTools = [], availableFunctions = []
 }: MicroFlowEditorProps) {
   const [nodes, setNodes] = useState<IntentNode[]>(initialNodes.length > 0 ? initialNodes : [{ id: 'start', type: 'START', subType: 'start', label: '流程开始', x: 50, y: 250 }]);
   // edges are now derived mostly from node configs, but we keep state for initial load or manual overrides if we were to support hybrid.
@@ -1376,6 +1378,8 @@ export default function MicroFlowEditor({
                         node={selectedNode}
                         onChange={(updates) => updateNodeConfig(selectedNode.id, updates)}
                         availableNodes={getConnectableNodes(selectedNode.id)}
+                        availableTools={availableTools}
+                        availableFunctions={availableFunctions}
                      />
                      {/* Pass available nodes to LogicConfig for branch targeting */}
                      <LogicConfig 

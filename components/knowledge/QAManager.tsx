@@ -1,13 +1,45 @@
 
 import React, { useState } from 'react';
-import { 
-  Plus, Search, Download, ArrowRight, X, Volume2, Play, Loader2, Upload, ChevronDown, CheckCircle2, Trash2, Power, PowerOff, ArrowLeft
+import {
+  Plus, Search, Download, ArrowRight, X, Volume2, Play, Loader2, Upload, ChevronDown, CheckCircle2, Trash2, Power, PowerOff, ArrowLeft, Wrench
 } from 'lucide-react';
-import { QAPair, RAGConfig as RAGConfigType } from '../../types';
+import { QAPair, RAGConfig as RAGConfigType, AgentTool } from '../../types';
 import { TagInput, Label, Switch as ToggleSwitch } from '../ui/FormComponents';
 import RAGConfigPanel from './RAGConfig';
 import CategoryListView from './CategoryListView';
 import { DEFAULT_RAG_CONFIG } from '../../services/ragService';
+
+// Mock available tools for binding
+const MOCK_AVAILABLE_TOOLS: AgentTool[] = [
+  {
+    id: 'tool_api_call',
+    name: 'API 调用',
+    description: '调用外部 API 接口获取数据',
+    type: 'API',
+    enabled: true
+  },
+  {
+    id: 'tool_sms',
+    name: '发送短信',
+    description: '向用户发送短信通知',
+    type: 'SMS',
+    enabled: true
+  },
+  {
+    id: 'tool_query_order',
+    name: '查询订单',
+    description: '查询用户订单状态',
+    type: 'API',
+    enabled: true
+  },
+  {
+    id: 'tool_transfer',
+    name: '转人工',
+    description: '转接人工客服',
+    type: 'TRANSFER',
+    enabled: true
+  }
+];
 
 // --- MOCK DATA ---
 export const MOCK_QA_PAIRS: QAPair[] = [
@@ -143,6 +175,7 @@ export default function QAManager() {
       lastUpdated: Date.now(),
       isActive: formData.isActive ?? true,
       audioResources: formData.audioResources || {},
+      toolIds: formData.toolIds || [],
     };
 
     setQaPairs(prev => {
@@ -338,6 +371,41 @@ export default function QAManager() {
                  value={formData.answer}
                  onChange={(e) => setFormData({...formData, answer: e.target.value})}
                />
+            </div>
+
+            {/* Tool Binding */}
+            <div>
+               <Label label="绑定工具 (可选)" tooltip="选择后，机器人在回复该问题时可调用这些工具" />
+               <div className="flex flex-wrap gap-2 mt-2 max-h-40 overflow-y-auto p-3 bg-slate-50 rounded border border-slate-100">
+                 {MOCK_AVAILABLE_TOOLS.map(tool => {
+                   const isSelected = (formData.toolIds || []).includes(tool.id);
+                   return (
+                     <button
+                       key={tool.id}
+                       onClick={() => {
+                         const currentToolIds = formData.toolIds || [];
+                         const newToolIds = isSelected
+                           ? currentToolIds.filter(id => id !== tool.id)
+                           : [...currentToolIds, tool.id];
+                         setFormData({...formData, toolIds: newToolIds });
+                       }}
+                       className={`px-3 py-1.5 text-xs rounded-full flex items-center gap-1.5 transition-colors ${
+                         isSelected
+                           ? 'bg-primary text-white'
+                           : 'bg-white border border-gray-200 text-slate-600 hover:border-primary'
+                       }`}
+                     >
+                       <Wrench size={10} />
+                       {tool.name}
+                     </button>
+                   );
+                 })}
+               </div>
+               {(formData.toolIds || []).length > 0 && (
+                 <p className="text-[10px] text-slate-400 mt-1.5">
+                   已绑定 {(formData.toolIds || []).length} 个工具，机器人回复时可调用
+                 </p>
+               )}
             </div>
 
             {/* Validity */}

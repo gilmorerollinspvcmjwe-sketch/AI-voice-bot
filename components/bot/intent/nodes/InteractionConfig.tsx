@@ -171,6 +171,32 @@ const InteractionConfig: React.FC<Props> = ({ node, onChange, availableNodes = [
           <option value="slot">槽位提取 (Slot)</option>
           <option value="dtmf">按键输入 (DTMF)</option>
         </select>
+
+        {/* ASR Biasing */}
+        <div className="mt-4">
+          <Label label="ASR 偏置 (输入优化)" tooltip="针对不同类型的输入优化语音识别准确性" />
+          <select
+            className="w-full px-3 py-2 text-sm border border-gray-200 rounded bg-white outline-none"
+            value={node.config?.asrBiasing || 'default'}
+            onChange={(e) => onChange({ asrBiasing: e.target.value })}
+          >
+            <option value="default">默认 (通用)</option>
+            <option value="alphanumeric">字母数字 (验证码、订单号)</option>
+            <option value="name">姓名拼写 (人名)</option>
+            <option value="datetime">日期时间 (日期、时间)</option>
+            <option value="number">数字 (金额、数量)</option>
+            <option value="address">地址 (省市、门牌号)</option>
+          </select>
+          <p className="text-[10px] text-slate-400 mt-1">
+            {node.config?.asrBiasing === 'default' && '使用通用识别模式'}
+            {node.config?.asrBiasing === 'alphanumeric' && '优化识别 B-4-Z-Q-9 等验证码格式'}
+            {node.config?.asrBiasing === 'name' && '优化识别人名拼音拼写，如 H-O-W-E Howe'}
+            {node.config?.asrBiasing === 'datetime' && '优化识别日期时间表达，如二十七号、六月二十五号'}
+            {node.config?.asrBiasing === 'number' && '优化识别数字和金额，如一百二十三块五'}
+            {node.config?.asrBiasing === 'address' && '优化识别地址信息，如北京市朝阳区'}
+          </p>
+        </div>
+
         {node.config?.collectType !== 'intent' && (
           <Input
             label="存储变量名"

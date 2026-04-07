@@ -4,8 +4,9 @@ import {
   Sparkles, Loader2, Cpu, Volume2, Mic, MessageSquare, Plus, Trash2, ChevronDown, Languages, FileText
 } from 'lucide-react';
 import { Input, Select, Slider, Switch, TagInput, Label } from '../ui/FormComponents';
-import { BotConfiguration, ModelType, TTSModel, ASRModel, EMOTIONS, Parameter } from '../../types';
+import { BotConfiguration, ModelType, TTSModel, ASRModel, EMOTIONS, Parameter, BUILT_IN_FUNCTIONS } from '../../types';
 import PromptGeneratorModal from './PromptGeneratorModal';
+import PromptEditor from '../ui/PromptEditor';
 
 interface BotBasicConfigProps {
   config: BotConfiguration;
@@ -337,11 +338,14 @@ const BotBasicConfig: React.FC<BotBasicConfigProps> = ({
                 </button>
               </div>
             </div>
-            <textarea 
-              className="w-full h-80 px-4 py-3 text-sm border border-gray-200 rounded focus:border-primary outline-none transition-all font-mono leading-relaxed bg-slate-50/30" 
-              value={config.systemPrompt} 
-              onChange={(e) => updateField('systemPrompt', e.target.value)} 
+            <PromptEditor
+              value={config.systemPrompt}
+              onChange={(v) => updateField('systemPrompt', v)}
               placeholder="你是一个专业的客服助手..."
+              variables={config.variables || []}
+              availableTools={config.agentConfig?.tools || []}
+              availableFunctions={BUILT_IN_FUNCTIONS}
+              height="h-80"
             />
           </div>
           <div className="lg:col-span-4">

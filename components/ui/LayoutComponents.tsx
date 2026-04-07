@@ -35,7 +35,8 @@ import {
   MessageSquare,
   FolderOpen,
   Megaphone,
-  UserSquare
+  UserSquare,
+  Code
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -74,6 +75,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeSubItem, onNavigate }) =
     { icon: BarChart3, label: '监控报表', id: '监控报表' },
     { icon: MessageSquare, label: '短信管理', id: '短信管理' },
     { icon: Workflow, label: '流程编排', id: '流程编排' },
+    { icon: Code, label: '代码块', id: '函数管理' },
     { icon: Database, label: '信息提取配置', id: '信息提取配置' },
     
     { type: 'header', label: '资源市场' },
