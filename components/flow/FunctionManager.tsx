@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import {
   Plus, Search, Trash2, Edit3, Code, Globe, ChevronRight, ChevronDown,
-  Copy, CheckCircle2, X, Settings, Play, ArrowUp, ArrowDown, Shield
+  Copy, CheckCircle2, X, Settings, Play, ArrowUp, ArrowDown, Shield, Zap, ArrowRight
 } from 'lucide-react';
-import { FlowFunction, FlowFunctionParameter, BUILT_IN_FUNCTIONS } from '../../types';
+import { FlowFunction, FlowFunctionParameter, BUILT_IN_FUNCTIONS, FunctionCategory } from '../../types';
 import { Label, Input } from '../ui/FormComponents';
 
 interface FunctionManagerProps {
@@ -17,7 +17,8 @@ const DEFAULT_FUNCTION: FlowFunction = {
   description: '',
   parameters: [],
   scope: 'flow',
-  isBuiltIn: false
+  isBuiltIn: false,
+  category: 'visible'
 };
 
 export default function FunctionManager({ functions = [], onSave }: FunctionManagerProps) {
@@ -26,7 +27,7 @@ export default function FunctionManager({ functions = [], onSave }: FunctionMana
   const [isEditing, setIsEditing] = useState(false);
   const [editingFunction, setEditingFunction] = useState<FlowFunction | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showScope, setShowScope] = useState<'all' | 'global' | 'flow'>('all');
+  const [showCategory, setShowCategory] = useState<'all' | 'transition' | 'visible'>('all');
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
 
   const allFunctions = [...BUILT_IN_FUNCTIONS, ...customFunctions];
@@ -34,9 +35,12 @@ export default function FunctionManager({ functions = [], onSave }: FunctionMana
   const filteredFunctions = allFunctions.filter(fn => {
     const matchesSearch = fn.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          fn.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesScope = showScope === 'all' || fn.scope === showScope;
-    return matchesSearch && matchesScope;
+    const matchesCategory = showCategory === 'all' || fn.category === showCategory;
+    return matchesSearch && matchesCategory;
   });
+
+  const transitionFunctions = filteredFunctions.filter(fn => fn.category === 'transition');
+  const visibleFunctions = filteredFunctions.filter(fn => fn.category === 'visible');
 
   const selectedFunction = allFunctions.find(fn => fn.id === selectedId);
 
@@ -56,11 +60,12 @@ export default function FunctionManager({ functions = [], onSave }: FunctionMana
 
   const handleDelete = (id: string) => {
     if (!confirm('确定要删除该代码块吗？')) return;
-    setCustomFunctions(prev => prev.filter(f => f.id !== id));
+    const nextFunctions = customFunctions.filter(f => f.id !== id);
+    setCustomFunctions(nextFunctions);
     if (selectedId === id) {
       setSelectedId(null);
     }
-    onSave?.(customFunctions.filter(f => f.id !== id));
+    onSave?.(nextFunctions);
   };
 
   const handleSave = () => {
@@ -70,17 +75,19 @@ export default function FunctionManager({ functions = [], onSave }: FunctionMana
       return;
     }
 
-    setCustomFunctions(prev => {
-      const exists = prev.find(f => f.id === editingFunction.id);
+    const nextFunctions = (() => {
+      const exists = customFunctions.find(f => f.id === editingFunction.id);
       if (exists) {
-        return prev.map(f => f.id === editingFunction.id ? editingFunction : f);
+        return customFunctions.map(f => f.id === editingFunction.id ? editingFunction : f);
       }
-      return [...prev, editingFunction];
-    });
+      return [...customFunctions, editingFunction];
+    })();
+
+    setCustomFunctions(nextFunctions);
 
     setIsEditing(false);
     setSelectedId(editingFunction.id);
-    onSave?.(customFunctions);
+    onSave?.(nextFunctions);
   };
 
   const handleAddParameter = () => {
@@ -123,6 +130,65 @@ export default function FunctionManager({ functions = [], onSave }: FunctionMana
     navigator.clipboard.writeText(text);
   };
 
+  const getCategoryIcon = (category: FunctionCategory) => {
+    return category === 'transition' ? ArrowRight : Zap;
+  };
+
+  const getCategoryColor = (category: FunctionCategory) => {
+    return category === 'transition' ? 'green' : 'blue';
+  };
+
+  const renderFunctionList = (fns: FlowFunction[], title: string, icon: any, color: string) => {
+    if (fns.length === 0) return null;
+    const Icon = icon;
+    return (
+      <div className="px-2 py-2">
+        <div className="flex items-center text-[10px] font-bold text-slate-400 uppercase mb-2 px-2">
+          <Icon size={10} className={`mr-1 text-${color}-500`} />
+          {title}
+        </div>
+        {fns.map(fn => (
+          <div
+            key={fn.id}
+            onClick={() => { setSelectedId(fn.id); setIsEditing(false); }}
+            className={`px-3 py-2.5 rounded-lg mb-1 cursor-pointer transition-colors group ${
+              selectedId === fn.id ? 'bg-primary/10 border border-primary/30' : 'hover:bg-slate-50'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-slate-700">{fn.name}</span>
+                {fn.isBuiltIn && (
+                  <span className="px-1.5 py-0.5 bg-amber-100 text-amber-600 text-[8px] rounded">内置</span>
+                )}
+              </div>
+              <div className="flex items-center gap-1">
+                {!fn.isBuiltIn && (
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleEdit(fn); }}
+                      className="p-1 text-slate-400 hover:text-primary"
+                    >
+                      <Edit3 size={10} />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDelete(fn.id); }}
+                      className="p-1 text-slate-400 hover:text-red-500"
+                    >
+                      <Trash2 size={10} />
+                    </button>
+                  </div>
+                )}
+                <Code size={12} className="text-slate-400" />
+              </div>
+            </div>
+            <p className="text-[10px] text-slate-400 mt-0.5 truncate">{fn.description}</p>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="flex h-full bg-slate-50">
       {/* Left Sidebar - Function List */}
@@ -151,87 +217,32 @@ export default function FunctionManager({ functions = [], onSave }: FunctionMana
             />
           </div>
 
-          {/* Scope Filter */}
-          <div className="flex bg-slate-100 p-1 rounded">
-            {(['all', 'global', 'flow'] as const).map(scope => (
+          {/* Category Filter */}
+          <div className="flex bg-slate-100 p-1 rounded mb-2">
+            {(['all', 'transition', 'visible'] as const).map(cat => (
               <button
-                key={scope}
-                onClick={() => setShowScope(scope)}
+                key={cat}
+                onClick={() => setShowCategory(cat)}
                 className={`flex-1 py-1 text-[10px] font-medium rounded transition-colors ${
-                  showScope === scope ? 'bg-white shadow text-primary' : 'text-slate-500'
+                  showCategory === cat ? 'bg-white shadow text-primary' : 'text-slate-500'
                 }`}
               >
-                {scope === 'all' ? '全部' : scope === 'global' ? '全局' : '流程'}
+                {cat === 'all' ? '全部' : cat === 'transition' ? '过渡' : '可见'}
               </button>
             ))}
           </div>
+
         </div>
 
         {/* Function List */}
         <div className="flex-1 overflow-y-auto">
-          {/* Built-in Section */}
-          <div className="px-2 py-2">
-            <div className="flex items-center text-[10px] font-bold text-slate-400 uppercase mb-2 px-2">
-              <Shield size={10} className="mr-1" />
-              内置函数
-            </div>
-            {filteredFunctions.filter(fn => fn.isBuiltIn).map(fn => (
-              <div
-                key={fn.id}
-                onClick={() => { setSelectedId(fn.id); setIsEditing(false); }}
-                className={`px-3 py-2.5 rounded-lg mb-1 cursor-pointer transition-colors ${
-                  selectedId === fn.id ? 'bg-primary/10 border border-primary/30' : 'hover:bg-slate-50'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-slate-700">{fn.name}</span>
-                  <Code size={12} className="text-slate-400" />
-                </div>
-                <p className="text-[10px] text-slate-400 mt-0.5 truncate">{fn.description}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Custom Section */}
-          {showScope !== 'global' && (
-            <div className="px-2 py-2 border-t border-slate-100">
-              <div className="flex items-center text-[10px] font-bold text-slate-400 uppercase mb-2 px-2">
-                <Settings size={10} className="mr-1" />
-                自定义函数
-              </div>
-              {filteredFunctions.filter(fn => !fn.isBuiltIn).length === 0 ? (
-                <p className="text-[10px] text-slate-400 text-center py-4">暂无自定义函数</p>
-              ) : (
-                filteredFunctions.filter(fn => !fn.isBuiltIn).map(fn => (
-                  <div
-                    key={fn.id}
-                    onClick={() => { setSelectedId(fn.id); setIsEditing(false); }}
-                    className={`px-3 py-2.5 rounded-lg mb-1 cursor-pointer transition-colors group ${
-                      selectedId === fn.id ? 'bg-primary/10 border border-primary/30' : 'hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-slate-700">{fn.name}</span>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleEdit(fn); }}
-                          className="p-1 text-slate-400 hover:text-primary"
-                        >
-                          <Edit3 size={10} />
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleDelete(fn.id); }}
-                          className="p-1 text-slate-400 hover:text-red-500"
-                        >
-                          <Trash2 size={10} />
-                        </button>
-                      </div>
-                    </div>
-                    <p className="text-[10px] text-slate-400 mt-0.5 truncate">{fn.description}</p>
-                  </div>
-                ))
-              )}
-            </div>
+          {showCategory !== 'visible' && renderFunctionList(transitionFunctions.filter(fn => fn.isBuiltIn), '过渡函数 (内置)', ArrowRight, 'green')}
+          {showCategory !== 'visible' && renderFunctionList(transitionFunctions.filter(fn => !fn.isBuiltIn), '过渡函数 (自定义)', ArrowRight, 'green')}
+          {showCategory !== 'transition' && renderFunctionList(visibleFunctions.filter(fn => fn.isBuiltIn), '可见函数 (内置)', Zap, 'blue')}
+          {showCategory !== 'transition' && renderFunctionList(visibleFunctions.filter(fn => !fn.isBuiltIn), '可见函数 (自定义)', Zap, 'blue')}
+          
+          {filteredFunctions.length === 0 && (
+            <p className="text-[10px] text-slate-400 text-center py-8">暂无匹配的代码块</p>
           )}
         </div>
       </div>
@@ -277,6 +288,56 @@ export default function FunctionManager({ functions = [], onSave }: FunctionMana
                       />
                     </div>
                     <div>
+                      <Label label="函数类型" />
+                      <div className="flex gap-4">
+                        <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:border-green-300 transition-colors flex-1">
+                          <input
+                            type="radio"
+                            checked={editingFunction.category === 'transition'}
+                            onChange={() => setEditingFunction({ 
+                              ...editingFunction, 
+                              category: 'transition',
+                              transitionConfig: {
+                                canGotoStep: true,
+                                canGotoFlow: false,
+                                canModifyState: true
+                              }
+                            })}
+                            className="mr-2"
+                          />
+                          <div>
+                            <div className="flex items-center gap-1 text-sm text-slate-700">
+                              <ArrowRight size={12} className="text-green-500" />
+                              <span className="font-medium">过渡函数</span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-0.5">用于流程控制，可跳转步骤</p>
+                          </div>
+                        </label>
+                        <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:border-blue-300 transition-colors flex-1">
+                          <input
+                            type="radio"
+                            checked={editingFunction.category === 'visible'}
+                            onChange={() => setEditingFunction({ 
+                              ...editingFunction, 
+                              category: 'visible',
+                              visibleConfig: {
+                                executionStrategy: 'sync',
+                                playFiller: false
+                              }
+                            })}
+                            className="mr-2"
+                          />
+                          <div>
+                            <div className="flex items-center gap-1 text-sm text-slate-700">
+                              <Zap size={12} className="text-blue-500" />
+                              <span className="font-medium">可见函数</span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-0.5">用于业务执行，LLM自主调用</p>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                    <div>
                       <Label label="作用域" />
                       <div className="flex gap-4">
                         <label className="flex items-center">
@@ -301,6 +362,117 @@ export default function FunctionManager({ functions = [], onSave }: FunctionMana
                     </div>
                   </div>
                 </div>
+
+                {/* Transition Config */}
+                {editingFunction.category === 'transition' && (
+                  <div className="bg-green-50 rounded-xl border border-green-100 p-6">
+                    <h3 className="text-sm font-bold text-green-700 mb-4">过渡函数配置</h3>
+                    <div className="space-y-3">
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={editingFunction.transitionConfig?.canGotoStep || false}
+                          onChange={(e) => setEditingFunction({
+                            ...editingFunction,
+                            transitionConfig: {
+                              ...editingFunction.transitionConfig,
+                              canGotoStep: e.target.checked
+                            } as any
+                          })}
+                          className="mr-2"
+                        />
+                        <span className="text-sm text-slate-600">允许跳转步骤 (flow.goto_step)</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={editingFunction.transitionConfig?.canGotoFlow || false}
+                          onChange={(e) => setEditingFunction({
+                            ...editingFunction,
+                            transitionConfig: {
+                              ...editingFunction.transitionConfig,
+                              canGotoFlow: e.target.checked
+                            } as any
+                          })}
+                          className="mr-2"
+                        />
+                        <span className="text-sm text-slate-600">允许跳转流程 (flow.goto_flow)</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={editingFunction.transitionConfig?.canModifyState || false}
+                          onChange={(e) => setEditingFunction({
+                            ...editingFunction,
+                            transitionConfig: {
+                              ...editingFunction.transitionConfig,
+                              canModifyState: e.target.checked
+                            } as any
+                          })}
+                          className="mr-2"
+                        />
+                        <span className="text-sm text-slate-600">允许修改状态 (conv.state)</span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                {/* Visible Config */}
+                {editingFunction.category === 'visible' && (
+                  <div className="bg-blue-50 rounded-xl border border-blue-100 p-6">
+                    <h3 className="text-sm font-bold text-blue-700 mb-4">可见函数配置</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <Label label="执行策略" />
+                        <select
+                          className="w-full px-3 py-2 text-sm border border-slate-200 rounded bg-white"
+                          value={editingFunction.visibleConfig?.executionStrategy || 'sync'}
+                          onChange={(e) => setEditingFunction({
+                            ...editingFunction,
+                            visibleConfig: {
+                              ...editingFunction.visibleConfig,
+                              executionStrategy: e.target.value as 'sync' | 'async'
+                            }
+                          })}
+                        >
+                          <option value="sync">同步执行</option>
+                          <option value="async">异步执行</option>
+                        </select>
+                      </div>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={editingFunction.visibleConfig?.playFiller || false}
+                          onChange={(e) => setEditingFunction({
+                            ...editingFunction,
+                            visibleConfig: {
+                              ...editingFunction.visibleConfig,
+                              playFiller: e.target.checked
+                            }
+                          })}
+                          className="mr-2"
+                        />
+                        <span className="text-sm text-slate-600">执行时播放等待音</span>
+                      </label>
+                      {editingFunction.visibleConfig?.playFiller && (
+                        <div>
+                          <Label label="等待音内容" />
+                          <Input
+                            placeholder="正在处理，请稍候..."
+                            value={editingFunction.visibleConfig?.fillerContent || ''}
+                            onChange={(e) => setEditingFunction({
+                              ...editingFunction,
+                              visibleConfig: {
+                                ...editingFunction.visibleConfig,
+                                fillerContent: e.target.value
+                              }
+                            })}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Parameters */}
                 <div className="bg-white rounded-xl border border-slate-200 p-6">
@@ -379,7 +551,7 @@ export default function FunctionManager({ functions = [], onSave }: FunctionMana
                   </p>
                   <textarea
                     className="w-full h-48 px-3 py-2 text-sm border border-slate-200 rounded-lg resize-none focus:border-primary outline-none font-mono bg-slate-800 text-emerald-400 leading-relaxed"
-                    placeholder={"def my_function(conv: Conversation, flow: Flow, param1: str):\n    conv.state.my_var = param1\n    flow.goto_step('next_step')\n    return"}
+                    placeholder={"def my_function(conv, flow, param1):\n    conv.state['my_var'] = param1\n    flow.goto_step('next_step')\n    return"}
                     value={editingFunction.code || ''}
                     onChange={(e) => setEditingFunction({ ...editingFunction, code: e.target.value })}
                   />
@@ -421,6 +593,17 @@ export default function FunctionManager({ functions = [], onSave }: FunctionMana
                         全局
                       </span>
                     )}
+                    <span className={`px-2 py-0.5 ${
+                      selectedFunction.category === 'transition' 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-blue-100 text-blue-700'
+                    } text-[10px] font-medium rounded flex items-center gap-1`}>
+                      {selectedFunction.category === 'transition' ? (
+                        <><ArrowRight size={10} /> 过渡函数</>
+                      ) : (
+                        <><Zap size={10} /> 可见函数</>
+                      )}
+                    </span>
                   </div>
                   <p className="text-sm text-slate-500">{selectedFunction.description}</p>
                 </div>
@@ -523,7 +706,7 @@ export default function FunctionManager({ functions = [], onSave }: FunctionMana
                   <div className="space-y-2 text-xs">
                     <div className="flex items-start gap-2">
                       <code className="text-primary font-mono bg-amber-100 px-1.5 py-0.5 rounded">conv</code>
-                      <span className="text-amber-800">- Conversation 对象，访问对话状态 <code className="text-primary font-mono">conv.state.xxx</code></span>
+                      <span className="text-amber-800">- Conversation 对象，访问对话状态 <code className="text-primary font-mono">conv.state['xxx']</code></span>
                     </div>
                     <div className="flex items-start gap-2">
                       <code className="text-blue-600 font-mono bg-amber-100 px-1.5 py-0.5 rounded">flow</code>

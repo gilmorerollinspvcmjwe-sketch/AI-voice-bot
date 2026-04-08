@@ -12,7 +12,7 @@ import {
   Pause, Square, StepForward, CornerDownRight, Bug, Eye, EyeOff,
   ChevronRight, ChevronDown as ChevronDownIcon, FileText, Copy, Maximize2, RefreshCw, Circle
 } from 'lucide-react';
-import { IntentNode, IntentEdge, IntentNodeType, ModelType, TTSModel, ASRModel, ExtractionConfig, LabelGroup, DebugExecutionState, ExecutionStep, AgentTool } from '../../../types';
+import { IntentNode, IntentEdge, IntentNodeType, ModelType, TTSModel, ASRModel, ExtractionConfig, LabelGroup, DebugExecutionState, ExecutionStep, AgentTool, FlowFunction } from '../../../types';
 import { Input, Label, Select, Switch, Slider } from '../../ui/FormComponents';
 import { StringList } from './NodeFormHelpers';
 
@@ -21,6 +21,7 @@ import InteractionConfig from './nodes/InteractionConfig';
 import CognitiveConfig from './nodes/CognitiveConfig';
 import LogicConfig from './nodes/LogicConfig';
 import DataConfig from './nodes/DataConfig';
+import EdgeTransitionEditor from './EdgeTransitionEditor';
 
 interface MicroFlowEditorProps {
   initialNodes: IntentNode[];
@@ -109,6 +110,7 @@ export default function MicroFlowEditor({
 
   // Interaction State
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [isDraggingNode, setIsDraggingNode] = useState(false);
   const [activeTab, setActiveTab] = useState<'CONFIG' | 'ADVANCED'>('CONFIG');
   
@@ -204,6 +206,7 @@ export default function MicroFlowEditor({
        setIsPanning(true);
        setLastMousePos({ x: e.clientX, y: e.clientY });
        setSelectedNodeId(null);
+       setSelectedEdgeId(null);
     }
   };
 
@@ -389,6 +392,12 @@ export default function MicroFlowEditor({
   const updateNodeConfig = (nodeId: string, updates: any) => {
     setNodes(prev => prev.map(n => 
       n.id === nodeId ? { ...n, config: { ...(n.config || {}), ...updates } } : n
+    ));
+  };
+
+  const updateEdge = (edgeId: string, updates: Partial<IntentEdge>) => {
+    setEdges(prev => prev.map(e => 
+      e.id === edgeId ? { ...e, ...updates } : e
     ));
   };
 
@@ -890,21 +899,17 @@ export default function MicroFlowEditor({
                                 </div>
                              </foreignObject>
                           )}
-                          {/* Clickable area for edge deletion */}
+                          {/* Clickable area for edge editing */}
                           <path 
                             d={renderBezierCurve(startX, startY, endX, endY)} 
                             stroke="transparent" 
                             strokeWidth="10"
                             fill="none"
-                            className="hover:stroke-red-100 cursor-pointer"
+                            className="cursor-pointer"
                             onClick={(e) => {
                               e.stopPropagation();
-                              // Find branch index from edge id
-                              const parts = edge.id.split('_br_');
-                              if (parts.length === 2 && edge.source) {
-                                const branchIndex = parseInt(parts[1]);
-                                deleteEdge(edge.source, branchIndex);
-                              }
+                              setSelectedEdgeId(edge.id);
+                              setSelectedNodeId(null);
                             }}
                           />
                        </g>
@@ -1318,6 +1323,23 @@ export default function MicroFlowEditor({
             )}
           </div>
         </div>
+      )}
+
+      {/* --- Edge Transition Editor (Drawer) --- */}
+      {selectedEdgeId && !readOnly && (
+        (() => {
+          const edge = edges.find(e => e.id === selectedEdgeId);
+          const sourceNode = edge ? nodes.find(n => n.id === edge.source) : null;
+          const targetNode = edge ? nodes.find(n => n.id === edge.target) : null;
+          return edge && sourceNode && targetNode ? (
+            <EdgeTransitionEditor
+              edge={edge}
+              sourceNode={sourceNode}
+              targetNode={targetNode}
+              onClose={() => setSelectedEdgeId(null)}
+            />
+          ) : null;
+        })()
       )}
 
       {/* --- Property Panel (Drawer) --- */}

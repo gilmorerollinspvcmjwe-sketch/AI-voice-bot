@@ -28,6 +28,7 @@ import CampaignManager, { MOCK_CAMPAIGNS as INITIAL_CAMPAIGNS } from './componen
 import CustomerProfileManager from './components/marketing/CustomerProfileManager';
 import MonitoringReport from './components/report/MonitoringReport';
 import CallRecordManager from './components/call/CallRecordManager';
+import ToolConfigPage from './components/tools/ToolConfigPage';
 import { AGENT_DEMO_BOT } from './services/agentDemoBot';
 
 // --- CONSTANTS & DEFAULTS ---
@@ -479,6 +480,8 @@ export default function App() {
         return <MonitoringReport />;
       case '通话记录':
         return <CallRecordManager />;
+      case '工具配置':
+        return <ToolConfigPage />;
       default:
         return (
           <div className="flex flex-col items-center justify-center h-full text-slate-400">

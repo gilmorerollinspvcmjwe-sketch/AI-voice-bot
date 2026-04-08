@@ -142,6 +142,26 @@ export default function PromptEditor({
     }
   }, [value, buildHtml, placeholder, saveCursorPos, restoreCursorPos]);
 
+  // 点击外部关闭下拉菜单
+  useEffect(() => {
+    if (!showDropdown) return;
+    
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        dropdownRef.current && 
+        !dropdownRef.current.contains(target) &&
+        editorRef.current &&
+        !editorRef.current.contains(target)
+      ) {
+        setShowDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showDropdown]);
+
   const extractPlainText = (el: HTMLElement): string => {
     let text = '';
     const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, null);
@@ -164,11 +184,10 @@ export default function PromptEditor({
     const range = sel.getRangeAt(0).cloneRange();
     range.collapse(false);
     const rect = range.getBoundingClientRect();
-    const editorRect = editorRef.current?.getBoundingClientRect();
-    if (!editorRect) return null;
+    // 返回相对于视口的位置，因为下拉菜单使用 fixed 定位
     return {
-      top: rect.bottom - editorRect.top + (editorRef.current?.scrollTop || 0),
-      left: rect.left - editorRect.left + (editorRef.current?.scrollLeft || 0),
+      top: rect.bottom + window.scrollY,
+      left: rect.left + window.scrollX,
     };
   };
 
@@ -269,14 +288,28 @@ export default function PromptEditor({
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    // 处理 / 键触发下拉菜单
     if (e.key === '/' && !showDropdown) {
       e.preventDefault();
-      const pos = getCursorPixelPosition();
-      if (pos) setDropdownPos(pos);
-      setShowDropdown(true);
-      setSearchQuery('');
-      setSelectedIndex(0);
-      insertCharAtCursor('/');
+      e.stopPropagation();
+      
+      const el = editorRef.current;
+      if (el) {
+        // 获取光标位置
+        const cursorPos = getCursorPixelPosition();
+        // 如果获取不到光标位置，使用编辑器位置
+        const rect = el.getBoundingClientRect();
+        const pos = cursorPos || {
+          top: rect.top + window.scrollY + 35,
+          left: rect.left + window.scrollX + 10
+        };
+        
+        setDropdownPos(pos);
+        setShowDropdown(true);
+        setSearchQuery('');
+        setSelectedIndex(0);
+        insertCharAtCursor('/');
+      }
       return;
     }
 
@@ -426,8 +459,44 @@ export default function PromptEditor({
     }
   }, [selectedIndex, showDropdown, filteredItems.length]);
 
+  // 手动触发下拉菜单
+  const handleManualTrigger = () => {
+    const el = editorRef.current;
+    if (!el) return;
+    
+    // 聚焦编辑器
+    el.focus();
+    
+    // 获取编辑器的位置
+    const rect = el.getBoundingClientRect();
+    
+    // 在编辑器左上角显示下拉菜单（在编辑器内部）
+    const pos = {
+      top: rect.top + window.scrollY + 35, // 在编辑器顶部下方
+      left: rect.left + window.scrollX + 10 // 稍微偏右一点
+    };
+    
+    // 先插入 / 字符
+    insertCharAtCursor('/');
+    
+    // 显示下拉菜单
+    setDropdownPos(pos);
+    setShowDropdown(true);
+    setSearchQuery('');
+    setSelectedIndex(0);
+  };
+
   return (
     <div className="relative">
+      <div className="flex justify-end gap-1 mb-1">
+        <button
+          onClick={handleManualTrigger}
+          className="text-[10px] px-2 py-1 bg-slate-100 text-slate-600 rounded hover:bg-slate-200 transition-colors flex items-center gap-1"
+          title="插入变量、工具或函数"
+        >
+          <span className="font-mono">/</span> 插入
+        </button>
+      </div>
       <div
         ref={editorRef}
         contentEditable
@@ -442,8 +511,13 @@ export default function PromptEditor({
       {showDropdown && (
         <div
           ref={dropdownRef}
-          className="fixed z-[9999] bg-white rounded-lg shadow-xl border border-slate-200 py-2 max-h-64 overflow-y-auto"
-          style={{ top: dropdownPos.top + 4, left: dropdownPos.left, minWidth: '280px' }}
+          className="fixed bg-white rounded-lg shadow-xl border border-slate-200 py-2 max-h-64 overflow-y-auto"
+          style={{ 
+            top: dropdownPos.top + 4, 
+            left: dropdownPos.left, 
+            minWidth: '280px',
+            zIndex: 99999
+          }}
         >
           <div className="px-3 pb-2 border-b border-slate-100">
             <input

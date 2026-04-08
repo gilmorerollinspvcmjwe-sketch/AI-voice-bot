@@ -159,11 +159,31 @@ export interface LLMNodeConfig extends NodeCommonConfig {
     output: string;
   }>;
   knowledgeBaseIds?: string[];
+  
+  // 工具绑定（AgentTool - 用于API调用等业务操作）
   toolIds?: string[];
-  functionIds?: string[];
+  
+  // 可见函数绑定（Visible Functions - LLM自主决定调用）
+  visibleFunctionIds?: string[];
+  
+  // 过渡函数绑定（Transition Functions - 在提示词中引用，控制流程）
+  transitionFunctionIds?: string[];
+  
+  // 步骤级提示词（类似PolyAI的Step Prompt）
+  stepPrompt?: string;
+  
+  // ASR偏置配置
+  asrBiasing?: {
+    type: 'default' | 'alphanumeric' | 'name' | 'datetime' | 'number' | 'address';
+    customPhrases?: string[];
+  };
+  
   outputFormat?: 'text' | 'json';
   jsonSchema?: string;
   onErrorNodeId?: string;
+  
+  // 兼容旧字段
+  functionIds?: string[];
 }
 
 export interface IntentRoute {
@@ -305,6 +325,24 @@ export interface IntentEdge {
   target: string;
   label?: string;
   branchId?: string;
+  
+  // 过渡函数配置
+  transitionConfig?: {
+    // 过渡函数ID
+    functionId?: string;
+    
+    // 过渡条件描述（类似PolyAI的transition prompt）
+    condition?: string;
+    
+    // 函数参数映射（变量名 -> 参数名）
+    paramMapping?: Record<string, string>;
+    
+    // 过渡优先级（数字越小优先级越高）
+    priority?: number;
+    
+    // 是否启用
+    enabled?: boolean;
+  };
 }
 
 export interface BotIntent {
@@ -381,7 +419,12 @@ export interface AgentTool {
   };
 }
 
-// Flow 函数类型 - 用于流程内的可调用函数，类似 Poly.ai 的 Transition Functions
+// 函数类型枚举 - 区分过渡函数和可见函数
+export type FunctionCategory = 'transition' | 'visible';
+
+// Flow 函数类型 - 用于流程内的可调用函数
+// transition: 过渡函数 - 用于流程控制，在连线上配置，可使用 flow.goto_step()
+// visible: 可见函数 - 用于业务执行，在LLM节点中绑定，由LLM自主决定调用
 export interface FlowFunction {
   id: string;
   name: string;           // 函数名称，如 save_confirmation_code
@@ -391,6 +434,25 @@ export interface FlowFunction {
   scope: 'flow' | 'global';  // 作用域：流程级别或全局
   flowId?: string;        // 如果是 flow 级别，关联的 flow ID
   isBuiltIn: boolean;     // 是否内置函数
+  
+  // 新增：函数类别
+  category: FunctionCategory;  // 'transition' 或 'visible'
+  
+  // 新增：过渡函数特有属性
+  transitionConfig?: {
+    canGotoStep: boolean;      // 是否可以使用 flow.goto_step()
+    canGotoFlow: boolean;      // 是否可以使用 flow.goto_flow()
+    canModifyState: boolean;   // 是否可以修改 conv.state
+    targetStepId?: string;     // 默认跳转目标步骤（可选）
+  };
+  
+  // 新增：可见函数特有属性
+  visibleConfig?: {
+    triggerKeywords?: string[];  // 触发关键词（可选）
+    executionStrategy?: 'sync' | 'async';  // 执行策略
+    playFiller?: boolean;        // 是否播放等待音
+    fillerContent?: string;      // 等待音内容
+  };
 }
 
 export interface FlowFunctionParameter {
@@ -403,65 +465,158 @@ export interface FlowFunctionParameter {
 
 // 内置 Flow 函数列表
 export const BUILT_IN_FUNCTIONS: FlowFunction[] = [
+  // ========== 过渡函数 ==========
   {
     id: 'builtin_save_state',
     name: 'save_state',
     description: '保存变量到对话状态',
+    category: 'transition',
     parameters: [
       { name: 'key', type: 'string', description: '变量名', required: true },
       { name: 'value', type: 'string', description: '变量值', required: true }
     ],
-    code: `def save_state(conv: Conversation, flow: Flow, key: str, value: str):
+    code: `def save_state(conv, flow, key, value):
     """保存变量到对话状态，供后续步骤使用"""
     conv.state[key] = value
     return`,
     scope: 'global',
-    isBuiltIn: true
+    isBuiltIn: true,
+    transitionConfig: {
+      canGotoStep: false,
+      canGotoFlow: false,
+      canModifyState: true
+    }
   },
   {
     id: 'builtin_goto_step',
     name: 'goto_step',
     description: '跳转到指定步骤，控制流程走向',
+    category: 'transition',
     parameters: [
       { name: 'step_id', type: 'string', description: '目标步骤名称', required: true }
     ],
-    code: `def goto_step(conv: Conversation, flow: Flow, step_id: str):
+    code: `def goto_step(conv, flow, step_id):
     """跳转到当前流程中的指定步骤"""
     flow.goto_step(step_id)
+    return  # 重要：必须return防止静默覆盖`,
+    scope: 'global',
+    isBuiltIn: true,
+    transitionConfig: {
+      canGotoStep: true,
+      canGotoFlow: false,
+      canModifyState: false
+    }
+  },
+  {
+    id: 'builtin_goto_flow',
+    name: 'goto_flow',
+    description: '跳转到另一个流程',
+    category: 'transition',
+    parameters: [
+      { name: 'flow_name', type: 'string', description: '目标流程名称', required: true }
+    ],
+    code: `def goto_flow(conv, flow, flow_name):
+    """跳转到另一个流程"""
+    flow.goto_flow(flow_name)
     return`,
     scope: 'global',
-    isBuiltIn: true
+    isBuiltIn: true,
+    transitionConfig: {
+      canGotoStep: false,
+      canGotoFlow: true,
+      canModifyState: false
+    }
+  },
+  {
+    id: 'builtin_conditional_goto',
+    name: 'conditional_goto',
+    description: '根据条件跳转到不同步骤',
+    category: 'transition',
+    parameters: [
+      { name: 'condition', type: 'string', description: '条件表达式', required: true },
+      { name: 'true_step', type: 'string', description: '条件为真时跳转的步骤', required: true },
+      { name: 'false_step', type: 'string', description: '条件为假时跳转的步骤', required: false }
+    ],
+    code: `def conditional_goto(conv, flow, condition, true_step, false_step=None):
+    """根据条件跳转到不同步骤"""
+    if eval(condition, {}, conv.state):
+        flow.goto_step(true_step)
+    elif false_step:
+        flow.goto_step(false_step)
+    return`,
+    scope: 'global',
+    isBuiltIn: true,
+    transitionConfig: {
+      canGotoStep: true,
+      canGotoFlow: false,
+      canModifyState: false
+    }
   },
   {
     id: 'builtin_collect_value',
     name: 'collect_value',
     description: '收集用户输入并保存到变量',
+    category: 'transition',
     parameters: [
       { name: 'variable_name', type: 'string', description: '存储变量名', required: true },
       { name: 'prompt', type: 'string', description: '收集提示语', required: false }
     ],
-    code: `def collect_value(conv: Conversation, flow: Flow, variable_name: str, prompt: str = None):
+    code: `def collect_value(conv, flow, variable_name, prompt=None):
     """收集用户输入并保存到变量"""
-    # 如果有 prompt，引导 LLM 询问用户
     if prompt:
-        return {"utterance": prompt}
-    # 否则等待用户输入，存储到 conv.state
+        return {"utterance": prompt, "collect": variable_name}
     return`,
     scope: 'global',
-    isBuiltIn: true
+    isBuiltIn: true,
+    transitionConfig: {
+      canGotoStep: false,
+      canGotoFlow: false,
+      canModifyState: true
+    }
   },
+  {
+    id: 'builtin_check_verification',
+    name: 'check_verification',
+    description: '检查用户验证状态，支持重试机制',
+    category: 'transition',
+    parameters: [
+      { name: 'max_attempts', type: 'number', description: '最大验证尝试次数', required: false, defaultValue: 3 }
+    ],
+    code: `def check_verification(conv, flow, max_attempts=3):
+    """检查用户验证状态，失败则重试，超过次数转人工"""
+    attempts = conv.state.get('verification_attempts', 0)
+    if not conv.state.get('is_verified'):
+        attempts += 1
+        conv.state['verification_attempts'] = attempts
+        if attempts >= max_attempts:
+            flow.goto_flow("Escalation")
+            return
+        flow.goto_step("Retry verification")
+        return
+    flow.goto_step("Continue")
+    return`,
+    scope: 'global',
+    isBuiltIn: true,
+    transitionConfig: {
+      canGotoStep: true,
+      canGotoFlow: true,
+      canModifyState: true
+    }
+  },
+  
+  // ========== 可见函数 ==========
   {
     id: 'builtin_transfer',
     name: 'transfer_call',
     description: '转接到人工客服或指定技能组',
+    category: 'visible',
     parameters: [
       { name: 'destination', type: 'string', description: '目标技能组或坐席', required: true },
       { name: 'reason', type: 'string', description: '转接原因', required: false },
       { name: 'utterance', type: 'string', description: '转接话语', required: false }
     ],
-    code: `def transfer_call(conv: Conversation, flow: Flow, destination: str, reason: str = None, utterance: str = None):
+    code: `def transfer_call(conv, flow, destination, reason=None, utterance=None):
     """转接到人工客服或指定技能组"""
-    # 构建转接话语
     if not utterance:
         utterance = "好的，我帮您转接人工客服，请稍等。"
     return {
@@ -471,69 +626,86 @@ export const BUILT_IN_FUNCTIONS: FlowFunction[] = [
         "utterance": utterance
     }`,
     scope: 'global',
-    isBuiltIn: true
+    isBuiltIn: true,
+    visibleConfig: {
+      triggerKeywords: ['转人工', '人工客服', '转接'],
+      executionStrategy: 'sync',
+      playFiller: true,
+      fillerContent: '正在为您转接，请稍候...'
+    }
   },
   {
-    id: 'builtin_confirm',
+    id: 'builtin_confirm_reservation',
     name: 'confirm_reservation',
     description: '确认预约信息',
+    category: 'visible',
     parameters: [
       { name: 'confirmation_code', type: 'string', description: '确认码', required: true },
       { name: 'first_name', type: 'string', description: '名', required: true },
       { name: 'last_name', type: 'string', description: '姓', required: true }
     ],
-    code: `def confirm_reservation(conv: Conversation, flow: Flow, confirmation_code: str, first_name: str, last_name: str):
+    code: `def confirm_reservation(conv, flow, confirmation_code, first_name, last_name):
     """确认预约信息是否匹配"""
-    # 保存确认信息到状态
-    conv.state.confirmation_code = confirmation_code
-    conv.state.first_name = first_name
-    conv.state.last_name = last_name
-
-    # 检查是否匹配（这里需要连接外部系统验证）
-    # 假设验证通过，跳转到确认成功步骤
-    flow.goto_step("Confirm success")
-    return`,
+    conv.state['confirmation_code'] = confirmation_code
+    conv.state['first_name'] = first_name
+    conv.state['last_name'] = last_name
+    # 返回结果供LLM处理
+    return {
+        "status": "confirmed",
+        "message": f"已确认 {first_name} {last_name} 的预约，确认码: {confirmation_code}"
+    }`,
     scope: 'global',
-    isBuiltIn: true
+    isBuiltIn: true,
+    visibleConfig: {
+      triggerKeywords: ['确认预约', '预约确认'],
+      executionStrategy: 'sync'
+    }
   },
   {
     id: 'builtin_hangup',
     name: 'hangup',
     description: '挂断电话',
+    category: 'visible',
     parameters: [
       { name: 'reason', type: 'string', description: '挂断原因', required: false }
     ],
-    code: `def hangup(conv: Conversation, flow: Flow, reason: str = None):
+    code: `def hangup(conv, flow, reason=None):
     """挂断当前通话"""
     return {
         "action": "hangup",
         "reason": reason
     }`,
     scope: 'global',
-    isBuiltIn: true
+    isBuiltIn: true,
+    visibleConfig: {
+      triggerKeywords: ['挂断', '结束通话', '再见'],
+      executionStrategy: 'sync'
+    }
   },
   {
-    id: 'builtin_check_verification',
-    name: 'check_verification',
-    description: '检查用户验证状态，支持重试机制',
+    id: 'builtin_send_sms',
+    name: 'send_sms',
+    description: '发送短信通知',
+    category: 'visible',
     parameters: [
-      { name: 'max_attempts', type: 'number', description: '最大验证尝试次数', required: false }
+      { name: 'template', type: 'string', description: '短信模板ID', required: true },
+      { name: 'params', type: 'object', description: '模板参数', required: false }
     ],
-    code: `def check_verification(conv: Conversation, flow: Flow, max_attempts: int = 3):
-    """检查用户验证状态，失败则重试，超过次数转人工"""
-    attempts = conv.state.verification_attempts or 0
-    if not conv.state.is_verified:
-        attempts += 1
-        conv.state.verification_attempts = attempts
-        if attempts >= max_attempts:
-            conv.goto_flow("Escalation")
-            return
-        flow.goto_step("Retry verification")
-        return
-    flow.goto_step("Continue")
-    return`,
+    code: `def send_sms(conv, flow, template, params=None):
+    """发送短信通知"""
+    return {
+        "action": "send_sms",
+        "template": template,
+        "params": params or {},
+        "phone": conv.state.get('phone', '')
+    }`,
     scope: 'global',
-    isBuiltIn: true
+    isBuiltIn: true,
+    visibleConfig: {
+      executionStrategy: 'async',
+      playFiller: true,
+      fillerContent: '正在发送短信...'
+    }
   }
 ];
 
@@ -692,6 +864,9 @@ export interface BotConfiguration {
   profileCollectionEnabled?: boolean;
   profileExtractionPrompt?: string;
   profileExtractionRules?: ProfileExtractionRule[];
+
+  // PolyAI Flow Config
+  flowConfig?: FlowConfig;
 }
 
 // Test Suite and Case Definitions
@@ -773,6 +948,8 @@ export interface QAPair {
   isActive: boolean;
   audioResources?: Record<string, string>;
   toolIds?: string[];
+  // 工具调用配置：同步/异步
+  toolCallMode?: 'sync' | 'async';
 }
 
 export interface KnowledgeCandidate {
@@ -1275,3 +1452,158 @@ export interface CallRecordDetail extends CallRecord {
 }
 
 export type TimeRange = 'today' | 'yesterday' | 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'custom';
+
+// ==================== PolyAI Flow Types ====================
+
+export enum FlowNodeType {
+  START = 'start',
+  DEFAULT = 'default',
+  EXIT = 'exit'
+}
+
+export enum ExitNodeType {
+  FINISH = 'finish',
+  HANDOFF = 'handoff',
+  STOP = 'stop'
+}
+
+export interface StepPromptConfig {
+  prompt: string;
+  visibleFunctionIds: string[];
+  transitionFunctionIds: string[];
+}
+
+export type FlowStepKind = 'default' | 'function' | 'collect' | 'exit';
+
+export type FlowEntityType =
+  | 'text'
+  | 'phone'
+  | 'number'
+  | 'datetime'
+  | 'address'
+  | 'email'
+  | 'alphanumeric';
+
+export type FlowAsrBiasing =
+  | 'default'
+  | 'alphanumeric'
+  | 'name'
+  | 'datetime'
+  | 'number'
+  | 'address';
+
+export interface FlowEntityConfig {
+  enabled: boolean;
+  entityName?: string;
+  entityType?: FlowEntityType;
+  prompt?: string;
+  asrBiasing?: FlowAsrBiasing;
+  required?: boolean;
+  inputMode?: 'speech' | 'dtmf';
+  dtmfMaxDigits?: number;
+  options?: string[];
+}
+
+export interface FlowRetryConfig {
+  enabled: boolean;
+  maxAttempts: number;
+  noInputPrompt?: string;
+  noMatchPrompt?: string;
+  fallbackTargetId?: string;
+  repromptDelayMs?: number;
+}
+
+export interface FlowNodeData {
+  name: string;
+  description?: string;
+  stepType?: FlowStepKind;
+  // LLM Configuration (for DEFAULT nodes)
+  modelType?: ModelType;
+  temperature?: number;
+  systemPrompt?: string;
+  // Step Prompt Configuration
+  stepPrompt?: StepPromptConfig;
+  // Function Bindings
+  visibleFunctionIds?: string[];
+  transitionFunctionIds?: string[];
+  toolIds?: string[];
+  // Few-shot Examples
+  fewShotExamples?: Array<{ input: string; output: string }>;
+  entityConfig?: FlowEntityConfig;
+  retryConfig?: FlowRetryConfig;
+  gotoFlowId?: string;
+  // Exit Node Configuration
+  exitType?: ExitNodeType;
+  [key: string]: any;
+}
+
+export interface FlowNode {
+  id: string;
+  type: FlowNodeType;
+  position: {
+    x: number;
+    y: number;
+  };
+  data: FlowNodeData;
+}
+
+export interface FlowEdge {
+  id: string;
+  source: string;
+  target: string;
+  label?: string;
+  edgeType?: 'normal' | 'conditional' | 'fallback' | 'goto_flow';
+  conditionSummary?: string;
+  priority?: number;
+  transitionFunctionId?: string;
+  debugRule?: 'always' | 'condition' | 'entity_collected' | 'retry_exhausted';
+}
+
+export interface FlowMetadata {
+  createdAt?: number;
+  updatedAt?: number;
+  createdBy?: string;
+  version?: string;
+  description?: string;
+  [key: string]: any;
+}
+
+export interface FlowDefinition {
+  id: string;
+  name: string;
+  isEntry?: boolean;
+  nodes: FlowNode[];
+  edges: FlowEdge[];
+  metadata?: FlowMetadata;
+}
+
+export interface FlowAnnotation {
+  id: string;
+  index: number;
+  targetType: 'page' | 'flow' | 'node' | 'edge' | 'panel' | 'toolbar';
+  targetId: string;
+  title: string;
+  summary: string;
+  details: string;
+  status?: 'draft' | 'ready';
+}
+
+export interface FlowDebugScenario {
+  id: string;
+  name: string;
+  initialState: Record<string, any>;
+  mockInputs: string[];
+}
+
+export interface FlowConfig {
+  id: string;
+  name: string;
+  entryFlowId: string;
+  flows: FlowDefinition[];
+  functions?: FlowFunction[];
+  annotations: FlowAnnotation[];
+  debugScenarios: FlowDebugScenario[];
+  metadata?: FlowMetadata;
+}
+
+// ==================== End PolyAI Flow Types ====================

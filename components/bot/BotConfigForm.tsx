@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { ArrowRight, Workflow, Bot } from 'lucide-react';
-import { BotConfiguration, ExtractionConfig, MarketingCampaign } from '../../types';
+import { BotConfiguration, ExtractionConfig, MarketingCampaign, FlowConfig, FlowNodeType, ExitNodeType } from '../../types';
 import { generateBotPrompt } from '../../services/geminiService';
 import BotBasicConfig from './BotBasicConfig';
 import BotStrategyConfig from './BotStrategyConfig';
@@ -11,8 +11,9 @@ import BotDebugConfig from './BotDebugConfig';
 import BotTestConfig from './BotTestConfig';
 import BotIntentConfig from './intent/BotIntentConfig';
 import BotMarketingConfig from './BotMarketingConfig';
-import BotAgentConfig from './BotAgentConfig';
+
 import BotKnowledgeConfig from './BotKnowledgeConfig';
+import FlowStudio from '../flow/FlowStudio';
 
 interface BotConfigFormProps {
   initialData: BotConfiguration;
@@ -22,18 +23,277 @@ interface BotConfigFormProps {
   campaigns: MarketingCampaign[]; 
 }
 
+const DEMO_FLOW_CONFIG: FlowConfig = {
+  id: 'polyai_flow_workbench',
+  name: 'PolyAI Flow Workbench',
+  entryFlowId: 'main',
+  functions: [],
+  flows: [
+    {
+      id: 'main',
+      name: '主入口 Flow',
+      isEntry: true,
+      nodes: [
+        {
+          id: 'main_start',
+          type: FlowNodeType.START,
+          position: { x: 80, y: 220 },
+          data: { name: '开始', description: '机器人默认入口。' }
+        },
+        {
+          id: 'collect_phone',
+          type: FlowNodeType.DEFAULT,
+          position: { x: 320, y: 190 },
+          data: {
+            name: '收集手机号',
+            description: '收集并确认用户手机号，用于进入身份验证子 Flow。',
+            stepType: 'collect',
+            stepPrompt: {
+              prompt: '请礼貌收集用户手机号，并在成功收集后调用 /goto_flow 进入身份验证子流程。',
+              visibleFunctionIds: [],
+              transitionFunctionIds: ['builtin_goto_flow']
+            },
+            entityConfig: {
+              enabled: true,
+              entityName: 'phone_number',
+              entityType: 'phone',
+              prompt: '请说一下您下单时使用的手机号。',
+              asrBiasing: 'number',
+              required: true
+            },
+            retryConfig: {
+              enabled: true,
+              maxAttempts: 3,
+              noInputPrompt: '我还没有听到手机号，请再说一遍。',
+              noMatchPrompt: '手机号没有听清，请重新说一遍。'
+            },
+            fewShotExamples: [
+              { input: '13800138000', output: '已收集手机号并准备进入身份验证流程。' }
+            ],
+            gotoFlowId: 'verification'
+          }
+        },
+        {
+          id: 'main_exit',
+          type: FlowNodeType.EXIT,
+          position: { x: 600, y: 215 },
+          data: {
+            name: '主流程出口',
+            description: '主入口 Flow 的自然结束点。',
+            stepType: 'exit',
+            exitType: ExitNodeType.FINISH
+          }
+        }
+      ],
+      edges: [
+        { id: 'main_edge_1', source: 'main_start', target: 'collect_phone', label: '进入收集', edgeType: 'normal' },
+        { id: 'main_edge_2', source: 'collect_phone', target: 'main_exit', label: '收集完成', edgeType: 'goto_flow', conditionSummary: '调用 goto_flow 跳转后返回主流程结束' }
+      ]
+    },
+    {
+      id: 'verification',
+      name: '身份验证 Flow',
+      nodes: [
+        {
+          id: 'verification_start',
+          type: FlowNodeType.START,
+          position: { x: 80, y: 220 },
+          data: { name: '进入身份验证', description: '从主入口 Flow 跳转而来。' }
+        },
+        {
+          id: 'collect_code',
+          type: FlowNodeType.DEFAULT,
+          position: { x: 320, y: 190 },
+          data: {
+            name: '收集验证码',
+            description: '模拟验证码采集和重试策略。',
+            stepType: 'collect',
+            stepPrompt: {
+              prompt: '请收集用户收到的验证码。如果验证失败，继续留在当前 Flow 并触发重试。',
+              visibleFunctionIds: [],
+              transitionFunctionIds: ['builtin_check_verification', 'builtin_goto_flow']
+            },
+            entityConfig: {
+              enabled: true,
+              entityName: 'verification_code',
+              entityType: 'alphanumeric',
+              prompt: '请说出您收到的验证码。',
+              asrBiasing: 'alphanumeric',
+              required: true
+            },
+            retryConfig: {
+              enabled: true,
+              maxAttempts: 3,
+              noInputPrompt: '我还没有听到验证码，请再说一遍。',
+              noMatchPrompt: '验证码没有听清，请重新说一遍。',
+              fallbackTargetId: 'verification_handoff'
+            }
+          }
+        },
+        {
+          id: 'verify_result',
+          type: FlowNodeType.DEFAULT,
+          position: { x: 590, y: 120 },
+          data: {
+            name: '验证结果判断',
+            description: '模拟 function step，根据 state 决定继续查询订单或转人工。',
+            stepType: 'function',
+            stepPrompt: {
+              prompt: '根据当前 state 判断用户是否验证通过，并选择继续查询订单或升级到人工。',
+              visibleFunctionIds: [],
+              transitionFunctionIds: ['builtin_goto_flow', 'builtin_save_state']
+            }
+          }
+        },
+        {
+          id: 'verification_lookup',
+          type: FlowNodeType.EXIT,
+          position: { x: 860, y: 90 },
+          data: {
+            name: '进入订单查询 Flow',
+            description: '验证成功后切换到订单查询子 Flow。',
+            stepType: 'exit',
+            exitType: ExitNodeType.FINISH,
+            gotoFlowId: 'lookup'
+          }
+        },
+        {
+          id: 'verification_handoff',
+          type: FlowNodeType.EXIT,
+          position: { x: 860, y: 260 },
+          data: {
+            name: '验证失败转人工',
+            description: '超过重试次数后结束当前 Flow 并转人工。',
+            stepType: 'exit',
+            exitType: ExitNodeType.HANDOFF,
+            gotoFlowId: 'handoff'
+          }
+        }
+      ],
+      edges: [
+        { id: 'verification_edge_1', source: 'verification_start', target: 'collect_code', label: '开始验证', edgeType: 'normal' },
+        { id: 'verification_edge_2', source: 'collect_code', target: 'verify_result', label: '收到验证码', edgeType: 'normal' },
+        { id: 'verification_edge_3', source: 'verify_result', target: 'verification_lookup', label: '验证成功', edgeType: 'conditional', conditionSummary: 'isVerified === true', priority: 1 },
+        { id: 'verification_edge_4', source: 'verify_result', target: 'verification_handoff', label: '验证失败', edgeType: 'fallback', conditionSummary: 'retryCount >= 3', priority: 2 }
+      ]
+    },
+    {
+      id: 'lookup',
+      name: '订单查询 Flow',
+      nodes: [
+        {
+          id: 'lookup_start',
+          type: FlowNodeType.START,
+          position: { x: 80, y: 220 },
+          data: { name: '进入订单查询', description: '身份验证通过后的子 Flow。' }
+        },
+        {
+          id: 'lookup_order',
+          type: FlowNodeType.DEFAULT,
+          position: { x: 320, y: 190 },
+          data: {
+            name: '查询订单',
+            description: '展示 visible function、few-shot 和业务说明。',
+            stepType: 'function',
+            stepPrompt: {
+              prompt: '根据已验证的手机号查询订单摘要，查询完成后向用户复述结果。',
+              visibleFunctionIds: ['builtin_confirm_reservation', 'builtin_send_sms'],
+              transitionFunctionIds: ['builtin_goto_step']
+            },
+            fewShotExamples: [
+              { input: '帮我查订单', output: '调用查询订单能力并向用户复述订单摘要。' }
+            ]
+          }
+        },
+        {
+          id: 'lookup_finish',
+          type: FlowNodeType.EXIT,
+          position: { x: 620, y: 215 },
+          data: {
+            name: '查询结束',
+            description: '订单查询成功后的自然结束。',
+            stepType: 'exit',
+            exitType: ExitNodeType.FINISH
+          }
+        }
+      ],
+      edges: [
+        { id: 'lookup_edge_1', source: 'lookup_start', target: 'lookup_order', label: '开始查询', edgeType: 'normal' },
+        { id: 'lookup_edge_2', source: 'lookup_order', target: 'lookup_finish', label: '查询完成', edgeType: 'normal' }
+      ]
+    },
+    {
+      id: 'handoff',
+      name: '转人工 Flow',
+      nodes: [
+        {
+          id: 'handoff_start',
+          type: FlowNodeType.START,
+          position: { x: 80, y: 220 },
+          data: { name: '进入转人工', description: '失败兜底 Flow。' }
+        },
+        {
+          id: 'handoff_step',
+          type: FlowNodeType.DEFAULT,
+          position: { x: 320, y: 190 },
+          data: {
+            name: '转人工说明',
+            description: '说明已超过重试上限，将升级到人工。',
+            stepType: 'default',
+            stepPrompt: {
+              prompt: '向用户说明当前将升级到人工客服，并保持安抚性语气。',
+              visibleFunctionIds: ['builtin_transfer'],
+              transitionFunctionIds: []
+            }
+          }
+        },
+        {
+          id: 'handoff_exit',
+          type: FlowNodeType.EXIT,
+          position: { x: 620, y: 215 },
+          data: {
+            name: '人工接管',
+            description: '结束机器人流程并转人工。',
+            stepType: 'exit',
+            exitType: ExitNodeType.HANDOFF
+          }
+        }
+      ],
+      edges: [
+        { id: 'handoff_edge_1', source: 'handoff_start', target: 'handoff_step', label: '开始升级', edgeType: 'normal' },
+        { id: 'handoff_edge_2', source: 'handoff_step', target: 'handoff_exit', label: '完成转接', edgeType: 'normal' }
+      ]
+    }
+  ],
+  annotations: [],
+  debugScenarios: [
+    {
+      id: 'scenario_verify_retry',
+      name: '验证失败后重试并转人工',
+      initialState: { retryCount: 0, isVerified: false, phone_number: '' },
+      mockInputs: ['13800138000', '验证码 9988', '验证码还是不对', '继续失败']
+    }
+  ],
+  metadata: {
+    description: '内部评审用 PolyAI Flow Workbench 原型数据。',
+    updatedAt: Date.now()
+  }
+};
+
 const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCancel, extractionConfigs, campaigns }) => {
   const [config, setConfig] = useState<BotConfiguration>({ 
     ...initialData,
     orchestrationType: initialData.orchestrationType || 'WORKFLOW' 
   });
   
-  const [activeTab, setActiveTab] = useState<'BASIC' | 'FLOW' | 'TOOLS' | 'STRATEGY' | 'BUSINESS' | 'VARIABLES' | 'DEBUG' | 'TEST' | 'MARKETING' | 'KNOWLEDGE'>('BASIC');
+  const [activeTab, setActiveTab] = useState<'BASIC' | 'FLOW' | 'TOOLS' | 'STRATEGY' | 'BUSINESS' | 'VARIABLES' | 'DEBUG' | 'TEST' | 'MARKETING' | 'KNOWLEDGE' | 'FLOW_CONFIG'>('BASIC');
   const [isGenerating, setIsGenerating] = useState(false);
 
   const updateField = <K extends keyof BotConfiguration>(key: K, value: BotConfiguration[K]) => {
     setConfig(prev => ({ ...prev, [key]: value }));
   };
+
+  const flowConfig = config.flowConfig || DEMO_FLOW_CONFIG;
 
   const handleSmartGenerate = async () => {
     if (!config.name) return alert("请先填写配置模板名称");
@@ -88,11 +348,12 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
         {[
           { id: 'BASIC', label: '基础配置' },
           { id: 'FLOW', label: '意图技能' },
-          { id: 'TOOLS', label: '工具调用' },
+          { id: 'FLOW_CONFIG', label: '流程配置' },
+
           { id: 'STRATEGY', label: '对话策略' },
           { id: 'VARIABLES', label: '变量配置' },
           { id: 'BUSINESS', label: '业务分析' },
-          { id: 'MARKETING', label: '营销活动' }, 
+          { id: 'MARKETING', label: '营销活动' },
           { id: 'DEBUG', label: '模型调试' },
           { id: 'TEST', label: '批量评测' },
           { id: 'KNOWLEDGE', label: '知识检索配置' },
@@ -125,8 +386,8 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
         {/* Workflow Canvas */}
         {activeTab === 'FLOW' && (
            <div className="animate-in fade-in duration-500">
-             <BotIntentConfig 
-               config={config} 
+             <BotIntentConfig
+               config={config}
                updateField={updateField}
                extractionConfigs={extractionConfigs}
              />
@@ -141,14 +402,36 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
            </div>
         )}
 
-        {/* Agent Tool Calling */}
-        {activeTab === 'TOOLS' && (
-           <div className="animate-in fade-in duration-500">
-             <BotAgentConfig 
-               config={config} 
-               updateField={updateField}
-               extractionConfigs={extractionConfigs}
-             />
+        {/* PolyAI Flow Editor */}
+        {activeTab === 'FLOW_CONFIG' && (
+           <div className="animate-in fade-in duration-500 flex flex-col h-[calc(100vh-280px)]">
+             <div className="flex-1 min-h-0">
+               <FlowStudio
+                 initialFlow={flowConfig}
+                 onSave={(flow: FlowConfig) => {
+                   updateField('flowConfig', flow);
+                   // Create and show success toast
+                   const toast = document.createElement('div');
+                   toast.className = 'fixed top-20 right-8 bg-green-50 text-green-700 border border-green-200 px-6 py-4 rounded-xl shadow-lg z-50 flex items-center gap-3 animate-in fade-in slide-in-from-right-5 duration-300';
+                   toast.innerHTML = `
+                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-green-600"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><path d="M22 4L12 14.01l-3-3"></path></svg>
+                     <div>
+                       <h4 class="font-bold text-sm">流程保存成功</h4>
+                       <p class="text-xs text-green-600 mt-0.5">流程配置已更新</p>
+                     </div>
+                   `;
+                   document.body.appendChild(toast);
+                   setTimeout(() => {
+                     toast.classList.add('opacity-0', 'transition-opacity', 'duration-500');
+                     setTimeout(() => toast.remove(), 500);
+                   }, 2000);
+                 }}
+                 readOnly={false}
+                 availableFunctions={flowConfig.functions || []}
+                 availableVariables={config.variables || []}
+                 availableTools={config.agentConfig?.tools || []}
+               />
+             </div>
              <div className="flex justify-start space-x-4 pt-4 border-t border-gray-100 mt-6">
                <button onClick={handleSave} className="px-6 py-2 bg-primary text-white rounded hover:bg-sky-600 text-sm font-medium shadow-sm transition-all">
                  保存配置
@@ -159,6 +442,8 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
              </div>
            </div>
         )}
+
+
 
         {activeTab === 'STRATEGY' && (
           <BotStrategyConfig 

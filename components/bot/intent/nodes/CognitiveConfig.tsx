@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Plus, X, Wrench, Code } from 'lucide-react';
+import { Plus, X, Wrench, Code, Zap, ArrowRight } from 'lucide-react';
 import { IntentNode, ModelType, AgentTool, FlowFunction, BUILT_IN_FUNCTIONS } from '../../../../types';
 import { Label, Select, Slider } from '../../../ui/FormComponents';
 import SimpleErrorHandling from './SimpleErrorHandling';
@@ -16,9 +16,13 @@ interface Props {
 
 const CognitiveConfig: React.FC<Props> = ({ node, onChange, availableNodes = [], availableTools = [], availableFunctions = [] }) => {
   const selectedToolIds = node.config?.toolIds || [];
-  const selectedFunctionIds = node.config?.functionIds || [];
+  const selectedVisibleFunctionIds = node.config?.visibleFunctionIds || [];
+  const selectedTransitionFunctionIds = node.config?.transitionFunctionIds || [];
 
   const allFunctions = [...BUILT_IN_FUNCTIONS, ...(availableFunctions || [])];
+  
+  const visibleFunctions = allFunctions.filter(fn => fn.category === 'visible');
+  const transitionFunctions = allFunctions.filter(fn => fn.category === 'transition');
 
   const handleToolToggle = (toolId: string) => {
     const newToolIds = selectedToolIds.includes(toolId)
@@ -27,11 +31,18 @@ const CognitiveConfig: React.FC<Props> = ({ node, onChange, availableNodes = [],
     onChange({ toolIds: newToolIds });
   };
 
-  const handleFunctionToggle = (functionId: string) => {
-    const newFunctionIds = selectedFunctionIds.includes(functionId)
-      ? selectedFunctionIds.filter(id => id !== functionId)
-      : [...selectedFunctionIds, functionId];
-    onChange({ functionIds: newFunctionIds });
+  const handleVisibleFunctionToggle = (functionId: string) => {
+    const newFunctionIds = selectedVisibleFunctionIds.includes(functionId)
+      ? selectedVisibleFunctionIds.filter(id => id !== functionId)
+      : [...selectedVisibleFunctionIds, functionId];
+    onChange({ visibleFunctionIds: newFunctionIds });
+  };
+
+  const handleTransitionFunctionToggle = (functionId: string) => {
+    const newFunctionIds = selectedTransitionFunctionIds.includes(functionId)
+      ? selectedTransitionFunctionIds.filter(id => id !== functionId)
+      : [...selectedTransitionFunctionIds, functionId];
+    onChange({ transitionFunctionIds: newFunctionIds });
   };
 
   // 3. LLM
@@ -55,6 +66,20 @@ const CognitiveConfig: React.FC<Props> = ({ node, onChange, availableNodes = [],
             height="h-40"
           />
         </div>
+        
+        <div>
+          <Label label="步骤提示词 (Step Prompt)" tooltip="当前步骤的专属提示词，LLM只看到当前步骤的prompt" />
+          <textarea
+            className="w-full h-20 px-3 py-2 text-xs border border-gray-200 rounded-lg resize-none focus:border-primary outline-none"
+            placeholder="描述当前步骤的具体任务，例如：收集用户的确认码..."
+            value={node.config?.stepPrompt || ''}
+            onChange={(e) => onChange({ stepPrompt: e.target.value })}
+          />
+          <p className="text-[10px] text-slate-400 mt-1">
+            类似 PolyAI 的 Step Prompt，LLM 只能看到当前步骤的提示词
+          </p>
+        </div>
+        
         <Slider
           label="随机性 (Temperature)"
           min={0} max={1} step={0.1}
@@ -62,7 +87,6 @@ const CognitiveConfig: React.FC<Props> = ({ node, onChange, availableNodes = [],
           onChange={(v) => onChange({ temperature: v })}
         />
 
-        {/* Tool Binding */}
         <div className="pt-4 border-t border-gray-100">
           <Label label="绑定工具 (Tools)" tooltip="绑定后可在提示词中用 / 引用，LLM 会根据上下文决定是否调用" />
           <div className="flex flex-wrap gap-2 mt-2 max-h-40 overflow-y-auto p-2 bg-slate-50 rounded border border-slate-100">
@@ -88,25 +112,27 @@ const CognitiveConfig: React.FC<Props> = ({ node, onChange, availableNodes = [],
           </div>
           {selectedToolIds.length > 0 && (
             <p className="text-[10px] text-slate-400 mt-1">
-              已选择 {selectedToolIds.length} 个工具，绑定后可调用外部 API
+              已选择 {selectedToolIds.length} 个工具
             </p>
           )}
         </div>
 
-        {/* Code Block Binding */}
         <div className="pt-4 border-t border-gray-100">
-          <Label label="绑定代码块 (Code Blocks)" tooltip="类似 Poly.ai 的 Transition Functions，可在提示词中用 / 引用，控制流程跳转" />
-          <div className="flex flex-wrap gap-2 mt-2 max-h-40 overflow-y-auto p-2 bg-slate-50 rounded border border-slate-100">
-            {allFunctions.map(fn => {
-              const isSelected = selectedFunctionIds.includes(fn.id);
+          <div className="flex items-center gap-2 mb-2">
+            <Zap size={12} className="text-blue-500" />
+            <Label label="可见函数 (Visible Functions)" tooltip="LLM自主决定调用的函数，用于执行业务操作" />
+          </div>
+          <div className="flex flex-wrap gap-2 mt-2 max-h-40 overflow-y-auto p-2 bg-blue-50 rounded border border-blue-100">
+            {visibleFunctions.length > 0 ? visibleFunctions.map(fn => {
+              const isSelected = selectedVisibleFunctionIds.includes(fn.id);
               return (
                 <button
                   key={fn.id}
-                  onClick={() => handleFunctionToggle(fn.id)}
+                  onClick={() => handleVisibleFunctionToggle(fn.id)}
                   className={`px-3 py-1.5 text-xs rounded-full flex items-center gap-1.5 transition-colors ${
                     isSelected
                       ? 'bg-blue-500 text-white'
-                      : 'bg-white border border-gray-200 text-slate-600 hover:border-blue-400'
+                      : 'bg-white border border-blue-200 text-slate-600 hover:border-blue-400'
                   }`}
                 >
                   <Code size={10} />
@@ -114,45 +140,57 @@ const CognitiveConfig: React.FC<Props> = ({ node, onChange, availableNodes = [],
                   {fn.isBuiltIn && (
                     <span className="px-1 py-0.5 bg-amber-400/20 text-amber-600 text-[8px] rounded">内置</span>
                   )}
-                  {isSelected && (
-                    <X size={10} className="ml-1" />
-                  )}
+                  {isSelected && <X size={10} className="ml-1" />}
                 </button>
               );
-            })}
+            }) : (
+              <p className="text-xs text-slate-400 py-2 px-3">暂无可函数</p>
+            )}
           </div>
-          {selectedFunctionIds.length > 0 && (
-            <p className="text-[10px] text-slate-400 mt-1">
-              已选择 {selectedFunctionIds.length} 个代码块
+          {selectedVisibleFunctionIds.length > 0 && (
+            <p className="text-[10px] text-blue-500 mt-1">
+              已选择 {selectedVisibleFunctionIds.length} 个可见函数，LLM 可自主调用
             </p>
           )}
         </div>
 
-        {/* Selected Code Blocks Preview */}
-        {selectedFunctionIds.length > 0 && (
-          <div className="pt-4 border-t border-gray-100">
-            <Label label="代码块代码预览" />
-            <div className="space-y-2 mt-2 max-h-60 overflow-y-auto">
-              {selectedFunctionIds.map(id => {
-                const fn = allFunctions.find(f => f.id === id);
-                if (!fn || !fn.code) return null;
-                return (
-                  <div key={id} className="bg-slate-800 rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase">{fn.name}</span>
-                      {fn.isBuiltIn && <span className="text-[8px] px-1 py-0.5 bg-amber-400/20 text-amber-400 rounded">内置</span>}
-                    </div>
-                    <pre className="text-[10px] text-emerald-400 font-mono overflow-x-auto">
-                      <code>{fn.code}</code>
-                    </pre>
-                  </div>
-                );
-              })}
-            </div>
+        <div className="pt-4 border-t border-gray-100">
+          <div className="flex items-center gap-2 mb-2">
+            <ArrowRight size={12} className="text-green-500" />
+            <Label label="过渡函数 (Transition Functions)" tooltip="在步骤提示词中引用，用于控制流程跳转" />
           </div>
-        )}
+          <div className="flex flex-wrap gap-2 mt-2 max-h-40 overflow-y-auto p-2 bg-green-50 rounded border border-green-100">
+            {transitionFunctions.length > 0 ? transitionFunctions.map(fn => {
+              const isSelected = selectedTransitionFunctionIds.includes(fn.id);
+              return (
+                <button
+                  key={fn.id}
+                  onClick={() => handleTransitionFunctionToggle(fn.id)}
+                  className={`px-3 py-1.5 text-xs rounded-full flex items-center gap-1.5 transition-colors ${
+                    isSelected
+                      ? 'bg-green-500 text-white'
+                      : 'bg-white border border-green-200 text-slate-600 hover:border-green-400'
+                  }`}
+                >
+                  <ArrowRight size={10} />
+                  {fn.name}
+                  {fn.isBuiltIn && (
+                    <span className="px-1 py-0.5 bg-amber-400/20 text-amber-600 text-[8px] rounded">内置</span>
+                  )}
+                  {isSelected && <X size={10} className="ml-1" />}
+                </button>
+              );
+            }) : (
+              <p className="text-xs text-slate-400 py-2 px-3">暂无过渡函数</p>
+            )}
+          </div>
+          {selectedTransitionFunctionIds.length > 0 && (
+            <p className="text-[10px] text-green-500 mt-1">
+              已选择 {selectedTransitionFunctionIds.length} 个过渡函数，可在步骤提示词中用 / 引用
+            </p>
+          )}
+        </div>
 
-        {/* Few-shot Examples */}
         <div className="pt-4 border-t border-gray-100">
           <div className="flex items-center justify-between mb-3">
             <Label label="Few-shot 示例" />
@@ -206,7 +244,6 @@ const CognitiveConfig: React.FC<Props> = ({ node, onChange, availableNodes = [],
           ))}
         </div>
 
-        {/* Error Handling */}
         <div className="pt-4 border-t border-gray-100">
           <SimpleErrorHandling
             label="节点执行异常时跳转至"
@@ -258,7 +295,6 @@ const CognitiveConfig: React.FC<Props> = ({ node, onChange, availableNodes = [],
           </>
         )}
 
-        {/* Error Handling */}
         <div className="pt-4 border-t border-gray-100">
           <SimpleErrorHandling
             label="收集异常时跳转至"

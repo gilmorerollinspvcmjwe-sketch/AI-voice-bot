@@ -176,6 +176,7 @@ export default function QAManager() {
       isActive: formData.isActive ?? true,
       audioResources: formData.audioResources || {},
       toolIds: formData.toolIds || [],
+      toolCallMode: formData.toolCallMode || 'sync',
     };
 
     setQaPairs(prev => {
@@ -375,7 +376,37 @@ export default function QAManager() {
 
             {/* Tool Binding */}
             <div>
-               <Label label="绑定工具 (可选)" tooltip="选择后，机器人在回复该问题时可调用这些工具" />
+               <div className="flex items-center justify-between mb-2">
+                 <Label label="绑定工具 (可选)" tooltip="选择后，机器人在回复该问题时可调用这些工具" />
+                 {/* 同步/异步切换 */}
+                 {(formData.toolIds || []).length > 0 && (
+                   <div className="flex items-center gap-2">
+                     <span className="text-xs text-slate-500">调用方式:</span>
+                     <div className="flex bg-slate-100 rounded p-0.5 border border-slate-200">
+                       <button
+                         onClick={() => setFormData({...formData, toolCallMode: 'sync' })}
+                         className={`px-2 py-0.5 text-xs font-medium rounded transition-all ${
+                           (formData.toolCallMode || 'sync') === 'sync'
+                             ? 'bg-white text-slate-700 shadow-sm border border-slate-200'
+                             : 'text-slate-400 hover:text-slate-600'
+                         }`}
+                       >
+                         同步
+                       </button>
+                       <button
+                         onClick={() => setFormData({...formData, toolCallMode: 'async' })}
+                         className={`px-2 py-0.5 text-xs font-medium rounded transition-all ${
+                           formData.toolCallMode === 'async'
+                             ? 'bg-white text-slate-700 shadow-sm border border-slate-200'
+                             : 'text-slate-400 hover:text-slate-600'
+                         }`}
+                       >
+                         异步
+                       </button>
+                     </div>
+                   </div>
+                 )}
+               </div>
                <div className="flex flex-wrap gap-2 mt-2 max-h-40 overflow-y-auto p-3 bg-slate-50 rounded border border-slate-100">
                  {MOCK_AVAILABLE_TOOLS.map(tool => {
                    const isSelected = (formData.toolIds || []).includes(tool.id);
@@ -402,9 +433,12 @@ export default function QAManager() {
                  })}
                </div>
                {(formData.toolIds || []).length > 0 && (
-                 <p className="text-[10px] text-slate-400 mt-1.5">
-                   已绑定 {(formData.toolIds || []).length} 个工具，机器人回复时可调用
-                 </p>
+                 <div className="flex items-center justify-between mt-1.5">
+                   <p className="text-[10px] text-slate-400">
+                     已绑定 {(formData.toolIds || []).length} 个工具，
+                     {(formData.toolCallMode || 'sync') === 'sync' ? '同步调用：等待工具返回后再回复' : '异步调用：先回复用户，后台执行工具'}
+                   </p>
+                 </div>
                )}
             </div>
 
