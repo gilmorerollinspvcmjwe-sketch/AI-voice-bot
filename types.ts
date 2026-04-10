@@ -854,6 +854,13 @@ export interface BotConfiguration {
   noAnswerMaxRepeats?: number;
   noAnswerSpeech?: string;
 
+  // Security Intercept Strategy
+  securityInterceptEnabled?: boolean;
+  securityWords?: Array<{
+    id: string;
+    word: string;
+  }>;
+
   // Marketing Config
   marketingEnabled?: boolean;
   marketingTimings?: string[];

@@ -115,6 +115,10 @@ const DEFAULT_STRATEGY_DEFAULTS = {
   // 长业务内容智能等待
   longContentSmartWaitEnabled: false,
   longContentScenarios: '',
+
+  // 安全拦截策略
+  securityInterceptEnabled: false,
+  securityWords: [],
 };
 
 // --- SPLIT INTENTS ---

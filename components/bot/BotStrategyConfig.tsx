@@ -559,6 +559,93 @@ const BotStrategyConfig: React.FC<BotStrategyConfigProps> = ({ config, updateFie
           )}
         </div>
       </StrategyCard>
+
+      <StrategyCard title="安全拦截策略" icon={<UserX size={18} />}>
+        <div className="space-y-6">
+          <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+            <div className="flex items-center">
+              <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-slate-200 mr-3 shadow-sm text-primary">
+                <UserX size={18} />
+              </div>
+              <div>
+                <div className="text-sm font-bold text-slate-800">启用安全拦截</div>
+                <div className="text-[11px] text-slate-500">智能识别敏感内容，保障对话安全与合规</div>
+              </div>
+            </div>
+            <Switch label="" checked={config.securityInterceptEnabled || false} onChange={(v) => updateField('securityInterceptEnabled', v)} />
+          </div>
+          
+          {config.securityInterceptEnabled && (
+            <div className="bg-white p-6 border border-slate-100 rounded-xl shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <Label label="词汇列表" tooltip="添加需要拦截的敏感词汇" />
+                <button 
+                  onClick={() => {
+                    const newWord = {
+                      id: Date.now().toString(),
+                      word: ''
+                    };
+                    updateField('securityWords', [...(config.securityWords || []), newWord]);
+                  }}
+                  className="text-primary text-xs flex items-center hover:underline bg-sky-50 px-2 py-0.5 rounded-full border border-sky-100 transition-colors font-bold"
+                >
+                  <Plus size={12} className="mr-1" />
+                  添加词汇
+                </button>
+              </div>
+              
+              <div className="space-y-3">
+                {config.securityWords?.map((item) => (
+                  <div key={item.id} className="flex flex-col space-y-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                    <div className="flex items-center space-x-4">
+                      <div className="flex-1">
+                        <input 
+                          type="text" 
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded focus:border-primary outline-none"
+                          placeholder="输入敏感词"
+                          value={item.word}
+                          onChange={(e) => {
+                            const updatedWords = config.securityWords?.map(w => 
+                              w.id === item.id ? { ...w, word: e.target.value } : w
+                            );
+                            updateField('securityWords', updatedWords);
+                          }}
+                        />
+                      </div>
+                      <button 
+                        onClick={() => {
+                          const updatedWords = config.securityWords?.filter(w => w.id !== item.id);
+                          updateField('securityWords', updatedWords);
+                        }}
+                        className="text-slate-300 hover:text-red-500 shrink-0"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {(!config.securityWords || config.securityWords.length === 0) && (
+                  <div className="text-[10px] text-slate-400 text-center py-4">
+                    暂无词汇，请点击上方"添加词汇"按钮添加
+                  </div>
+                )}
+              </div>
+              
+              <div className="mt-4 pt-3 border-t border-dashed border-gray-100">
+                <div className="text-xs text-slate-500">
+                  <span className="font-bold text-slate-700">处理规则说明：</span>
+                  <br />
+                  1. 系统自动识别包含敏感词的内容
+                  <br />
+                  2. 命中敏感词的句子不会被朗读
+                  <br />
+                  3. 系统会迅速反馈给AI模型，重新生成安全合规的回复
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </StrategyCard>
       
       <div className="flex justify-start space-x-4 pt-4 border-t border-gray-100">
          <button onClick={onSave} className="px-6 py-2 bg-primary text-white rounded hover:bg-sky-600 text-sm font-medium shadow-sm transition-all">
