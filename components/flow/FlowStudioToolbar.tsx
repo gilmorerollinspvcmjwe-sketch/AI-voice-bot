@@ -39,8 +39,8 @@ export default function FlowStudioToolbar({
             <Workflow size={18} />
           </div>
           <div>
-            <div className="text-sm font-semibold text-slate-800">Flow Studio</div>
-            <div className="text-xs text-slate-400">配置流程节点、提示词、工具引用、边条件，并运行可视化调试场景。</div>
+            <div className="text-sm font-semibold text-slate-800">流程配置</div>
+            <div className="text-xs text-slate-400">节点详情通过右侧抽屉编辑，调试通过独立面板查看。</div>
           </div>
         </div>
 
@@ -78,7 +78,7 @@ export default function FlowStudioToolbar({
           >
             <span className="inline-flex items-center gap-1">
               <RotateCcw size={14} />
-              重置视图
+              还原视图
             </span>
           </button>
 

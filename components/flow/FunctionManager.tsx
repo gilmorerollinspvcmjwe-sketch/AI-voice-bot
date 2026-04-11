@@ -1,10 +1,15 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Plus, Search, Trash2, Edit3, Code, Globe, ChevronRight, ChevronDown,
   Copy, CheckCircle2, X, Settings, Play, ArrowUp, ArrowDown, Shield, Zap, ArrowRight
 } from 'lucide-react';
 import { FlowFunction, FlowFunctionParameter, BUILT_IN_FUNCTIONS, FunctionCategory } from '../../types';
 import { Label, Input } from '../ui/FormComponents';
+import {
+  getFunctionCatalogStoreEventName,
+  loadStoredCustomFunctions,
+  saveStoredCustomFunctions,
+} from '../../services/functionCatalogStore';
 
 interface FunctionManagerProps {
   functions?: FlowFunction[];
@@ -22,13 +27,38 @@ const DEFAULT_FUNCTION: FlowFunction = {
 };
 
 export default function FunctionManager({ functions = [], onSave }: FunctionManagerProps) {
-  const [customFunctions, setCustomFunctions] = useState<FlowFunction[]>(functions);
+  const [customFunctions, setCustomFunctions] = useState<FlowFunction[]>(() =>
+    onSave ? functions : loadStoredCustomFunctions(),
+  );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editingFunction, setEditingFunction] = useState<FlowFunction | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showCategory, setShowCategory] = useState<'all' | 'transition' | 'visible'>('all');
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!onSave) return;
+    setCustomFunctions(functions);
+  }, [functions, onSave]);
+
+  useEffect(() => {
+    if (onSave || typeof window === 'undefined') return;
+    const syncFromStore = () => setCustomFunctions(loadStoredCustomFunctions());
+    syncFromStore();
+    const eventName = getFunctionCatalogStoreEventName();
+    window.addEventListener(eventName, syncFromStore);
+    return () => window.removeEventListener(eventName, syncFromStore);
+  }, [onSave]);
+
+  const persistFunctions = (nextFunctions: FlowFunction[]) => {
+    setCustomFunctions(nextFunctions);
+    if (onSave) {
+      onSave(nextFunctions);
+      return;
+    }
+    saveStoredCustomFunctions(nextFunctions);
+  };
 
   const allFunctions = [...BUILT_IN_FUNCTIONS, ...customFunctions];
 
@@ -61,11 +91,10 @@ export default function FunctionManager({ functions = [], onSave }: FunctionMana
   const handleDelete = (id: string) => {
     if (!confirm('确定要删除该代码块吗？')) return;
     const nextFunctions = customFunctions.filter(f => f.id !== id);
-    setCustomFunctions(nextFunctions);
+    persistFunctions(nextFunctions);
     if (selectedId === id) {
       setSelectedId(null);
     }
-    onSave?.(nextFunctions);
   };
 
   const handleSave = () => {
@@ -83,11 +112,9 @@ export default function FunctionManager({ functions = [], onSave }: FunctionMana
       return [...customFunctions, editingFunction];
     })();
 
-    setCustomFunctions(nextFunctions);
-
+    persistFunctions(nextFunctions);
     setIsEditing(false);
     setSelectedId(editingFunction.id);
-    onSave?.(nextFunctions);
   };
 
   const handleAddParameter = () => {

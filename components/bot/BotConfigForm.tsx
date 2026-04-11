@@ -27,7 +27,62 @@ const DEMO_FLOW_CONFIG: FlowConfig = {
   id: 'polyai_flow_workbench',
   name: 'PolyAI Flow Workbench',
   entryFlowId: 'main',
-  functions: [],
+  functions: [
+    {
+      id: 'code_normalize_phone',
+      name: 'normalize_phone_digits',
+      description: '清洗手机号中的空格、短横线和口语化停顿，生成标准手机号。',
+      parameters: [{ name: 'phone_number', type: 'string', description: '用户输入的手机号', required: true }],
+      code: `def normalize_phone_digits(conv, flow, phone_number):
+    digits = ''.join(ch for ch in phone_number if ch.isdigit())
+    conv.state['normalized_phone_number'] = digits
+    return`,
+      scope: 'global',
+      isBuiltIn: false,
+      category: 'visible',
+      visibleConfig: {
+        executionStrategy: 'sync',
+        playFiller: false,
+      },
+    },
+    {
+      id: 'code_verify_sms',
+      name: 'verify_sms_code',
+      description: '根据验证码和用户手机号校验当前会话是否通过验证。',
+      parameters: [
+        { name: 'phone_number', type: 'string', description: '手机号', required: true },
+        { name: 'verification_code', type: 'string', description: '验证码', required: true },
+      ],
+      code: `def verify_sms_code(conv, flow, phone_number, verification_code):
+    conv.state['isVerified'] = verification_code == '9988'
+    return`,
+      scope: 'flow',
+      flowId: 'verification',
+      isBuiltIn: false,
+      category: 'transition',
+      transitionConfig: {
+        canGotoStep: true,
+        canGotoFlow: true,
+        canModifyState: true,
+      },
+    },
+    {
+      id: 'code_prepare_handoff',
+      name: 'prepare_handoff_summary',
+      description: '整理重试过程和失败原因，供转人工时透传。',
+      parameters: [{ name: 'retryCount', type: 'number', description: '当前重试次数', required: true }],
+      code: `def prepare_handoff_summary(conv, flow, retryCount):
+    conv.state['handoff_summary'] = f'验证码校验失败，已重试 {retryCount} 次'
+    return`,
+      scope: 'global',
+      isBuiltIn: false,
+      category: 'visible',
+      visibleConfig: {
+        executionStrategy: 'sync',
+        playFiller: false,
+      },
+    },
+  ],
   flows: [
     {
       id: 'main',
@@ -49,10 +104,12 @@ const DEMO_FLOW_CONFIG: FlowConfig = {
             description: '收集并确认用户手机号，用于进入身份验证子 Flow。',
             stepType: 'collect',
             stepPrompt: {
-              prompt: '请礼貌收集用户手机号，并在成功收集后调用 /goto_flow 进入身份验证子流程。',
+              prompt: '请礼貌收集用户手机号，并调用 /normalize_phone_digits 进行清洗。在手机号有效后进入身份验证子流程。',
               visibleFunctionIds: [],
-              transitionFunctionIds: ['builtin_goto_flow']
+              transitionFunctionIds: ['builtin_goto_flow'],
+              codeBlockIds: ['code_normalize_phone']
             },
+            codeBlockIds: ['code_normalize_phone'],
             entityConfig: {
               enabled: true,
               entityName: 'phone_number',
@@ -106,27 +163,39 @@ const DEMO_FLOW_CONFIG: FlowConfig = {
           position: { x: 320, y: 190 },
           data: {
             name: '收集验证码',
-            description: '模拟验证码采集和重试策略。',
-            stepType: 'collect',
+            description: '模拟验证码采集、DTMF 输入和重试策略。',
+            stepType: 'advanced',
             stepPrompt: {
-              prompt: '请收集用户收到的验证码。如果验证失败，继续留在当前 Flow 并触发重试。',
+              prompt: '请收集用户收到的验证码。支持用户直接说出验证码，也支持按键输入。如果校验失败，继续留在当前 Flow 并触发重试。',
               visibleFunctionIds: [],
-              transitionFunctionIds: ['builtin_check_verification', 'builtin_goto_flow']
+              transitionFunctionIds: ['builtin_check_verification', 'builtin_goto_flow', 'code_verify_sms'],
+              codeBlockIds: ['code_verify_sms']
             },
+            codeBlockIds: ['code_verify_sms'],
             entityConfig: {
               enabled: true,
               entityName: 'verification_code',
               entityType: 'alphanumeric',
               prompt: '请说出您收到的验证码。',
               asrBiasing: 'alphanumeric',
-              required: true
+              required: true,
+              inputMode: 'speech_or_dtmf',
+              dtmfMaxDigits: 6,
+              dtmfTerminator: '#',
+              dtmfFirstDigitTimeoutMs: 5000,
+              dtmfInterDigitTimeoutMs: 2200,
+              collectWhileSpeaking: true,
+              validationPattern: '^[A-Za-z0-9]{4,6}$',
             },
             retryConfig: {
               enabled: true,
               maxAttempts: 3,
               noInputPrompt: '我还没有听到验证码，请再说一遍。',
               noMatchPrompt: '验证码没有听清，请重新说一遍。',
-              fallbackTargetId: 'verification_handoff'
+              confirmationPrompt: '我再确认一次，如果还不对我会帮您转人工处理。',
+              fallbackAction: 'handoff',
+              fallbackTargetId: 'verification_handoff',
+              handoffTargetId: 'handoff_human_service',
             }
           }
         },
@@ -139,10 +208,12 @@ const DEMO_FLOW_CONFIG: FlowConfig = {
             description: '模拟 function step，根据 state 决定继续查询订单或转人工。',
             stepType: 'function',
             stepPrompt: {
-              prompt: '根据当前 state 判断用户是否验证通过，并选择继续查询订单或升级到人工。',
+              prompt: '根据当前 state 判断用户是否验证通过；如果失败，先整理 /prepare_handoff_summary 再升级到人工。',
               visibleFunctionIds: [],
-              transitionFunctionIds: ['builtin_goto_flow', 'builtin_save_state']
-            }
+              transitionFunctionIds: ['builtin_goto_flow', 'builtin_save_state', 'code_verify_sms'],
+              codeBlockIds: ['code_prepare_handoff']
+            },
+            codeBlockIds: ['code_prepare_handoff']
           }
         },
         {
@@ -194,15 +265,18 @@ const DEMO_FLOW_CONFIG: FlowConfig = {
           data: {
             name: '查询订单',
             description: '展示 visible function、few-shot 和业务说明。',
-            stepType: 'function',
+            stepType: 'advanced',
             stepPrompt: {
-              prompt: '根据已验证的手机号查询订单摘要，查询完成后向用户复述结果。',
+              prompt: '根据已验证的手机号查询订单摘要，必要时调用 /prepare_handoff_summary 拼接上下文，查询完成后向用户复述结果。',
               visibleFunctionIds: ['builtin_confirm_reservation', 'builtin_send_sms'],
-              transitionFunctionIds: ['builtin_goto_step']
+              transitionFunctionIds: ['builtin_goto_step'],
+              codeBlockIds: ['code_prepare_handoff']
             },
+            codeBlockIds: ['code_prepare_handoff'],
             fewShotExamples: [
               { input: '帮我查订单', output: '调用查询订单能力并向用户复述订单摘要。' }
-            ]
+            ],
+            handoffTargetId: 'handoff_vip_service',
           }
         },
         {
@@ -255,7 +329,9 @@ const DEMO_FLOW_CONFIG: FlowConfig = {
             name: '人工接管',
             description: '结束机器人流程并转人工。',
             stepType: 'exit',
-            exitType: ExitNodeType.HANDOFF
+            exitType: ExitNodeType.HANDOFF,
+            handoffTargetId: 'handoff_human_service',
+            handoffReason: '验证码校验多次失败，需要人工继续处理。'
           }
         }
       ],
@@ -271,7 +347,9 @@ const DEMO_FLOW_CONFIG: FlowConfig = {
       id: 'scenario_verify_retry',
       name: '验证失败后重试并转人工',
       initialState: { retryCount: 0, isVerified: false, phone_number: '' },
-      mockInputs: ['13800138000', '验证码 9988', '验证码还是不对', '继续失败']
+      mockInputs: ['13800138000', '12A4', '验证码还是不对', '继续失败'],
+      expectedPath: ['collect_phone', 'collect_code', 'verify_result', 'verification_handoff', 'handoff_exit'],
+      expectedExitType: ExitNodeType.HANDOFF,
     }
   ],
   metadata: {
@@ -430,6 +508,7 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
                  availableFunctions={flowConfig.functions || []}
                  availableVariables={config.variables || []}
                  availableTools={config.agentConfig?.tools || []}
+                 availableDelayProfiles={config.agentConfig?.delayProfiles || []}
                />
              </div>
              <div className="flex justify-start space-x-4 pt-4 border-t border-gray-100 mt-6">
@@ -458,6 +537,10 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
           <BotVariableConfig 
             variables={config.variables || []} 
             onUpdate={(vars) => updateField('variables', vars)} 
+            stateDefaults={config.stateDefaults || ''}
+            stateWriteRules={config.stateWriteRules || ''}
+            onStateDefaultsChange={(value) => updateField('stateDefaults', value)}
+            onStateWriteRulesChange={(value) => updateField('stateWriteRules', value)}
             onSave={handleSave}
             onCancel={onCancel}
           />

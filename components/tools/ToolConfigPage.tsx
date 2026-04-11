@@ -1,13 +1,10 @@
-
-import React, { useState, useMemo } from 'react';
-import { 
-  Wrench, Plus, Trash2, Edit3, Link, Settings
-} from 'lucide-react';
+// 工具配置页，承接工具与 MCP 能力资产的配置入口。
+import React, { useMemo, useState } from 'react';
+import { Edit3, Link, Plus, Power, Trash2, Wrench } from 'lucide-react';
 import { AgentTool, ExtractionConfig } from '../../types';
 import AgentToolModal from '../bot/agent/AgentToolModal';
 import McpServerModal from '../bot/agent/McpServerModal';
 
-// Mock extraction configs for tool creation
 const MOCK_EXTRACTION_CONFIGS: ExtractionConfig[] = [
   {
     id: 'get_last_order',
@@ -20,53 +17,30 @@ const MOCK_EXTRACTION_CONFIGS: ExtractionConfig[] = [
     authType: 'url',
     bodyType: 'json',
     bodyContent: '',
-    responseMapping: [
-      { key: 'order_id', path: '$.data.order_id' }
-    ]
-  }
+    responseMapping: [{ key: 'order_id', path: '$.data.order_id' }],
+  },
 ];
 
-// Mock initial tools
 const INITIAL_TOOLS: AgentTool[] = [
-  {
-    id: 'tool_api_call',
-    name: 'API 调用',
-    description: '调用外部 API 接口获取数据',
-    type: 'API',
-    enabled: true,
-    category: 'api_call'
-  },
-  {
-    id: 'tool_sms',
-    name: '发送短信',
-    description: '向用户发送短信通知',
-    type: 'SMS',
-    enabled: true,
-    category: 'communication'
-  },
-  {
-    id: 'tool_query_order',
-    name: '查询订单',
-    description: '查询用户订单状态',
-    type: 'API',
-    enabled: true,
-    category: 'api_call'
-  },
-  {
-    id: 'tool_transfer',
-    name: '转人工',
-    description: '转接人工客服',
-    type: 'TRANSFER',
-    enabled: true,
-    category: 'transfer'
-  }
+  { id: 'tool_api_call', name: 'query_api', description: '调用外部接口获取数据', type: 'API', enabled: true, category: 'api_call', parameters: [] },
+  { id: 'tool_sms', name: 'send_sms', description: '向用户发送短信通知', type: 'SMS', enabled: true, category: 'communication', parameters: [] },
+  { id: 'tool_query_order', name: 'query_order', description: '查询用户订单状态', type: 'API', enabled: true, category: 'api_call', parameters: [] },
+  { id: 'tool_transfer', name: 'transfer_call', description: '转接人工客服', type: 'TRANSFER', enabled: true, category: 'transfer', parameters: [] },
 ];
+
+const CATEGORY_OPTIONS = [
+  { id: 'all', label: '全部' },
+  { id: 'api_call', label: 'API' },
+  { id: 'communication', label: '通信' },
+  { id: 'transfer', label: '转接' },
+  { id: 'other', label: '其他' },
+] as const;
 
 const CATEGORY_LABELS: Record<string, string> = {
-  api_call: 'API 调用',
-  communication: '通信工具',
-  transfer: '转接工具',
-  other: '其他工具'
+  api_call: 'API',
+  communication: '通信',
+  transfer: '转接',
+  other: '其他',
 };
 
 export default function ToolConfigPage() {
@@ -74,188 +48,124 @@ export default function ToolConfigPage() {
   const [editingTool, setEditingTool] = useState<AgentTool | null>(null);
   const [isToolModalOpen, setIsToolModalOpen] = useState(false);
   const [isMcpModalOpen, setIsMcpModalOpen] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<(typeof CATEGORY_OPTIONS)[number]['id']>('all');
 
-  // Tool Handlers
   const handleSaveTool = (tool: AgentTool) => {
-    let newTools = [...tools];
-    const index = newTools.findIndex(t => t.id === tool.id);
+    const nextTools = [...tools];
+    const index = nextTools.findIndex((item) => item.id === tool.id);
     if (index >= 0) {
-      newTools[index] = tool;
+      nextTools[index] = tool;
     } else {
-      newTools.push(tool);
+      nextTools.push(tool);
     }
-    setTools(newTools);
+    setTools(nextTools);
     setIsToolModalOpen(false);
   };
 
   const handleDeleteTool = (id: string) => {
     if (confirm('确定删除该工具吗？')) {
-      setTools(tools.filter(t => t.id !== id));
+      setTools(tools.filter((item) => item.id !== id));
     }
   };
 
-  const openToolModal = (tool?: AgentTool) => {
-    setEditingTool(tool || null);
-    setIsToolModalOpen(true);
+  const toggleToolEnabled = (id: string) => {
+    setTools((current) => current.map((item) => (item.id === id ? { ...item, enabled: !item.enabled } : item)));
   };
 
-  // Group tools by category
-  const groupedTools = useMemo(() => {
-    const groups: Record<string, AgentTool[]> = {
-      api_call: [],
-      communication: [],
-      transfer: [],
-      other: []
-    };
-    
-    tools.forEach(tool => {
-      const category = tool.category || 'other';
-      if (groups[category]) {
-        groups[category].push(tool);
-      } else {
-        groups.other.push(tool);
-      }
-    });
-    
-    return groups;
-  }, [tools]);
+  const filteredTools = useMemo(() => {
+    if (activeCategory === 'all') {
+      return tools;
+    }
+    return tools.filter((item) => (item.category || 'other') === activeCategory);
+  }, [activeCategory, tools]);
+
+  const getCountByCategory = (category: (typeof CATEGORY_OPTIONS)[number]['id']) => {
+    if (category === 'all') {
+      return tools.length;
+    }
+    return tools.filter((item) => (item.category || 'other') === category).length;
+  };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto w-full">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-lg font-bold text-slate-800 flex items-center">
-            <Wrench size={20} className="mr-2 text-indigo-600" />
-            工具配置
-          </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            配置智能体可调用的外部能力，这些工具可在机器人配置、流程编排、问答对中绑定使用。
-          </p>
-        </div>
+    <div className="p-6 max-w-6xl mx-auto w-full space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-bold text-slate-800 flex items-center">
+          <Wrench size={20} className="mr-2 text-indigo-600" />
+          工具配置
+        </h1>
         <div className="flex items-center gap-2">
-          <button 
-            onClick={() => setIsMcpModalOpen(true)}
-            className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 shadow-sm flex items-center"
-            title="添加 MCP 服务器"
-          >
-            <Link size={14} className="mr-1.5" /> 添加 MCP
+          <button onClick={() => setIsMcpModalOpen(true)} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 shadow-sm flex items-center">
+            <Link size={14} className="mr-1.5" />
+            添加 MCP
           </button>
-          <button 
-            onClick={() => openToolModal()}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 shadow-sm flex items-center"
-          >
-            <Plus size={14} className="mr-1.5" /> 添加工具
+          <button onClick={() => { setEditingTool(null); setIsToolModalOpen(true); }} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 shadow-sm flex items-center">
+            <Plus size={14} className="mr-1.5" />
+            添加工具
           </button>
         </div>
       </div>
 
-      {/* Tool List */}
-      <div className="space-y-6">
-        {tools.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl bg-white">
-            <Wrench size={48} className="mb-3 opacity-20" />
-            <p className="text-sm">暂无工具，请点击右上角添加</p>
+      <div className="flex items-center gap-2 flex-wrap">
+        {CATEGORY_OPTIONS.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => setActiveCategory(item.id)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+              activeCategory === item.id ? 'bg-primary text-white border-primary' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            {item.label} {getCountByCategory(item.id)}
+          </button>
+        ))}
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        {filteredTools.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-64 text-slate-400">
+            <Wrench size={40} className="mb-3 opacity-20" />
+            <p className="text-sm">暂无工具</p>
           </div>
         ) : (
-          Object.entries(groupedTools).map(([category, categoryTools]) => 
-            categoryTools.length > 0 && (
-              <div key={category} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                <div className="px-4 py-3 bg-slate-50 border-b border-gray-200">
-                  <h3 className="text-sm font-bold text-slate-700">{CATEGORY_LABELS[category] || category}</h3>
-                </div>
-                <div className="divide-y divide-gray-100">
-                  {categoryTools.map(tool => (
-                    <div key={tool.id} className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-slate-200 shadow-sm">
-                          <span className="text-lg">{tool.icon || '🔧'}</span>
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold text-slate-800">{tool.name}</span>
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                              tool.enabled 
-                                ? 'bg-green-100 text-green-700' 
-                                : 'bg-gray-100 text-gray-500'
-                            }`}>
-                              {tool.enabled ? '已启用' : '已禁用'}
-                            </span>
-                          </div>
-                          <div className="text-xs text-slate-500 mt-0.5">{tool.description}</div>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
-                              {tool.type}
-                            </span>
-                            <span className="text-[10px] text-slate-400 font-mono">
-                              ID: {tool.id}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <button 
-                          onClick={() => openToolModal(tool)} 
-                          className="p-2 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors"
-                          title="编辑"
-                        >
-                          <Edit3 size={16} />
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteTool(tool.id)} 
-                          className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          title="删除"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
+          <div className="divide-y divide-gray-100">
+            {filteredTools.map((tool) => (
+              <div key={tool.id} className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
+                <div className="flex items-center space-x-3 min-w-0">
+                  <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-slate-200 shadow-sm shrink-0">
+                    <span className="text-lg">{tool.icon || '🔧'}</span>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-bold text-slate-800">{tool.name}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">{tool.type}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-50 text-sky-600">{CATEGORY_LABELS[tool.category || 'other']}</span>
                     </div>
-                  ))}
+                    <div className="text-xs text-slate-500 mt-1 truncate">{tool.description}</div>
+                    <div className="text-[10px] text-slate-400 font-mono mt-1">{tool.id}</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button onClick={() => toggleToolEnabled(tool.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center ${tool.enabled ? 'text-emerald-600 border-emerald-100 bg-emerald-50 hover:bg-emerald-100' : 'text-slate-500 border-slate-200 bg-white hover:bg-slate-50'}`}>
+                    <Power size={12} className="mr-1" />
+                    {tool.enabled ? '已启用' : '已禁用'}
+                  </button>
+                  <button onClick={() => { setEditingTool(tool); setIsToolModalOpen(true); }} className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center">
+                    <Edit3 size={12} className="mr-1" />
+                    编辑
+                  </button>
+                  <button onClick={() => handleDeleteTool(tool.id)} className="px-3 py-1.5 rounded-lg text-xs font-bold border border-red-100 text-red-500 hover:bg-red-50 flex items-center">
+                    <Trash2 size={12} className="mr-1" />
+                    删除
+                  </button>
                 </div>
               </div>
-            )
-          )
+            ))}
+          </div>
         )}
       </div>
 
-      {/* Usage Hint */}
-      <div className="mt-6 p-4 bg-blue-50 border border-blue-100 rounded-lg">
-        <div className="flex items-start gap-3">
-          <Settings size={16} className="text-blue-500 mt-0.5" />
-          <div>
-            <h4 className="text-sm font-medium text-blue-800">使用提示</h4>
-            <p className="text-xs text-blue-600 mt-1">
-              配置好的工具可以在以下场景使用：
-            </p>
-            <ul className="text-xs text-blue-600 mt-1 space-y-0.5 list-disc list-inside">
-              <li>机器人配置 - 意图技能中的工具调用节点</li>
-              <li>流程编排 - Flow 步骤节点的函数绑定</li>
-              <li>问答对管理 - QA 回答时触发的工具</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      {/* Tool Modal */}
-      {isToolModalOpen && (
-        <AgentToolModal 
-          tool={editingTool || undefined}
-          onSave={handleSaveTool}
-          onClose={() => setIsToolModalOpen(false)}
-          extractionConfigs={MOCK_EXTRACTION_CONFIGS}
-        />
-      )}
-
-      {/* MCP Server Modal */}
-      {isMcpModalOpen && (
-        <McpServerModal 
-          onClose={() => setIsMcpModalOpen(false)}
-          onSave={(mcpServer) => {
-            // Handle MCP server save
-            setIsMcpModalOpen(false);
-          }}
-        />
-      )}
+      {isToolModalOpen && <AgentToolModal tool={editingTool || undefined} onSave={handleSaveTool} onClose={() => setIsToolModalOpen(false)} extractionConfigs={MOCK_EXTRACTION_CONFIGS} />}
+      {isMcpModalOpen && <McpServerModal onClose={() => setIsMcpModalOpen(false)} onSave={() => setIsMcpModalOpen(false)} />}
     </div>
   );
 }

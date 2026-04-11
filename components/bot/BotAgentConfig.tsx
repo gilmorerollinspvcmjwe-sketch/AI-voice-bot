@@ -1,12 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { 
-  Wrench, Plus, Trash2, Edit3, Volume2, MessageSquare, Zap, Link
+  Wrench, Plus, Trash2, Edit3, Volume2, MessageSquare, Zap, Link, Settings, Clock, PhoneForwarded
 } from 'lucide-react';
 import { BotConfiguration, AgentTool, ExtractionConfig } from '../../types';
 import AgentToolModal from './agent/AgentToolModal';
 import McpServerModal from './agent/McpServerModal';
-// import ToolCategorySection from './agent/ToolCategorySection';
-// import QuickAddToolPanel from './agent/QuickAddToolPanel';
+import { loadStoredCustomFunctions, getFunctionCatalogStoreEventName } from '../../services/functionCatalogStore';
+import { mergeFunctionCatalog } from '../../services/polyaiConfigHelpers';
 import { getAllPresetTools, getPresetToolConfig } from '../../services/presetTools';
 
 interface Props {
@@ -19,6 +19,7 @@ export default function BotAgentConfig({ config, updateField, extractionConfigs 
   const [editingTool, setEditingTool] = useState<AgentTool | null>(null);
   const [isToolModalOpen, setIsToolModalOpen] = useState(false);
   const [isMcpModalOpen, setIsMcpModalOpen] = useState(false);
+  const [catalogFunctions, setCatalogFunctions] = useState(() => mergeFunctionCatalog(loadStoredCustomFunctions()));
 
   // Helper to ensure agentConfig exists
   const agentConfig = config.agentConfig || {
@@ -31,6 +32,25 @@ export default function BotAgentConfig({ config, updateField, extractionConfigs 
   const updateAgentConfig = (updates: any) => {
     updateField('agentConfig', { ...agentConfig, ...updates });
   };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const syncCatalog = () => setCatalogFunctions(mergeFunctionCatalog(loadStoredCustomFunctions()));
+    syncCatalog();
+    const eventName = getFunctionCatalogStoreEventName();
+    window.addEventListener(eventName, syncCatalog);
+    return () => window.removeEventListener(eventName, syncCatalog);
+  }, []);
+
+  const visibleFunctions = useMemo(
+    () => catalogFunctions.filter((fn) => fn.category === 'visible'),
+    [catalogFunctions],
+  );
+
+  const transitionFunctions = useMemo(
+    () => catalogFunctions.filter((fn) => fn.category === 'transition'),
+    [catalogFunctions],
+  );
 
   // Tool Handlers
   const handleSaveTool = (tool: AgentTool) => {
@@ -112,8 +132,289 @@ export default function BotAgentConfig({ config, updateField, extractionConfigs 
          </div>
       </div>
       
-      {/* TOOL LIST */}
-      <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50 space-y-6">
+      {/* 需求 4：新增配置区块 */}
+      <div className="flex-1 overflow-y-auto bg-slate-50/50">
+        {/* 可用工具范围 */}
+        <div className="p-6 border-b border-slate-200 bg-white">
+          <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+            <Wrench size={14} className="text-indigo-600" />
+            可用工具范围
+          </h4>
+          <div className="flex flex-wrap gap-2">
+            {agentConfig.tools.map((tool) => {
+              const selected = (agentConfig.enabledToolIds || []).includes(tool.id);
+              return (
+                <button
+                  key={tool.id}
+                  type="button"
+                  onClick={() => {
+                    const current = agentConfig.enabledToolIds || [];
+                    const updated = selected
+                      ? current.filter(id => id !== tool.id)
+                      : [...current, tool.id];
+                    updateAgentConfig({ enabledToolIds: updated });
+                  }}
+                  className={`px-3 py-1.5 text-xs rounded-full border transition-all ${
+                    selected
+                      ? 'bg-indigo-600 text-white border-transparent'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
+                  }`}
+                >
+                  {tool.name}
+                </button>
+              );
+            })}
+            {agentConfig.tools.length === 0 && (
+              <div className="text-xs text-slate-400">暂无工具，请先添加工具</div>
+            )}
+          </div>
+        </div>
+
+        {/* 可用函数范围 */}
+        <div className="p-6 border-b border-slate-200 bg-white">
+          <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+            <Zap size={14} className="text-amber-600" />
+            可用函数范围
+          </h4>
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs text-slate-600 mb-2 block">已启用函数</label>
+              <div className="flex flex-wrap gap-2">
+                {catalogFunctions.map((fn) => {
+                  const selected = (agentConfig.enabledFunctionIds || []).includes(fn.id);
+                  return (
+                    <button
+                      key={fn.id}
+                      type="button"
+                      onClick={() => {
+                        const current = agentConfig.enabledFunctionIds || [];
+                        const updated = selected
+                          ? current.filter(id => id !== fn.id)
+                          : [...current, fn.id];
+                        updateAgentConfig({ enabledFunctionIds: updated });
+                      }}
+                      className={`px-2 py-1 text-[11px] rounded-full border transition-all ${
+                        selected
+                          ? 'bg-amber-600 text-white border-transparent'
+                          : 'bg-white text-slate-600 border-slate-200 hover:border-amber-300'
+                      }`}
+                    >
+                      {fn.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs text-slate-600 mb-2 block">默认可见函数</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {visibleFunctions.map((fn) => {
+                    const selected = (agentConfig.defaultVisibleFunctionIds || []).includes(fn.id);
+                    return (
+                      <button
+                        key={fn.id}
+                        type="button"
+                        onClick={() => {
+                          const current = agentConfig.defaultVisibleFunctionIds || [];
+                          const updated = selected
+                            ? current.filter(id => id !== fn.id)
+                            : [...current, fn.id];
+                          updateAgentConfig({ defaultVisibleFunctionIds: updated });
+                        }}
+                        className={`px-2 py-1 text-[10px] rounded border transition-all ${
+                          selected
+                            ? 'bg-sky-600 text-white border-transparent'
+                            : 'bg-white text-slate-500 border-slate-200'
+                        }`}
+                      >
+                        {fn.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-slate-600 mb-2 block">默认过渡函数</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {transitionFunctions.map((fn) => {
+                    const selected = (agentConfig.defaultTransitionFunctionIds || []).includes(fn.id);
+                    return (
+                      <button
+                        key={fn.id}
+                        type="button"
+                        onClick={() => {
+                          const current = agentConfig.defaultTransitionFunctionIds || [];
+                          const updated = selected
+                            ? current.filter(id => id !== fn.id)
+                            : [...current, fn.id];
+                          updateAgentConfig({ defaultTransitionFunctionIds: updated });
+                        }}
+                        className={`px-2 py-1 text-[10px] rounded border transition-all ${
+                          selected
+                            ? 'bg-emerald-600 text-white border-transparent'
+                            : 'bg-white text-slate-500 border-slate-200'
+                        }`}
+                      >
+                        {fn.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Delay Control 配置 */}
+        <div className="p-6 border-b border-slate-200 bg-white">
+          <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+            <Clock size={14} className="text-purple-600" />
+            延迟话术配置
+          </h4>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs text-slate-600 mb-1 block">默认延迟配置</label>
+                <select
+                  value={agentConfig.defaultDelayProfileId || ''}
+                  onChange={(e) => updateAgentConfig({ defaultDelayProfileId: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white"
+                >
+                  <option value="">使用全局默认</option>
+                  {(agentConfig.delayProfiles || []).map((profile: any) => (
+                    <option key={profile.id} value={profile.id}>{profile.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center pt-5">
+                <label className="flex items-center gap-2 text-xs text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={agentConfig.allowUserInterruptDuringDelay ?? true}
+                    onChange={(e) => updateAgentConfig({ allowUserInterruptDuringDelay: e.target.checked })}
+                    className="rounded border-slate-300"
+                  />
+                  允许用户打断延迟话术
+                </label>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-slate-600 mb-2 block">延迟配置列表</label>
+              <div className="space-y-2">
+                {(agentConfig.delayProfiles || []).map((profile: any, index: number) => (
+                  <div key={profile.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
+                    <div>
+                      <div className="text-sm font-medium text-slate-700">{profile.name}</div>
+                      <div className="text-[10px] text-slate-500">{profile.triggerMs}ms · {profile.message}</div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const updated = (agentConfig.delayProfiles || []).filter((_: any, i: number) => i !== index);
+                        updateAgentConfig({ delayProfiles: updated });
+                      }}
+                      className="text-slate-400 hover:text-red-500"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={() => {
+                    const newProfile = {
+                      id: `delay_${Date.now()}`,
+                      name: '新延迟配置',
+                      triggerMs: 2000,
+                      message: '请稍等...',
+                      allowBargeIn: true
+                    };
+                    updateAgentConfig({ delayProfiles: [...(agentConfig.delayProfiles || []), newProfile] });
+                  }}
+                  className="w-full py-2 text-xs text-slate-500 border border-dashed border-slate-300 rounded-lg hover:bg-slate-50"
+                >
+                  + 添加延迟配置
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 插话与恢复策略 */}
+        <div className="p-6 border-b border-slate-200 bg-white">
+          <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+            <Settings size={14} className="text-teal-600" />
+            插话与恢复策略
+          </h4>
+          <div className="space-y-3">
+            <label className="flex items-center gap-2 text-xs text-slate-600">
+              <input
+                type="checkbox"
+                checked={agentConfig.allowUserCutInDuringGreeting ?? false}
+                onChange={(e) => updateAgentConfig({ allowUserCutInDuringGreeting: e.target.checked })}
+                className="rounded border-slate-300"
+              />
+              允许在欢迎语期间打断
+            </label>
+            <label className="flex items-center gap-2 text-xs text-slate-600">
+              <input
+                type="checkbox"
+                checked={agentConfig.allowUserCutInDuringTts ?? true}
+                onChange={(e) => updateAgentConfig({ allowUserCutInDuringTts: e.target.checked })}
+                className="rounded border-slate-300"
+              />
+              允许在 TTS 播报期间打断
+            </label>
+            <div>
+              <label className="text-xs text-slate-600 mb-1 block">恢复策略</label>
+              <select
+                value={agentConfig.resumeStrategy || 'continue'}
+                onChange={(e) => updateAgentConfig({ resumeStrategy: e.target.value as any })}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white"
+              >
+                <option value="continue">继续播放</option>
+                <option value="restart">重新开始</option>
+                <option value="skip">跳过剩余</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* 默认转人工配置 */}
+        <div className="p-6 border-b border-slate-200 bg-white">
+          <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+            <PhoneForwarded size={14} className="text-rose-600" />
+            默认转人工配置
+          </h4>
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs text-slate-600 mb-1 block">默认转人工目标</label>
+              <select
+                value={agentConfig.defaultHandoffTargetId || ''}
+                onChange={(e) => updateAgentConfig({ defaultHandoffTargetId: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white"
+              >
+                <option value="">未指定</option>
+                <option value="handoff_human_service">人工客服队列</option>
+                <option value="handoff_vip_service">VIP 专席</option>
+                <option value="handoff_risk_service">高风险专员</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-slate-600 mb-1 block">摘要模板</label>
+              <textarea
+                value={agentConfig.summaryTemplate || ''}
+                onChange={(e) => updateAgentConfig({ summaryTemplate: e.target.value })}
+                rows={3}
+                placeholder="用户 {{user_name}} 因 {{reason}} 转人工，当前状态：{{state_summary}}"
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg resize-none"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* TOOL LIST */}
+        <div className="p-6">
+          <h4 className="text-sm font-bold text-slate-700 mb-4">工具列表</h4>
         {agentConfig.tools.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
             <Wrench size={32} className="mb-3 opacity-20" />

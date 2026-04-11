@@ -138,6 +138,39 @@ const BotBasicConfig: React.FC<BotBasicConfigProps> = ({
             />
           </div>
         </div>
+        
+        {/* 需求 1：新增 Agent 身份配置 */}
+        <div className="mt-6 pt-6 border-t border-gray-100">
+          <h4 className="text-xs font-bold text-slate-700 mb-4 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+            Agent 身份配置
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Input
+              label="Agent 角色"
+              placeholder="如：客服代表、技术支持、销售顾问"
+              value={config.agentRole || ''}
+              onChange={(e) => updateField('agentRole', e.target.value)}
+              tooltip="定义 Agent 的角色身份，影响对话风格和专业领域"
+            />
+            <Select
+              label="人格设定"
+              options={['专业', '友好', '温和', '热情', '严肃']}
+              value={config.persona || '专业'}
+              onChange={(e) => updateField('persona', e.target.value)}
+              tooltip="选择 Agent 的整体人格风格"
+            />
+            <div className="md:col-span-1">
+              <Label label="业务场景" tooltip="描述 Agent 所处的业务场景" />
+              <textarea
+                className="w-full h-10 px-3 py-2 text-sm border border-gray-200 rounded focus:border-primary outline-none transition-all resize-none"
+                placeholder="如：逾期催收、预约确认、投诉处理"
+                value={config.businessScene || ''}
+                onChange={(e) => updateField('businessScene', e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="bg-white rounded border border-gray-200 shadow-sm p-6">
@@ -341,7 +374,7 @@ const BotBasicConfig: React.FC<BotBasicConfigProps> = ({
             <PromptEditor
               value={config.systemPrompt}
               onChange={(v) => updateField('systemPrompt', v)}
-              placeholder="你是一个专业的客服助手..."
+              placeholder="全局限制、角色边界、禁答要求、统一回复风格都写在这里。你是一个专业的客服助手..."
               variables={config.variables || []}
               availableTools={config.agentConfig?.tools || []}
               availableFunctions={BUILT_IN_FUNCTIONS}

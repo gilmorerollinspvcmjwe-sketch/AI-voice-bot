@@ -44,11 +44,12 @@ const TOOLBOX_ITEMS: ToolboxItem[] = [
 ];
 
 function getTemplateName(type: FlowNodeType, stepType?: FlowStepKind) {
-  if (type === FlowNodeType.START) return 'Start';
-  if (type === FlowNodeType.EXIT) return 'Exit';
-  if (stepType === 'collect') return 'Collect Step';
-  if (stepType === 'function') return 'Function Step';
-  return 'Step';
+  if (type === FlowNodeType.START) return '开始';
+  if (type === FlowNodeType.EXIT) return '退出';
+  if (stepType === 'collect') return '采集步骤';
+  if (stepType === 'function') return '函数步骤';
+  if (stepType === 'advanced') return '高级步骤';
+  return '标准步骤';
 }
 
 function createNode(type: FlowNodeType, position: { x: number; y: number }, stepType?: FlowStepKind): FlowNode {
@@ -94,6 +95,7 @@ function getNodeColors(node: FlowNode) {
   if (node.type === FlowNodeType.EXIT) return 'border-rose-300 bg-rose-50 text-rose-700';
   if (node.data.stepType === 'collect') return 'border-amber-300 bg-amber-50 text-amber-700';
   if (node.data.stepType === 'function') return 'border-violet-300 bg-violet-50 text-violet-700';
+  if (node.data.stepType === 'advanced') return 'border-indigo-300 bg-indigo-50 text-indigo-700';
   return 'border-sky-300 bg-sky-50 text-sky-700';
 }
 
@@ -105,11 +107,12 @@ function getNodeIcon(node: FlowNode) {
 }
 
 function getStepLabel(node: FlowNode) {
-  if (node.type === FlowNodeType.START) return 'Start Node';
-  if (node.type === FlowNodeType.EXIT) return 'Exit Node';
-  if (node.data.stepType === 'collect') return 'Collect Step';
-  if (node.data.stepType === 'function') return 'Function Step';
-  return 'Step';
+  if (node.type === FlowNodeType.START) return '开始节点';
+  if (node.type === FlowNodeType.EXIT) return '退出节点';
+  if (node.data.stepType === 'collect') return '采集步骤';
+  if (node.data.stepType === 'function') return '函数步骤';
+  if (node.data.stepType === 'advanced') return '高级步骤';
+  return '标准步骤';
 }
 
 export default function FlowCanvas({
@@ -290,7 +293,7 @@ export default function FlowCanvas({
     <div className="relative flex flex-1 overflow-hidden">
       {!readOnly ? (
         <div className="flex w-20 shrink-0 flex-col items-center gap-3 border-r border-gray-200 bg-white py-4">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Nodes</div>
+          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">节点</div>
           {TOOLBOX_ITEMS.map((item) => (
             <div
               key={`${item.type}_${item.label}`}
@@ -498,9 +501,19 @@ export default function FlowCanvas({
                             Tools: {(node.data.toolIds || []).length}
                           </span>
                         ) : null}
+                        {(node.data.codeBlockIds || []).length > 0 ? (
+                          <span className="rounded-full bg-white px-2 py-1 text-[10px] text-indigo-700">
+                            代码块: {(node.data.codeBlockIds || []).length}
+                          </span>
+                        ) : null}
+                        {node.data.handoffTargetId ? (
+                          <span className="rounded-full bg-white px-2 py-1 text-[10px] text-fuchsia-700">
+                            转接
+                          </span>
+                        ) : null}
                         {node.data.retryConfig?.enabled ? (
                           <span className="rounded-full bg-white px-2 py-1 text-[10px] text-rose-700">
-                            Retry: {node.data.retryConfig.maxAttempts}
+                            重试: {node.data.retryConfig.maxAttempts}
                           </span>
                         ) : null}
                       </div>
@@ -530,7 +543,7 @@ export default function FlowCanvas({
             <button
               onClick={onSave}
               className="rounded-lg border border-gray-200 bg-white p-2 text-slate-600 shadow-sm transition-colors hover:bg-slate-50"
-              title="Save Flow"
+              title="保存流程"
             >
               <Save size={16} />
             </button>
@@ -539,7 +552,7 @@ export default function FlowCanvas({
           <button
             onClick={onToggleFullscreen}
             className="rounded-lg border border-gray-200 bg-white p-2 text-slate-600 shadow-sm transition-colors hover:bg-slate-50"
-            title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+            title={isFullscreen ? '退出全屏' : '全屏'}
           >
             {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
           </button>
@@ -548,13 +561,13 @@ export default function FlowCanvas({
             <button
               onClick={handleDeleteSelected}
               className="rounded-lg border border-gray-200 bg-white p-2 text-red-500 shadow-sm transition-colors hover:bg-red-50"
-              title="Delete Selection"
+            title="删除当前选中"
             >
               <Trash2 size={16} />
             </button>
           ) : null}
           <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-[11px] text-slate-500 shadow-sm">
-            Current Flow: {flow.name}
+            当前 Flow：{flow.name}
           </div>
         </div>
       </div>

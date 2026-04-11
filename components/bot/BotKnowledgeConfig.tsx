@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { BookOpen, Database, HelpCircle, X, ChevronDown } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { BookOpen, Database, HelpCircle, X, ChevronDown, GitBranch, MessageCircle } from 'lucide-react';
 import { Switch } from '../ui/FormComponents';
 import { BotConfiguration } from '../../types';
+import { getQATopicStoreEventName, loadQACategoryConfigs } from '../../services/qaTopicStore';
+import { syncTopicBindingsWithCategories } from '../../services/polyaiConfigHelpers';
 
-// --- Mock Data for Knowledge Base Categories ---
-const QA_CATEGORIES = ['闲聊', '业务', '产品咨询', '技术支持', '投诉建议', '常见问题'];
 const LEXICON_CATEGORIES = ['产品名称', '技术术语', '行业概念', '医疗词汇', '公司名', '自定义'];
 
 // --- MultiSelect Dropdown Component ---
@@ -192,10 +192,57 @@ interface BotKnowledgeConfigProps {
 const BotKnowledgeConfig: React.FC<BotKnowledgeConfigProps> = ({ config, updateField }) => {
   const [activeTab, setActiveTab] = useState<'QA' | 'KB'>('QA');
   const [isEditMode, setIsEditMode] = useState(false);
+  const [qaCategoryConfigs, setQaCategoryConfigs] = useState(() => config.qaCategoryConfigs || loadQACategoryConfigs());
   // 模拟KCS开通状态（仅用于知识库配置）
   const [kcsEnabled, setKcsEnabled] = useState(false);
 
   // 模拟知识空间数据
+  useEffect(() => {
+    setQaCategoryConfigs(config.qaCategoryConfigs || loadQACategoryConfigs());
+  }, [config.qaCategoryConfigs]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const syncCategories = () => setQaCategoryConfigs(loadQACategoryConfigs());
+    const eventName = getQATopicStoreEventName();
+    window.addEventListener(eventName, syncCategories);
+    return () => window.removeEventListener(eventName, syncCategories);
+  }, []);
+
+  useEffect(() => {
+    if (config.qaCategoryConfigs === qaCategoryConfigs) return;
+    updateField('qaCategoryConfigs', qaCategoryConfigs);
+  }, [config.qaCategoryConfigs, qaCategoryConfigs, updateField]);
+
+  const qaTopics = useMemo(
+    () => qaCategoryConfigs.filter((item) => item.enabled !== false).map((item) => item.name),
+    [qaCategoryConfigs],
+  );
+
+  const syncedTopicBindings = useMemo(
+    () => syncTopicBindingsWithCategories(qaCategoryConfigs, config.topicBindings || []),
+    [qaCategoryConfigs, config.topicBindings],
+  );
+
+  useEffect(() => {
+    const currentBindings = config.topicBindings || [];
+    if (JSON.stringify(currentBindings) === JSON.stringify(syncedTopicBindings)) return;
+    updateField('topicBindings', syncedTopicBindings);
+  }, [config.topicBindings, syncedTopicBindings, updateField]);
+
+  const normalizedSmalltalkTopicId = useMemo(() => {
+    if (!config.smalltalkTopicId) return '';
+    const matchedById = qaCategoryConfigs.find((item) => item.id === config.smalltalkTopicId);
+    if (matchedById) return matchedById.id;
+    const matchedByName = qaCategoryConfigs.find((item) => item.name === config.smalltalkTopicId);
+    return matchedByName?.id || '';
+  }, [config.smalltalkTopicId, qaCategoryConfigs]);
+
+  useEffect(() => {
+    if (!config.smalltalkTopicId || config.smalltalkTopicId === normalizedSmalltalkTopicId) return;
+    updateField('smalltalkTopicId', normalizedSmalltalkTopicId);
+  }, [config.smalltalkTopicId, normalizedSmalltalkTopicId, updateField]);
+
   const [knowledgeSpaces, setKnowledgeSpaces] = useState([
     {
       id: '1',
@@ -334,7 +381,7 @@ const BotKnowledgeConfig: React.FC<BotKnowledgeConfigProps> = ({ config, updateF
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-2">问答对分类</label>
                 <MultiSelectDropdown
-                  options={QA_CATEGORIES}
+                  options={qaTopics}
                   selected={config.kbQACategories || []}
                   onChange={(selected) => updateField('kbQACategories', selected)}
                   placeholder="选择问答对分类"
@@ -353,6 +400,137 @@ const BotKnowledgeConfig: React.FC<BotKnowledgeConfigProps> = ({ config, updateF
                   tagColor="green"
                   disabled={!config.kbEnabled}
                 />
+              </div>
+            </div>
+
+            {/* 需求 5：Topic 绑定配置 */}
+            <div className="p-4 bg-slate-50 border border-slate-100 rounded-lg space-y-4">
+              <div className="flex items-center mb-2">
+                <GitBranch size={14} className="mr-1.5 text-indigo-600" />
+                <span className="text-sm font-bold text-slate-700">Topic 绑定配置</span>
+                <HelpCircle size={14} className="ml-1 text-slate-400" />
+              </div>
+              <div className="text-xs text-slate-500 mb-3">
+                配置 Topic 的触发行为，与问答对管理中的 Topic 保持一致。
+              </div>
+
+              {/* Topic Bindings 列表 */}
+              <div className="space-y-3">
+                {syncedTopicBindings.map((binding, index) => (
+                  <div key={binding.categoryId} className="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-200">
+                    <div className="flex items-center gap-3">
+                      <select
+                        value={binding.categoryName}
+                        onChange={(e) => {
+                          const matchedCategory = qaCategoryConfigs.find((item) => item.name === e.target.value);
+                          const updated = [...syncedTopicBindings];
+                          updated[index] = {
+                            ...updated[index],
+                            categoryId: matchedCategory?.id || updated[index].categoryId,
+                            categoryName: matchedCategory?.name || e.target.value,
+                          };
+                          updateField('topicBindings', updated);
+                        }}
+                        className="text-xs border border-slate-200 rounded px-2 py-1 bg-white font-medium"
+                      >
+                        {qaTopics.map(topic => (
+                          <option key={topic} value={topic}>{topic}</option>
+                        ))}
+                      </select>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${binding.enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                        {binding.enabled ? '已启用' : '已禁用'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={binding.entryBehavior}
+                        onChange={(e) => {
+                          const updated = [...syncedTopicBindings];
+                          updated[index] = { ...updated[index], entryBehavior: e.target.value };
+                          updateField('topicBindings', updated);
+                        }}
+                        className="text-xs border border-slate-200 rounded px-2 py-1 bg-white"
+                      >
+                        <option value="direct_answer">直接回答</option>
+                        <option value="flow_trigger">触发 Flow</option>
+                        <option value="tool_call">调用工具</option>
+                      </select>
+                      <input
+                        type="number"
+                        value={binding.priority}
+                        onChange={(e) => {
+                          const updated = [...syncedTopicBindings];
+                          updated[index] = { ...updated[index], priority: parseInt(e.target.value) || 0 };
+                          updateField('topicBindings', updated);
+                        }}
+                        className="w-16 text-xs border border-slate-200 rounded px-2 py-1"
+                        placeholder="优先级"
+                      />
+                      <button
+                        onClick={() => {
+                          const updated = syncedTopicBindings.filter((_, i) => i !== index);
+                          updateField('topicBindings', updated);
+                        }}
+                        className="text-slate-400 hover:text-red-500"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                <button
+                  onClick={() => {
+                    const usedTopics = syncedTopicBindings.map(b => b.categoryName);
+                    const availableCategory =
+                      qaCategoryConfigs.find((item) => item.enabled !== false && !usedTopics.includes(item.name)) ||
+                      qaCategoryConfigs.find((item) => item.enabled !== false);
+                    if (!availableCategory) return;
+                    const newBinding = {
+                      categoryId: availableCategory.id,
+                      categoryName: availableCategory.name,
+                      enabled: true,
+                      entryBehavior: 'direct_answer',
+                      priority: syncedTopicBindings.length + 1
+                    };
+                    updateField('topicBindings', [...syncedTopicBindings, newBinding]);
+                  }}
+                  className="w-full py-2 text-xs text-slate-500 border border-dashed border-slate-300 rounded-lg hover:bg-slate-50"
+                >
+                  + 添加 Topic 绑定
+                </button>
+              </div>
+
+              {/* Smalltalk 和 Fallback Flow 配置 */}
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-200">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                    <MessageCircle size={12} className="inline mr-1" />
+                    闲聊 Topic
+                  </label>
+                  <select
+                    value={normalizedSmalltalkTopicId}
+                    onChange={(e) => updateField('smalltalkTopicId', e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white"
+                  >
+                    <option value="">未指定</option>
+                    {qaCategoryConfigs.filter((item) => item.enabled !== false).map((topic) => (
+                      <option key={topic.id} value={topic.id}>{topic.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                    <GitBranch size={12} className="inline mr-1" />
+                    Fallback Flow ID
+                  </label>
+                  <input
+                    type="text"
+                    value={config.fallbackFlowId || ''}
+                    onChange={(e) => updateField('fallbackFlowId', e.target.value)}
+                    placeholder="如：fallback_handler"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg"
+                  />
+                </div>
               </div>
             </div>
           </div>

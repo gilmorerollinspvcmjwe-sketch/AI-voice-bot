@@ -45,6 +45,9 @@ export interface BotVariable {
   description?: string;
   isSystem: boolean;
   category?: 'INPUT' | 'CONVERSATION' | 'EXTRACTION';
+  isStateful?: boolean;
+  defaultValue?: string;
+  source?: 'system' | 'user_input' | 'extraction' | 'api' | 'flow';
 }
 
 export interface Parameter {
@@ -378,6 +381,7 @@ export interface AgentTool {
   name: string; // The function name for LLM (e.g. check_order)
   description: string; // The function description
   type: 'API' | 'SMS' | 'TRANSFER' | 'EMAIL' | 'CUSTOM'; // 扩展工具类型
+  enabled?: boolean;
   
   // Link to existing resources
   refId?: string; // ExtractionConfig ID for API
@@ -417,6 +421,14 @@ export interface AgentTool {
     fallbackAction: 'transfer_human' | 'hangup' | 'goto_node';
     fallbackTargetId?: string;
   };
+}
+
+export interface DelayProfile {
+  id: string;
+  name: string;
+  triggerMs: number;
+  message: string;
+  allowBargeIn: boolean;
 }
 
 // 函数类型枚举 - 区分过渡函数和可见函数
@@ -725,13 +737,27 @@ export interface McpServer {
 
 export interface AgentConfig {
   tools: AgentTool[];
-  mcpServers?: McpServer[]; // MCP 服务器列表
+  mcpServers?: McpServer[];
   generalFiller: {
     enabled: boolean;
     type: 'TTS' | 'AUDIO';
     content: string;
   };
-  functionCallModel?: string; // Optional override
+  functionCallModel?: string;
+  
+  // === 需求 4：Agent 配置新增字段 ===
+  enabledToolIds?: string[];
+  enabledFunctionIds?: string[];
+  defaultVisibleFunctionIds?: string[];
+  defaultTransitionFunctionIds?: string[];
+  delayProfiles?: DelayProfile[];
+  defaultDelayProfileId?: string;
+  allowUserInterruptDuringDelay?: boolean;
+  allowUserCutInDuringGreeting?: boolean;
+  allowUserCutInDuringTts?: boolean;
+  resumeStrategy?: 'continue' | 'restart' | 'skip';
+  defaultHandoffTargetId?: string;
+  summaryTemplate?: string;
 }
 
 // === 增强工具类型 (用于 Demo) ===
@@ -785,6 +811,13 @@ export interface BotConfiguration {
   variables: BotVariable[];
   parameters: Parameter[];
   
+  // === 需求 1：基础配置新增字段 ===
+  agentRole?: string;
+  persona?: string;
+  businessScene?: string;
+  responseStyle?: string;
+  maxSentenceCount?: number;
+  
   // Extraction (Legacy field support)
   extractionConfigId?: string;
   extractionPrompt?: string;
@@ -809,6 +842,20 @@ export interface BotConfiguration {
   kbCategories?: string[]; // Legacy: List of categories enabled for this bot (deprecated, use kbQACategories and kbLexiconCategories)
   kbQACategories?: string[]; // 问答对分类列表
   kbLexiconCategories?: string[]; // 词库分类列表
+  
+  // === 需求 5：知识检索配置新增字段 ===
+  qaCategoryConfigs?: QACategoryConfig[];
+  topicBindings?: Array<{
+    categoryId: string;
+    categoryName: string;
+    enabled: boolean;
+    entryBehavior: string;
+    priority: number;
+  }>;
+  smalltalkTopicId?: string;
+  fallbackFlowId?: string;
+  stateDefaults?: string;
+  stateWriteRules?: string;
 
   // Strategy Details
   welcomeMessageEnabled: boolean;
@@ -853,6 +900,9 @@ export interface BotConfiguration {
   noAnswerInterval?: number;
   noAnswerMaxRepeats?: number;
   noAnswerSpeech?: string;
+  globalTimeoutEnabled?: boolean;
+  globalTimeoutSeconds?: number;
+  globalTimeoutSpeech?: string;
 
   // Security Intercept Strategy
   securityInterceptEnabled?: boolean;
@@ -947,7 +997,7 @@ export interface QAPair {
   standardQuestion: string;
   similarQuestions: string[];
   answer: string;
-  category?: string; // New Category Field
+  category?: string;
   validityType: 'permanent' | 'range';
   validityStart?: number;
   validityEnd?: number;
@@ -955,8 +1005,24 @@ export interface QAPair {
   isActive: boolean;
   audioResources?: Record<string, string>;
   toolIds?: string[];
-  // 工具调用配置：同步/异步
   toolCallMode?: 'sync' | 'async';
+  
+  // === 需求 6：问答对新增字段 ===
+  entryPolicy?: 'immediate' | 'after_confirmation' | 'fallback_only';
+  handoffOnFailure?: boolean;
+}
+
+// === 需求 6：分类配置新增字段 ===
+export interface QACategoryConfig {
+  id: string;
+  name: string;
+  description?: string;
+  topicType?: 'qa' | 'smalltalk' | 'fallback' | 'business';
+  entryBehavior?: 'direct_answer' | 'flow_trigger' | 'tool_call';
+  linkedFlowId?: string;
+  linkedToolIds?: string[];
+  linkedFunctionIds?: string[];
+  enabled?: boolean;
 }
 
 export interface KnowledgeCandidate {
@@ -1478,9 +1544,10 @@ export interface StepPromptConfig {
   prompt: string;
   visibleFunctionIds: string[];
   transitionFunctionIds: string[];
+  codeBlockIds?: string[];
 }
 
-export type FlowStepKind = 'default' | 'function' | 'collect' | 'exit';
+export type FlowStepKind = 'default' | 'function' | 'collect' | 'advanced' | 'exit';
 
 export type FlowEntityType =
   | 'text'
@@ -1506,8 +1573,14 @@ export interface FlowEntityConfig {
   prompt?: string;
   asrBiasing?: FlowAsrBiasing;
   required?: boolean;
-  inputMode?: 'speech' | 'dtmf';
+  inputMode?: 'speech' | 'dtmf' | 'speech_or_dtmf';
   dtmfMaxDigits?: number;
+  dtmfTerminator?: '#' | '*';
+  dtmfFirstDigitTimeoutMs?: number;
+  dtmfInterDigitTimeoutMs?: number;
+  collectWhileSpeaking?: boolean;
+  containsPii?: boolean;
+  validationPattern?: string;
   options?: string[];
 }
 
@@ -1516,7 +1589,11 @@ export interface FlowRetryConfig {
   maxAttempts: number;
   noInputPrompt?: string;
   noMatchPrompt?: string;
+  confirmationPrompt?: string;
+  fallbackAction?: 'goto_node' | 'goto_flow' | 'handoff' | 'exit';
   fallbackTargetId?: string;
+  fallbackFlowId?: string;
+  handoffTargetId?: string;
   repromptDelayMs?: number;
 }
 
@@ -1534,13 +1611,34 @@ export interface FlowNodeData {
   visibleFunctionIds?: string[];
   transitionFunctionIds?: string[];
   toolIds?: string[];
+  codeBlockIds?: string[];
   // Few-shot Examples
   fewShotExamples?: Array<{ input: string; output: string }>;
   entityConfig?: FlowEntityConfig;
   retryConfig?: FlowRetryConfig;
   gotoFlowId?: string;
+  handoffTargetId?: string;
+  handoffReason?: string;
+  extractionSchemaId?: string;
+  asrBiasingPresetId?: string;
+  lexiconPresetIds?: string[];
   // Exit Node Configuration
   exitType?: ExitNodeType;
+  
+  // === 需求 2：流程节点配置新增字段 ===
+  delayProfileId?: string;
+  primaryFunctionId?: string;
+  functionArgsMapping?: Array<{
+    argName: string;
+    sourceType: 'variable' | 'state' | 'constant' | 'entity';
+    sourceKey: string;
+  }>;
+  entityValidationFunctionId?: string;
+  entityNormalizationFunctionId?: string;
+  readStateKeys?: string[];
+  writeStateKeys?: string[];
+  handoffSummaryTemplate?: string;
+  
   [key: string]: any;
 }
 
@@ -1560,9 +1658,19 @@ export interface FlowEdge {
   target: string;
   label?: string;
   edgeType?: 'normal' | 'conditional' | 'fallback' | 'goto_flow';
+  description?: string;
   conditionSummary?: string;
   priority?: number;
+  requiredEntities?: string[];
   transitionFunctionId?: string;
+  condition?: {
+    mode: 'expression' | 'entity' | 'intent' | 'state';
+    expression?: string;
+    entityName?: string;
+    stateKey?: string;
+    operator?: 'exists' | 'equals' | 'not_equals' | 'contains';
+    value?: string;
+  };
   debugRule?: 'always' | 'condition' | 'entity_collected' | 'retry_exhausted';
 }
 
@@ -1600,6 +1708,14 @@ export interface FlowDebugScenario {
   name: string;
   initialState: Record<string, any>;
   mockInputs: string[];
+  expectedPath?: string[];
+  expectedExitType?: ExitNodeType;
+  assertions?: Array<{
+    type: 'state' | 'path' | 'exit';
+    key?: string;
+    operator?: 'equals' | 'contains' | 'exists';
+    value?: any;
+  }>;
 }
 
 export interface FlowConfig {

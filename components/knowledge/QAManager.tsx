@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Plus, Search, Download, ArrowRight, X, Volume2, Play, Loader2, Upload, ChevronDown, CheckCircle2, Trash2, Power, PowerOff, ArrowLeft, Wrench
 } from 'lucide-react';
@@ -8,6 +8,11 @@ import { TagInput, Label, Switch as ToggleSwitch } from '../ui/FormComponents';
 import RAGConfigPanel from './RAGConfig';
 import CategoryListView from './CategoryListView';
 import { DEFAULT_RAG_CONFIG } from '../../services/ragService';
+import {
+  getQATopicStoreEventName,
+  loadQACategoryConfigs,
+  saveQACategoryConfigs,
+} from '../../services/qaTopicStore';
 
 // Mock available tools for binding
 const MOCK_AVAILABLE_TOOLS: AgentTool[] = [
@@ -102,6 +107,7 @@ export default function QAManager() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [categories, setCategories] = useState<string[]>(['闲聊', '业务']);
   const [editingItem, setEditingItem] = useState<QAPair | null>(null);
+  const [categoryConfigs, setCategoryConfigs] = useState(() => loadQACategoryConfigs());
   
   // Modal States
   const [isBatchTTSOpen, setIsBatchTTSOpen] = useState(false);
@@ -131,6 +137,30 @@ export default function QAManager() {
   // RAG Config State
   const [ragConfig, setRagConfig] = useState<RAGConfigType>(DEFAULT_RAG_CONFIG);
 
+  useEffect(() => {
+    const storedConfigs = loadQACategoryConfigs();
+    setCategoryConfigs(storedConfigs);
+    setCategories(storedConfigs.map((item) => item.name));
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const syncCategories = () => {
+      const storedConfigs = loadQACategoryConfigs();
+      setCategoryConfigs(storedConfigs);
+      setCategories(storedConfigs.map((item) => item.name));
+    };
+    const eventName = getQATopicStoreEventName();
+    window.addEventListener(eventName, syncCategories);
+    return () => window.removeEventListener(eventName, syncCategories);
+  }, []);
+
+  const persistCategoryConfigs = (nextConfigs: typeof categoryConfigs) => {
+    setCategoryConfigs(nextConfigs);
+    setCategories(nextConfigs.map((item) => item.name));
+    saveQACategoryConfigs(nextConfigs);
+  };
+
   const handleCreate = () => {
     setFormData({
       standardQuestion: '',
@@ -140,6 +170,8 @@ export default function QAManager() {
       validityType: 'permanent',
       isActive: true,
       audioResources: {},
+      entryPolicy: 'immediate',
+      handoffOnFailure: false,
     });
     setEditingItem(null);
     setView('FORM');
@@ -177,6 +209,8 @@ export default function QAManager() {
       audioResources: formData.audioResources || {},
       toolIds: formData.toolIds || [],
       toolCallMode: formData.toolCallMode || 'sync',
+      entryPolicy: formData.entryPolicy || 'immediate',
+      handoffOnFailure: formData.handoffOnFailure ?? false,
     };
 
     setQaPairs(prev => {
@@ -326,22 +360,25 @@ export default function QAManager() {
                <p className="text-[11px] text-slate-400 mt-1.5 ml-0.5">该问题将作为NLP匹配的核心依据，请尽量简练准确。</p>
             </div>
 
-            {/* Category */}
+            {/* Topic */}
             <div className="max-w-3xl">
-               <Label label="业务分类" required tooltip="用于机器人配置中的知识库过滤" />
+               <Label label="Topic" required tooltip="用于机器人配置中的知识库过滤和Topic绑定" />
                <div className="relative">
                   <input 
                     className="w-full px-3 py-2 text-sm border border-slate-300 rounded focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                     placeholder="例如：闲聊、业务咨询、投诉"
-                    list="category-suggestions"
+                    list="topic-suggestions"
                     value={formData.category}
                     onChange={(e) => setFormData({...formData, category: e.target.value})}
                   />
-                  <datalist id="category-suggestions">
+                  <datalist id="topic-suggestions">
                      <option value="通用" />
-                     <option value="业务" />
                      <option value="闲聊" />
-                     <option value="投诉" />
+                     <option value="业务" />
+                     <option value="产品咨询" />
+                     <option value="技术支持" />
+                     <option value="投诉建议" />
+                     <option value="常见问题" />
                   </datalist>
                </div>
             </div>
@@ -442,6 +479,36 @@ export default function QAManager() {
                )}
             </div>
 
+            {/* 需求 6：入口策略和失败转人工 */}
+            <div className="max-w-3xl border-t border-slate-100 pt-6">
+              <h4 className="text-xs font-bold text-slate-700 mb-4">入口策略配置</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label label="入口策略" tooltip="控制问答对的触发方式" />
+                  <select
+                    value={formData.entryPolicy || 'immediate'}
+                    onChange={(e) => setFormData({...formData, entryPolicy: e.target.value as any})}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white"
+                  >
+                    <option value="immediate">立即回答</option>
+                    <option value="after_confirmation">确认后回答</option>
+                    <option value="fallback_only">仅作为兜底</option>
+                  </select>
+                </div>
+                <div className="flex items-center pt-6">
+                  <label className="flex items-center gap-2 text-xs text-slate-600">
+                    <input
+                      type="checkbox"
+                      checked={formData.handoffOnFailure ?? false}
+                      onChange={(e) => setFormData({...formData, handoffOnFailure: e.target.checked})}
+                      className="rounded border-slate-300"
+                    />
+                    回答失败时转人工
+                  </label>
+                </div>
+              </div>
+            </div>
+
             {/* Validity */}
             <div>
                <Label label="有效期" />
@@ -496,19 +563,33 @@ export default function QAManager() {
 
     const handleAddCategory = (name: string) => {
       if (!categories.includes(name)) {
-        setCategories([...categories, name]);
+        persistCategoryConfigs([
+          ...categoryConfigs,
+          {
+            id: `topic_${Date.now()}`,
+            name,
+            enabled: true,
+            topicType: 'qa',
+            entryBehavior: 'direct_answer',
+          },
+        ]);
       }
     };
 
     const handleEditCategory = (oldName: string, newName: string) => {
       if (oldName === newName) return;
       if (categories.includes(newName)) {
-        alert('分类名称已存在');
+        alert('Topic 名称已存在');
         return;
       }
       
-      // Update category name in list
-      setCategories(categories.map(c => c === oldName ? newName : c));
+      const nextConfigs = categoryConfigs.map((item) =>
+        item.name === oldName ? { ...item, name: newName } : item,
+      );
+      persistCategoryConfigs(nextConfigs);
+      if (selectedCategory === oldName) {
+        setSelectedCategory(newName);
+      }
       
       // Update category in all QA pairs
       setQaPairs(qaPairs.map(qa => 
@@ -517,14 +598,18 @@ export default function QAManager() {
     };
 
     const handleDeleteCategory = (name: string) => {
-      setCategories(categories.filter(c => c !== name));
+      persistCategoryConfigs(categoryConfigs.filter((item) => item.name !== name));
+      if (selectedCategory === name) {
+        setSelectedCategory(null);
+        setView('CATEGORY_LIST');
+      }
     };
 
     return (
       <div className="h-full overflow-auto">
         <CategoryListView
-          title="问答对分类"
-          description="选择分类查看和管理问答对"
+          title="问答对 Topic"
+          description="选择 Topic 查看和管理问答对"
           categories={categories}
           onCategoryClick={handleCategoryClick}
           onAddCategory={handleAddCategory}
@@ -679,7 +764,7 @@ export default function QAManager() {
                    />
                 </th>
                 <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-1/5">标准问题</th>
-                <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">分类</th>
+                <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Topic</th>
                 <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-1/4">相似问题</th>
                 <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-1/4">答案预览</th>
                 <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">录音资源</th>

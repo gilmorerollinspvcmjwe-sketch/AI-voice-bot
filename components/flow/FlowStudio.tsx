@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   AgentTool,
   BotVariable,
+  DelayProfile,
   FlowConfig,
   FlowDefinition,
   FlowEdge,
@@ -25,6 +26,7 @@ interface FlowStudioProps {
   availableFunctions?: FlowFunction[];
   availableVariables?: BotVariable[];
   availableTools?: AgentTool[];
+  availableDelayProfiles?: DelayProfile[];
 }
 
 type DrawerMode = 'flow' | 'node' | 'edge' | 'debug' | null;
@@ -114,6 +116,7 @@ export default function FlowStudio({
   availableFunctions = [],
   availableVariables = [],
   availableTools = [],
+  availableDelayProfiles = [],
 }: FlowStudioProps) {
   const [draftFlow, setDraftFlow] = useState<FlowConfig>(() => cloneFlowConfig(initialFlow));
   const [activeFlowId, setActiveFlowId] = useState(initialFlow.entryFlowId);
@@ -504,6 +507,7 @@ export default function FlowStudio({
                 availableFunctions={draftFlow.functions || availableFunctions}
                 availableVariables={availableVariables}
                 availableTools={availableTools}
+                availableDelayProfiles={availableDelayProfiles}
                 onChange={handleNodeChange}
                 onClose={closeDrawer}
                 readOnly={readOnly}

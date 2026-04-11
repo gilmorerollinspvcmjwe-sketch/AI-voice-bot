@@ -50,6 +50,15 @@ export default function FlowDebugPanel({
     onUpdateScenario?.(selectedScenario.id, { mockInputs: inputs });
   };
 
+  const updateExpectedPath = (value: string) => {
+    if (!selectedScenario) return;
+    const path = value
+      .split('\n')
+      .map((item) => item.trim())
+      .filter(Boolean);
+    onUpdateScenario?.(selectedScenario.id, { expectedPath: path });
+  };
+
   return (
     <div className="flex h-full flex-col bg-white">
       <div className="border-b border-gray-200 bg-white px-5 py-4">
@@ -186,6 +195,17 @@ export default function FlowDebugPanel({
                       placeholder={'13800138000\n验证码 9988\n继续失败'}
                     />
                     <div className="mt-1 text-[11px] text-slate-400">每行一条用户输入，运行时按顺序消费。</div>
+                  </div>
+
+                  <div>
+                    <div className="mb-2 text-xs font-medium text-slate-600">预期路径（每行一个节点 ID）</div>
+                    <textarea
+                      rows={4}
+                      defaultValue={(selectedScenario.expectedPath || []).join('\n')}
+                      onBlur={(event) => updateExpectedPath(event.target.value)}
+                      className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/10"
+                      placeholder={'collect_phone\ncollect_code\nverify_result'}
+                    />
                   </div>
                 </div>
               </section>

@@ -457,7 +457,7 @@ const BotStrategyConfig: React.FC<BotStrategyConfigProps> = ({ config, updateFie
         </div>
       </StrategyCard>
 
-      <StrategyCard title="无应答策略" icon={<UserX size={18} />}>
+      <StrategyCard title="全局静默播音" icon={<UserX size={18} />}>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
           <div className="lg:col-span-7 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -467,8 +467,8 @@ const BotStrategyConfig: React.FC<BotStrategyConfigProps> = ({ config, updateFie
                     <Clock size={18} />
                   </div>
                   <div>
-                    <div className="text-sm font-bold text-slate-800">用户不回答时间间隔 (秒)</div>
-                    <div className="text-[11px] text-slate-500 mt-1">系统等待客户回应的时长 (1-60s)</div>
+                    <div className="text-sm font-bold text-slate-800">静默等待</div>
+                    <div className="text-[11px] text-slate-500 mt-1">多久没说话就播一次提醒</div>
                   </div>
                 </div>
                 <div className="flex items-center bg-white border border-slate-200 rounded-lg px-2 shadow-sm focus-within:ring-2 focus-within:ring-primary/20">
@@ -479,7 +479,7 @@ const BotStrategyConfig: React.FC<BotStrategyConfigProps> = ({ config, updateFie
                     value={config.noAnswerInterval} 
                     onChange={(e) => updateField('noAnswerInterval', Math.max(1, Math.min(60, parseInt(e.target.value) || 1)))} 
                   />
-                  <span className="text-[10px] font-bold text-slate-400 uppercase pr-1">Sec</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase pr-1">秒</span>
                 </div>
               </div>
 
@@ -489,8 +489,8 @@ const BotStrategyConfig: React.FC<BotStrategyConfigProps> = ({ config, updateFie
                     <RotateCcw size={18} />
                   </div>
                   <div>
-                    <div className="text-sm font-bold text-slate-800">连续未响应上限 (次)</div>
-                    <div className="text-[11px] text-slate-500 mt-1">超过次数后自动执行挂机处理 (1-10次)</div>
+                    <div className="text-sm font-bold text-slate-800">追问上限</div>
+                    <div className="text-[11px] text-slate-500 mt-1">连续静默多少次后结束当前策略</div>
                   </div>
                 </div>
                 <div className="flex items-center bg-white border border-slate-200 rounded-lg px-2 shadow-sm focus-within:ring-2 focus-within:ring-primary/20">
@@ -501,7 +501,7 @@ const BotStrategyConfig: React.FC<BotStrategyConfigProps> = ({ config, updateFie
                     value={config.noAnswerMaxRepeats} 
                     onChange={(e) => updateField('noAnswerMaxRepeats', Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))} 
                   />
-                  <span className="text-[10px] font-bold text-slate-400 uppercase pr-1">Times</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase pr-1">次</span>
                 </div>
               </div>
             </div>
@@ -511,16 +511,62 @@ const BotStrategyConfig: React.FC<BotStrategyConfigProps> = ({ config, updateFie
              <div className="bg-sky-50 rounded-2xl p-6 border border-sky-100 h-full">
                 <div className="flex items-center space-x-2 mb-4">
                    <MessageSquare size={16} className="text-primary" />
-                   <span className="text-xs font-bold uppercase tracking-wider text-slate-500">追问话术</span>
+                   <span className="text-xs font-bold uppercase tracking-wider text-slate-500">静默话术</span>
                 </div>
                 <textarea 
                   className="w-full h-32 px-4 py-3 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 outline-none resize-none bg-white leading-relaxed"
                   value={config.noAnswerSpeech}
                   onChange={(e) => updateField('noAnswerSpeech', e.target.value)}
-                  placeholder="例如：不好意思，我没有听清，请您再说一遍好吗？"
+                  placeholder="例如：我还在线，您方便继续说一下吗？"
                 />
-                <p className="text-[10px] text-slate-400 mt-2">当用户长时间不说话时，机器人自动播放的提示语。</p>
              </div>
+          </div>
+        </div>
+      </StrategyCard>
+
+      <StrategyCard title="全局超时播音" icon={<Clock size={18} />}>
+        <div className="space-y-5">
+          <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+            <div className="flex items-center">
+              <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-slate-200 mr-3 shadow-sm text-primary">
+                <Clock size={18} />
+              </div>
+              <div>
+                <div className="text-sm font-bold text-slate-800">启用超时播音</div>
+              </div>
+            </div>
+            <Switch label="" checked={config.globalTimeoutEnabled || false} onChange={(v) => updateField('globalTimeoutEnabled', v)} />
+          </div>
+
+          <div className={`grid grid-cols-1 lg:grid-cols-12 gap-6 ${!config.globalTimeoutEnabled ? 'opacity-50 pointer-events-none' : ''}`}>
+            <div className="lg:col-span-4">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <Label label="超时时长（秒）" />
+                <div className="mt-3 flex items-center bg-slate-50 rounded-lg border border-slate-200 px-2">
+                  <input
+                    type="number"
+                    min="1"
+                    max="3600"
+                    className="w-20 h-10 text-sm font-bold text-center bg-transparent outline-none"
+                    value={config.globalTimeoutSeconds || 60}
+                    onChange={(e) => updateField('globalTimeoutSeconds', Math.max(1, Math.min(3600, parseInt(e.target.value) || 1)))}
+                  />
+                  <span className="text-[10px] font-bold text-slate-400 uppercase pr-1">秒</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="lg:col-span-8">
+              <div className="rounded-2xl border border-sky-100 bg-sky-50 p-5">
+                <Label label="超时话术" />
+                <textarea
+                  className="mt-3 w-full h-24 px-4 py-3 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 outline-none resize-none bg-white leading-relaxed"
+                  value={config.globalTimeoutSpeech || ''}
+                  onChange={(e) => updateField('globalTimeoutSpeech', e.target.value)}
+                  placeholder="例如：本次服务时间较长，我先为您结束通话，您稍后可以再次来电。"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </StrategyCard>

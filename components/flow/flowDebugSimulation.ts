@@ -80,6 +80,17 @@ function validateEntityInput(node: FlowNode, rawInput: string) {
     return { valid: false, normalized: input, reason: 'no_match' };
   }
 
+  if (entityConfig.validationPattern) {
+    try {
+      const pattern = new RegExp(entityConfig.validationPattern);
+      if (!pattern.test(input)) {
+        return { valid: false, normalized: input, reason: 'no_match' };
+      }
+    } catch {
+      // Ignore invalid regex in simulation and keep permissive behavior.
+    }
+  }
+
   switch (entityConfig.entityType) {
     case 'phone': {
       const normalized = normalizePhone(input);
@@ -125,11 +136,51 @@ function evaluateCondition(conditionSummary: string | undefined, state: Record<s
   }
 }
 
+function evaluateStructuredCondition(edge: FlowEdge, state: Record<string, any>) {
+  const condition = edge.condition;
+  if (!condition) return null;
+
+  if (condition.mode === 'expression') {
+    return evaluateCondition(condition.expression || edge.conditionSummary, state);
+  }
+
+  if (condition.mode === 'entity') {
+    const currentValue = state[condition.entityName || ''];
+    if (condition.operator === 'exists') return currentValue !== undefined && currentValue !== null && currentValue !== '';
+    if (condition.operator === 'equals') return String(currentValue ?? '') === String(condition.value ?? '');
+    if (condition.operator === 'not_equals') return String(currentValue ?? '') !== String(condition.value ?? '');
+    if (condition.operator === 'contains') return String(currentValue ?? '').includes(String(condition.value ?? ''));
+    return Boolean(currentValue);
+  }
+
+  if (condition.mode === 'state' || condition.mode === 'intent') {
+    const currentValue = state[condition.stateKey || ''];
+    if (condition.operator === 'contains') return String(currentValue ?? '').includes(String(condition.value ?? ''));
+    if (condition.operator === 'not_equals') return String(currentValue ?? '') !== String(condition.value ?? '');
+    return String(currentValue ?? '') === String(condition.value ?? '');
+  }
+
+  return null;
+}
+
 function matchesEdge(edge: FlowEdge, state: Record<string, any>) {
+  if (edge.requiredEntities?.length) {
+    const allExists = edge.requiredEntities.every((item) => {
+      const value = state[item];
+      return value !== undefined && value !== null && value !== '';
+    });
+    if (!allExists) return false;
+  }
+
   if (edge.debugRule === 'always') return true;
   if (edge.debugRule === 'entity_collected') return Boolean(state.lastCollectedEntity);
   if (edge.debugRule === 'retry_exhausted') return Boolean(state.retryExhausted);
   if (edge.debugRule === 'condition') return evaluateCondition(edge.conditionSummary, state);
+
+  const structuredResult = evaluateStructuredCondition(edge, state);
+  if (typeof structuredResult === 'boolean') {
+    return structuredResult;
+  }
 
   if (edge.edgeType === 'fallback') {
     return Boolean(state.retryExhausted) || evaluateCondition(edge.conditionSummary, state);
@@ -272,6 +323,29 @@ export function simulateFlowScenario({
 
         state.retryExhausted = true;
         history.push(`Retry exhausted on ${currentNode.data.name || currentNode.id}`);
+
+        if (retryConfig?.fallbackAction === 'goto_flow' && retryConfig.fallbackFlowId) {
+          const targetFlow = getFlow(flowConfig, retryConfig.fallbackFlowId);
+          if (targetFlow) {
+            history.push(`Retry fallback goto flow ${targetFlow.name}`);
+            currentFlow = targetFlow;
+            currentNode = getStartNode(targetFlow);
+            continue;
+          }
+        }
+
+        if (retryConfig?.fallbackAction === 'handoff' && retryConfig.handoffTargetId) {
+          state.currentExitType = 'handoff';
+          state.handoffTargetId = retryConfig.handoffTargetId;
+          history.push(`Retry fallback handoff -> ${retryConfig.handoffTargetId}`);
+          break;
+        }
+
+        if (retryConfig?.fallbackAction === 'exit') {
+          state.currentExitType = 'stop';
+          history.push('Retry fallback exit');
+          break;
+        }
 
         if (retryConfig?.fallbackTargetId) {
           const fallbackNode = getNode(currentFlow, retryConfig.fallbackTargetId);
