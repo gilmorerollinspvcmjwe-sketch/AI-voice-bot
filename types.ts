@@ -801,6 +801,14 @@ export interface BotConfiguration {
   speed: number;
   emotion: string;
   
+  // TTS Optimization
+  ttsOptimizationEnabled?: boolean;
+  ttsOptimizationRules?: Array<{
+    id: string;
+    matchText: string;
+    replaceText: string;
+  }>;
+  
   // ASR Config
   asrModel: ASRModel;
   asrInterruptible: boolean;

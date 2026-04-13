@@ -119,6 +119,10 @@ const DEFAULT_STRATEGY_DEFAULTS = {
   // 安全拦截策略
   securityInterceptEnabled: false,
   securityWords: [],
+
+  // TTS朗读优化
+  ttsOptimizationEnabled: false,
+  ttsOptimizationRules: [],
 };
 
 // --- SPLIT INTENTS ---
