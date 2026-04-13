@@ -123,6 +123,10 @@ const DEFAULT_STRATEGY_DEFAULTS = {
   // TTS朗读优化
   ttsOptimizationEnabled: false,
   ttsOptimizationRules: [],
+
+  // ASR文本修正
+  asrTextCorrectionEnabled: false,
+  asrTextCorrectionRules: [],
 };
 
 // --- SPLIT INTENTS ---

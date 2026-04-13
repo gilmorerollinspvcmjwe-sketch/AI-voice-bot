@@ -809,6 +809,14 @@ export interface BotConfiguration {
     replaceText: string;
   }>;
   
+  // ASR Text Correction
+  asrTextCorrectionEnabled?: boolean;
+  asrTextCorrectionRules?: Array<{
+    id: string;
+    matchText: string;
+    replaceText: string;
+  }>;
+  
   // ASR Config
   asrModel: ASRModel;
   asrInterruptible: boolean;

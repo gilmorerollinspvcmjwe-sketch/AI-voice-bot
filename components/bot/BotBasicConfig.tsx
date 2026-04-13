@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { 
-  Sparkles, Loader2, Cpu, Volume2, Mic, MessageSquare, Plus, Trash2, ChevronDown, Languages, FileText
+  Sparkles, Loader2, Cpu, Volume2, Mic, MessageSquare, Plus, Trash2, ChevronDown, Languages, FileText, Edit3
 } from 'lucide-react';
 import { Input, Select, Slider, Switch, TagInput, Label } from '../ui/FormComponents';
 import { BotConfiguration, ModelType, TTSModel, ASRModel, EMOTIONS, Parameter, BUILT_IN_FUNCTIONS } from '../../types';
@@ -432,6 +432,98 @@ const BotBasicConfig: React.FC<BotBasicConfigProps> = ({
             <div className="lg:col-span-4 space-y-6 pt-2">
               <Switch label="允许被打断" checked={config.asrInterruptible} onChange={(v) => updateField('asrInterruptible', v)} tooltip="客户说话时是否立刻停止机器人播报" />
             </div>
+          </div>
+
+          {/* ASR 文本修正 */}
+          <div className="mt-8 border-t border-gray-100 pt-8">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-2">
+                <div className="p-1.5 bg-teal-100 text-teal-600 rounded">
+                  <Edit3 size={14} />
+                </div>
+                <span className="text-xs font-bold text-slate-700">ASR 文本修正</span>
+              </div>
+              <Switch 
+                label="" 
+                checked={config.asrTextCorrectionEnabled || false}
+                onChange={(v) => updateField('asrTextCorrectionEnabled', v)} 
+              />
+            </div>
+
+            {config.asrTextCorrectionEnabled && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between mb-4">
+                  <Label label="修正规则" tooltip="添加需要修正的文本规则" />
+                  <button 
+                    onClick={() => {
+                      const newRule = {
+                        id: Date.now().toString(),
+                        matchText: '',
+                        replaceText: ''
+                      };
+                      updateField('asrTextCorrectionRules', [...(config.asrTextCorrectionRules || []), newRule]);
+                    }}
+                    className="text-primary text-xs flex items-center hover:underline bg-sky-50 px-2 py-0.5 rounded-full border border-sky-100 transition-colors font-bold"
+                  >
+                    <Plus size={12} className="mr-1" />
+                    添加修正规则
+                  </button>
+                </div>
+                
+                <div className="space-y-3">
+                  {config.asrTextCorrectionRules?.map((rule) => (
+                    <div key={rule.id} className="flex flex-col space-y-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                      <div className="flex items-center space-x-4">
+                        <div className="flex-1">
+                          <div className="text-xs font-bold text-slate-600 mb-1">匹配文本</div>
+                          <input 
+                            type="text" 
+                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded focus:border-primary outline-none"
+                            placeholder="例如: 瑞鑫"
+                            value={rule.matchText}
+                            onChange={(e) => {
+                              const updatedRules = config.asrTextCorrectionRules?.map(r => 
+                                r.id === rule.id ? { ...r, matchText: e.target.value } : r
+                              );
+                              updateField('asrTextCorrectionRules', updatedRules);
+                            }}
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-xs font-bold text-slate-600 mb-1">替换文本</div>
+                          <input 
+                            type="text" 
+                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded focus:border-primary outline-none"
+                            placeholder="例如: 瑞幸"
+                            value={rule.replaceText}
+                            onChange={(e) => {
+                              const updatedRules = config.asrTextCorrectionRules?.map(r => 
+                                r.id === rule.id ? { ...r, replaceText: e.target.value } : r
+                              );
+                              updateField('asrTextCorrectionRules', updatedRules);
+                            }}
+                          />
+                        </div>
+                        <button 
+                          onClick={() => {
+                            const updatedRules = config.asrTextCorrectionRules?.filter(r => r.id !== rule.id);
+                            updateField('asrTextCorrectionRules', updatedRules);
+                          }}
+                          className="text-slate-300 hover:text-red-500 shrink-0"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {(!config.asrTextCorrectionRules || config.asrTextCorrectionRules.length === 0) && (
+                    <div className="text-[10px] text-slate-400 text-center py-4">
+                      暂无修正规则，请点击上方"添加修正规则"按钮添加
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
