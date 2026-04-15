@@ -780,7 +780,7 @@ export interface PresetTool {
 
 // ------------------------------
 
-export interface BotConfiguration {
+export interface BotConfiguration extends MarketingConfig, ProfileCollectionConfig, PolyAIConfig {
   id: string;
   name: string;
   description: string;
@@ -927,18 +927,50 @@ export interface BotConfiguration {
     word: string;
   }>;
 
-  // Marketing Config
+  // Topic Skill Library Config
+  topicSkillLibraryConfig?: TopicSkillLibraryConfig;
+}
+
+// 主题技能类型定义
+export interface TopicSkill {
+  id: string;
+  name: string;
+  isEnabled: boolean;
+  exampleQuestions: string[];
+  prompt: string;
+  tools: string[];
+  variables: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+// 主题技能库配置类型
+export interface TopicSkillLibraryConfig {
+  enabled: boolean;
+  skills: TopicSkill[];
+  pageSize: number;
+  currentPage: number;
+  totalPages: number;
+  totalCount: number;
+}
+
+// Marketing Config
+export interface MarketingConfig {
   marketingEnabled?: boolean;
   marketingTimings?: string[];
   marketingConflictStrategy?: 'service_first' | 'marketing_first';
   activeCampaignIds?: string[];
+}
 
-  // Profile Collection Config
+// Profile Collection Config
+export interface ProfileCollectionConfig {
   profileCollectionEnabled?: boolean;
   profileExtractionPrompt?: string;
   profileExtractionRules?: ProfileExtractionRule[];
+}
 
-  // PolyAI Flow Config
+// PolyAI Flow Config
+export interface PolyAIConfig {
   flowConfig?: FlowConfig;
 }
 

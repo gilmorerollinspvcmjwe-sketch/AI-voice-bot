@@ -127,6 +127,72 @@ const DEFAULT_STRATEGY_DEFAULTS = {
   // ASR文本修正
   asrTextCorrectionEnabled: false,
   asrTextCorrectionRules: [],
+
+  // 主题技能库配置
+  topicSkillLibraryConfig: {
+    enabled: false,
+    skills: [
+      {
+        id: '1',
+        name: '订单查询',
+        isEnabled: true,
+        exampleQuestions: ['如何查询我的订单状态？', '我的订单在哪里查看？', '订单号怎么查询？'],
+        prompt: '你是一名订单查询助手，帮助用户查询订单状态。当用户询问订单相关问题时，你需要：1. 询问用户的订单号 2. 使用订单查询工具获取订单信息 3. 清晰地向用户解释订单状态和预计送达时间',
+        tools: ['订单查询工具'],
+        variables: ['订单号', '用户手机号'],
+        createdAt: new Date('2024-01-01').toISOString(),
+        updatedAt: new Date('2024-01-01').toISOString()
+      },
+      {
+        id: '2',
+        name: '账户余额查询',
+        isEnabled: true,
+        exampleQuestions: ['我的账户余额是多少？', '如何查看账户余额？', '余额怎么查询？'],
+        prompt: '你是一名账户余额查询助手，帮助用户查询账户余额。当用户询问余额相关问题时，你需要：1. 验证用户身份 2. 使用余额查询工具获取账户余额 3. 向用户展示当前余额和最近的交易记录',
+        tools: ['余额查询工具'],
+        variables: ['用户ID', '手机号'],
+        createdAt: new Date('2024-01-02').toISOString(),
+        updatedAt: new Date('2024-01-02').toISOString()
+      },
+      {
+        id: '3',
+        name: '退款申请',
+        isEnabled: true,
+        exampleQuestions: ['如何申请退款？', '退款流程是什么？', '我想退款怎么操作？'],
+        prompt: '你是一名退款申请助手，帮助用户处理退款请求。当用户询问退款相关问题时，你需要：1. 了解用户的退款原因 2. 检查订单是否符合退款条件 3. 指导用户完成退款申请流程',
+        tools: ['退款申请工具'],
+        variables: ['订单号', '退款原因'],
+        createdAt: new Date('2024-01-03').toISOString(),
+        updatedAt: new Date('2024-01-03').toISOString()
+      },
+      {
+        id: '4',
+        name: '投诉处理',
+        isEnabled: false,
+        exampleQuestions: ['我要投诉', '如何提交投诉？', '投诉电话是多少？'],
+        prompt: '你是一名投诉处理助手，帮助用户处理投诉。当用户提出投诉时，你需要：1. 认真倾听用户的投诉内容 2. 记录投诉的详细信息 3. 提供合理的解决方案或转接人工客服',
+        tools: ['投诉记录工具'],
+        variables: ['投诉类型', '联系方式'],
+        createdAt: new Date('2024-01-04').toISOString(),
+        updatedAt: new Date('2024-01-04').toISOString()
+      },
+      {
+        id: '5',
+        name: '产品咨询',
+        isEnabled: true,
+        exampleQuestions: ['这个产品有什么功能？', '产品的价格是多少？', '产品怎么使用？'],
+        prompt: '你是一名产品咨询助手，帮助用户了解产品信息。当用户询问产品相关问题时，你需要：1. 详细介绍产品的功能和特点 2. 提供产品的价格和购买渠道 3. 解答用户的使用疑问',
+        tools: ['产品信息查询工具'],
+        variables: ['产品ID', '用户需求'],
+        createdAt: new Date('2024-01-05').toISOString(),
+        updatedAt: new Date('2024-01-05').toISOString()
+      }
+    ],
+    pageSize: 10,
+    currentPage: 1,
+    totalPages: 1,
+    totalCount: 5
+  },
 };
 
 // --- SPLIT INTENTS ---
