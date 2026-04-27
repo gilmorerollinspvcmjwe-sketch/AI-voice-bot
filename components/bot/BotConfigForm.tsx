@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowRight, Workflow, Bot } from 'lucide-react';
+import { ArrowRight, Workflow, Bot, Plus, Edit2, Trash2 } from 'lucide-react';
 import { BotConfiguration, ExtractionConfig, MarketingCampaign, FlowConfig, FlowNodeType, ExitNodeType } from '../../types';
 import { generateBotPrompt } from '../../services/geminiService';
 import BotBasicConfig from './BotBasicConfig';
@@ -41,8 +41,8 @@ const DEMO_FLOW_CONFIG: FlowConfig = {
     return`,
       scope: 'global',
       isBuiltIn: false,
-      category: 'visible',
-      visibleConfig: {
+      category: 'global',
+      globalConfig: {
         executionStrategy: 'sync',
         playFiller: false,
       },
@@ -78,8 +78,8 @@ const DEMO_FLOW_CONFIG: FlowConfig = {
     return`,
       scope: 'global',
       isBuiltIn: false,
-      category: 'visible',
-      visibleConfig: {
+      category: 'global',
+      globalConfig: {
         executionStrategy: 'sync',
         playFiller: false,
       },
@@ -371,6 +371,10 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+  
+  // Flow 列表页状态
+  const [flowEditMode, setFlowEditMode] = useState(false);
+  const [editingFlowId, setEditingFlowId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isMoreOpen && moreButtonRef.current) {
@@ -548,28 +552,129 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
         )}
 
         {/* PolyAI Flow Editor */}
-        {activeTab === 'FLOW_CONFIG' && (
+        {activeTab === 'FLOW_CONFIG' && !flowEditMode && (
+           <div className="animate-in fade-in duration-500">
+             <div className="flex items-center justify-between mb-6">
+               <div>
+                 <h3 className="text-sm font-bold text-slate-800">流程列表</h3>
+                 <p className="text-xs text-slate-400 mt-1">管理所有 Flow，点击编辑进入流程图编辑器</p>
+               </div>
+               <button 
+                 onClick={() => {
+                   const newFlow = {
+                     id: `flow_${Date.now()}`,
+                     name: `新建 Flow ${(flowConfig.flows || []).length + 1}`,
+                     metadata: { description: '' },
+                     nodes: [{ 
+                       id: `start_${Date.now()}`, 
+                       type: 'START', 
+                       position: { x: 80, y: 220 },
+                       data: { name: '开始', description: 'Flow 入口节点', stepType: 'default', stepPrompt: { prompt: '', visibleFunctionIds: [], transitionFunctionIds: [] }}
+                     }],
+                     edges: [],
+                   };
+                   updateField('flowConfig', {
+                     ...flowConfig,
+                     flows: [...(flowConfig.flows || []), newFlow],
+                     entryFlowId: flowConfig.entryFlowId || newFlow.id,
+                   });
+                 }}
+                 className="px-4 py-2 bg-primary text-white rounded-lg text-xs font-bold hover:bg-sky-600 shadow-sm flex items-center gap-1"
+               >
+                 <Plus size={14} /> 新建 Flow
+               </button>
+             </div>
+
+             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+               {(flowConfig.flows || []).length === 0 ? (
+                 <div className="text-center py-12">
+                   <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                     <span className="text-2xl">🔄</span>
+                   </div>
+                   <p className="text-sm text-slate-500">暂无 Flow</p>
+                   <p className="text-xs text-slate-400 mt-1">点击"新建 Flow"开始创建</p>
+                 </div>
+               ) : (
+                 <div className="divide-y divide-gray-100">
+                   {(flowConfig.flows || []).map((flow) => (
+                     <div key={flow.id} className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
+                       <div className="flex items-center gap-3">
+                         <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-slate-200 shadow-sm">
+                           <span className="text-lg">🔄</span>
+                         </div>
+                         <div>
+                           <div className="flex items-center gap-2">
+                             <h4 className="text-sm font-bold text-slate-800">{flow.name}</h4>
+                             {flow.id === flowConfig.entryFlowId && (
+                               <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-600">入口</span>
+                             )}
+                           </div>
+                           <p className="text-xs text-slate-500 mt-0.5">{flow.metadata?.description || '无描述'}</p>
+                           <p className="text-[10px] text-slate-400 mt-0.5">{flow.nodes?.length || 0} 节点 · {flow.edges?.length || 0} 连线</p>
+                         </div>
+                       </div>
+                       <div className="flex items-center gap-2">
+                         <button 
+                           onClick={() => {
+                             setEditingFlowId(flow.id);
+                             setFlowEditMode(true);
+                           }}
+                           className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center gap-1"
+                         >
+                           <Edit2 size={12} /> 编辑
+                         </button>
+                         <button 
+                           onClick={() => {
+                             if (confirm('确定删除此 Flow 吗？')) {
+                               const newFlows = (flowConfig.flows || []).filter(f => f.id !== flow.id);
+                               updateField('flowConfig', {
+                                 ...flowConfig,
+                                 flows: newFlows,
+                                 entryFlowId: flowConfig.entryFlowId === flow.id ? (newFlows[0]?.id || '') : flowConfig.entryFlowId,
+                               });
+                             }
+                           }}
+                           className="px-3 py-1.5 rounded-lg text-xs font-bold border border-red-100 text-red-500 hover:bg-red-50 flex items-center gap-1"
+                         >
+                           <Trash2 size={12} /> 删除
+                         </button>
+                       </div>
+                     </div>
+                   ))}
+                 </div>
+               )}
+             </div>
+             
+             <div className="flex justify-start space-x-4 pt-4 border-t border-gray-100 mt-6">
+               <button onClick={handleSave} className="px-6 py-2 bg-primary text-white rounded hover:bg-sky-600 text-sm font-medium shadow-sm transition-all">
+                 保存配置
+               </button>
+               <button onClick={onCancel} className="px-6 py-2 border border-gray-200 text-slate-600 rounded hover:bg-slate-50 text-sm font-medium transition-all">
+                 取消
+               </button>
+             </div>
+           </div>
+        )}
+
+        {/* Flow Studio Editor */}
+        {activeTab === 'FLOW_CONFIG' && flowEditMode && editingFlowId && (
            <div className="animate-in fade-in duration-500 flex flex-col h-[calc(100vh-280px)]">
+             <div className="flex items-center justify-between mb-4">
+               <button 
+                 onClick={() => { setFlowEditMode(false); setEditingFlowId(null); }}
+                 className="text-xs text-slate-500 hover:text-primary flex items-center gap-1"
+               >
+                 <ArrowRight size={12} className="rotate-180" /> 返回列表
+               </button>
+               <span className="text-sm font-bold text-slate-700">
+                 编辑：{(flowConfig.flows || []).find(f => f.id === editingFlowId)?.name}
+               </span>
+             </div>
              <div className="flex-1 min-h-0">
                <FlowStudio
                  initialFlow={flowConfig}
                  onSave={(flow: FlowConfig) => {
                    updateField('flowConfig', flow);
-                   // Create and show success toast
-                   const toast = document.createElement('div');
-                   toast.className = 'fixed top-20 right-8 bg-green-50 text-green-700 border border-green-200 px-6 py-4 rounded-xl shadow-lg z-50 flex items-center gap-3 animate-in fade-in slide-in-from-right-5 duration-300';
-                   toast.innerHTML = `
-                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-green-600"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><path d="M22 4L12 14.01l-3-3"></path></svg>
-                     <div>
-                       <h4 class="font-bold text-sm">流程保存成功</h4>
-                       <p class="text-xs text-green-600 mt-0.5">流程配置已更新</p>
-                     </div>
-                   `;
-                   document.body.appendChild(toast);
-                   setTimeout(() => {
-                     toast.classList.add('opacity-0', 'transition-opacity', 'duration-500');
-                     setTimeout(() => toast.remove(), 500);
-                   }, 2000);
                  }}
                  readOnly={false}
                  availableFunctions={flowConfig.functions || []}
@@ -582,8 +687,8 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
                <button onClick={handleSave} className="px-6 py-2 bg-primary text-white rounded hover:bg-sky-600 text-sm font-medium shadow-sm transition-all">
                  保存配置
                </button>
-               <button onClick={onCancel} className="px-6 py-2 border border-gray-200 text-slate-600 rounded hover:bg-slate-50 text-sm font-medium transition-all">
-                 取消
+               <button onClick={() => { setFlowEditMode(false); setEditingFlowId(null); }} className="px-6 py-2 border border-gray-200 text-slate-600 rounded hover:bg-slate-50 text-sm font-medium transition-all">
+                 返回列表
                </button>
              </div>
            </div>

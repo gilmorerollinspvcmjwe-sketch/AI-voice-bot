@@ -15,7 +15,6 @@ import FlowConfigPanel from './FlowConfigPanel';
 import FlowDebugPanel from './FlowDebugPanel';
 import FlowEdgeConfig from './FlowEdgeConfig';
 import FlowNodeConfig from './FlowNodeConfig';
-import FlowStudioListPanel from './FlowStudioListPanel';
 import FlowStudioToolbar from './FlowStudioToolbar';
 import FlowVersionManager from './FlowVersionManager';
 import { simulateFlowScenario } from './flowDebugSimulation';
@@ -467,21 +466,6 @@ export default function FlowStudio({
       />
 
       <div className="relative flex min-h-0 flex-1 overflow-hidden">
-        <FlowStudioListPanel
-          flows={draftFlow.flows}
-          activeFlowId={activeFlow.id}
-          onSelect={(flowId) => {
-            setActiveFlowId(flowId);
-            setSelectedNodeId(null);
-            setSelectedNodeSnapshot(null);
-            setSelectedEdgeId(null);
-            setDrawerMode(null);
-          }}
-          onOpenConfig={(flowId) => openFlowSettings(flowId)}
-          onAddFlow={handleAddFlow}
-          onReorder={handleReorderFlows}
-        />
-
         <FlowCanvas
           flow={activeFlow}
           annotationMode={false}

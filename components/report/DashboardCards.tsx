@@ -1,5 +1,5 @@
 import React from 'react';
-import { Phone, PhoneCall, Clock, Star, Headphones, CheckCircle, TrendingUp, TrendingDown } from 'lucide-react';
+import { Phone, PhoneCall, Clock, Headphones, Timer, TrendingUp, TrendingDown } from 'lucide-react';
 import { ReportMetrics } from '../../types';
 
 interface MetricCardProps {
@@ -108,13 +108,13 @@ const DashboardCards: React.FC<DashboardCardsProps> = ({ current, previous, onCa
       metricType: 'avgDuration',
     },
     {
-      title: '平均满意度',
-      value: current.avgSatisfaction.toFixed(1),
-      unit: '分',
-      change: calculateChange(current.avgSatisfaction, previous.avgSatisfaction),
-      icon: <Star size={24} />,
+      title: '通话时长',
+      value: Math.floor(current.totalDuration / 60),
+      unit: '分钟',
+      change: calculateChange(current.totalDuration, previous.totalDuration),
+      icon: <Timer size={24} />,
       color: 'purple' as const,
-      metricType: 'satisfaction',
+      metricType: 'totalDuration',
     },
     {
       title: '转人工率',
@@ -125,19 +125,10 @@ const DashboardCards: React.FC<DashboardCardsProps> = ({ current, previous, onCa
       color: 'red' as const,
       metricType: 'transferRate',
     },
-    {
-      title: '机器人解决率',
-      value: `${(current.resolutionRate * 100).toFixed(1)}`,
-      unit: '%',
-      change: calculateChange(current.resolutionRate, previous.resolutionRate),
-      icon: <CheckCircle size={24} />,
-      color: 'green' as const,
-      metricType: 'resolutionRate',
-    },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
       {cards.map((card) => (
         <MetricCard
           key={card.metricType}

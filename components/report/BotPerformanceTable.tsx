@@ -67,7 +67,7 @@ const BotPerformanceTable: React.FC<BotPerformanceTableProps> = ({ data }) => {
     { key: 'connectionRate', label: '接通率', align: 'center' },
     { key: 'avgDuration', label: '平均时长', align: 'center' },
     { key: 'satisfaction', label: '满意度', align: 'center' },
-    { key: 'intentAccuracy', label: '意图准确率', align: 'center' },
+    { key: 'intentAccuracy', label: '主题准确率', align: 'center' },
     { key: 'transferRate', label: '转人工率', align: 'center' },
   ];
 

@@ -1,22 +1,19 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   BarChart3,
   Calendar,
   Download,
   TrendingUp,
-  PieChart,
   Clock,
-  Bot,
   Target,
   Phone,
 } from 'lucide-react';
-import { TimeRange, ReportMetrics } from '../../types';
+import { TimeRange } from '../../types';
 import { getReportData } from './mockData';
 import DashboardCards from './DashboardCards';
 import TrendChart, { HourlyHeatmap } from './TrendChart';
 import BotPerformanceTable from './BotPerformanceTable';
 import IntentAccuracyChart from './IntentAccuracyChart';
-import SatisfactionAnalysis from './SatisfactionAnalysis';
 import CallDurationDistribution from './CallDurationDistribution';
 
 const TIME_RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
@@ -31,9 +28,7 @@ const TIME_RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
 const TAB_OPTIONS = [
   { id: 'overview', label: '总览', icon: BarChart3 },
   { id: 'trends', label: '趋势分析', icon: TrendingUp },
-  { id: 'bots', label: '机器人性能', icon: Bot },
-  { id: 'intents', label: '意图分析', icon: Target },
-  { id: 'satisfaction', label: '满意度', icon: PieChart },
+  { id: 'intents', label: '主题分析', icon: Target },
   { id: 'duration', label: '通话质量', icon: Clock },
 ];
 
@@ -129,29 +124,12 @@ const MonitoringReport: React.FC = () => {
           </div>
         );
 
-      case 'bots':
-        return (
-          <div className="space-y-6">
-            <BotPerformanceTable data={reportData.botPerformance} />
-          </div>
-        );
-
       case 'intents':
         return (
           <div className="space-y-6">
             <IntentAccuracyChart
               data={reportData.intentAnalysis}
               unmatchedIntents={reportData.unmatchedIntents}
-            />
-          </div>
-        );
-
-      case 'satisfaction':
-        return (
-          <div className="space-y-6">
-            <SatisfactionAnalysis
-              distribution={reportData.satisfactionDistribution}
-              avgSatisfaction={reportData.metrics.current.avgSatisfaction}
             />
           </div>
         );

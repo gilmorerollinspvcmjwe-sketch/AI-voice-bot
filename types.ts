@@ -185,7 +185,7 @@ export interface LLMNodeConfig extends NodeCommonConfig {
   // 工具绑定（AgentTool - 用于API调用等业务操作）
   toolIds?: string[];
   
-  // 可见函数绑定（Visible Functions - LLM自主决定调用）
+  // 全局函数绑定（Global Functions - LLM自主决定调用）
   visibleFunctionIds?: string[];
   
   // 过渡函数绑定（Transition Functions - 在提示词中引用，控制流程）
@@ -465,12 +465,12 @@ export interface DelayProfile {
   allowBargeIn: boolean;
 }
 
-// 函数类型枚举 - 区分过渡函数和可见函数
-export type FunctionCategory = 'transition' | 'visible';
+// 函数类型枚举 - 区分过渡函数和全局函数
+export type FunctionCategory = 'transition' | 'global';
 
 // Flow 函数类型 - 用于流程内的可调用函数
 // transition: 过渡函数 - 用于流程控制，在连线上配置，可使用 flow.goto_step()
-// visible: 可见函数 - 用于业务执行，在LLM节点中绑定，由LLM自主决定调用
+// global: 全局函数 - 用于业务执行，在LLM节点中绑定，由LLM自主决定调用（对应 PolyAI 的 Global Functions）
 export interface FlowFunction {
   id: string;
   name: string;           // 函数名称，如 save_confirmation_code
@@ -492,8 +492,8 @@ export interface FlowFunction {
     targetStepId?: string;     // 默认跳转目标步骤（可选）
   };
   
-  // 新增：可见函数特有属性
-  visibleConfig?: {
+  // 新增：全局函数特有属性
+  globalConfig?: {
     triggerKeywords?: string[];  // 触发关键词（可选）
     executionStrategy?: 'sync' | 'async';  // 执行策略
     playFiller?: boolean;        // 是否播放等待音
@@ -650,12 +650,12 @@ export const BUILT_IN_FUNCTIONS: FlowFunction[] = [
     }
   },
   
-  // ========== 可见函数 ==========
+  // ========== 全局函数（PolyAI Global Functions）==========
   {
     id: 'builtin_transfer',
     name: 'transfer_call',
     description: '转接到人工客服或指定技能组',
-    category: 'visible',
+    category: 'global',
     parameters: [
       { name: 'destination', type: 'string', description: '目标技能组或坐席', required: true },
       { name: 'reason', type: 'string', description: '转接原因', required: false },
@@ -673,7 +673,7 @@ export const BUILT_IN_FUNCTIONS: FlowFunction[] = [
     }`,
     scope: 'global',
     isBuiltIn: true,
-    visibleConfig: {
+    globalConfig: {
       triggerKeywords: ['转人工', '人工客服', '转接'],
       executionStrategy: 'sync',
       playFiller: true,
@@ -684,7 +684,7 @@ export const BUILT_IN_FUNCTIONS: FlowFunction[] = [
     id: 'builtin_confirm_reservation',
     name: 'confirm_reservation',
     description: '确认预约信息',
-    category: 'visible',
+    category: 'global',
     parameters: [
       { name: 'confirmation_code', type: 'string', description: '确认码', required: true },
       { name: 'first_name', type: 'string', description: '名', required: true },
@@ -695,14 +695,13 @@ export const BUILT_IN_FUNCTIONS: FlowFunction[] = [
     conv.state['confirmation_code'] = confirmation_code
     conv.state['first_name'] = first_name
     conv.state['last_name'] = last_name
-    # 返回结果供LLM处理
     return {
         "status": "confirmed",
         "message": f"已确认 {first_name} {last_name} 的预约，确认码: {confirmation_code}"
     }`,
     scope: 'global',
     isBuiltIn: true,
-    visibleConfig: {
+    globalConfig: {
       triggerKeywords: ['确认预约', '预约确认'],
       executionStrategy: 'sync'
     }
@@ -711,7 +710,7 @@ export const BUILT_IN_FUNCTIONS: FlowFunction[] = [
     id: 'builtin_hangup',
     name: 'hangup',
     description: '挂断电话',
-    category: 'visible',
+    category: 'global',
     parameters: [
       { name: 'reason', type: 'string', description: '挂断原因', required: false }
     ],
@@ -723,7 +722,7 @@ export const BUILT_IN_FUNCTIONS: FlowFunction[] = [
     }`,
     scope: 'global',
     isBuiltIn: true,
-    visibleConfig: {
+    globalConfig: {
       triggerKeywords: ['挂断', '结束通话', '再见'],
       executionStrategy: 'sync'
     }
@@ -732,7 +731,7 @@ export const BUILT_IN_FUNCTIONS: FlowFunction[] = [
     id: 'builtin_send_sms',
     name: 'send_sms',
     description: '发送短信通知',
-    category: 'visible',
+    category: 'global',
     parameters: [
       { name: 'template', type: 'string', description: '短信模板ID', required: true },
       { name: 'params', type: 'object', description: '模板参数', required: false }
@@ -747,10 +746,228 @@ export const BUILT_IN_FUNCTIONS: FlowFunction[] = [
     }`,
     scope: 'global',
     isBuiltIn: true,
-    visibleConfig: {
+    globalConfig: {
       executionStrategy: 'async',
       playFiller: true,
       fillerContent: '正在发送短信...'
+    }
+  },
+  // PolyAI 内置全局函数
+  {
+    id: 'builtin_say',
+    name: 'say',
+    description: '直接对用户说话，绕过 LLM 生成',
+    category: 'global',
+    parameters: [
+      { name: 'text', type: 'string', description: '要说的话', required: true }
+    ],
+    code: `def say(conv, flow, text):
+    """直接对用户说话"""
+    return {"utterance": text}`,
+    scope: 'global',
+    isBuiltIn: true,
+    globalConfig: {
+      executionStrategy: 'sync'
+    }
+  },
+  {
+    id: 'builtin_goto_flow',
+    name: 'goto_flow',
+    description: '切换到另一个 flow',
+    category: 'global',
+    parameters: [
+      { name: 'flow_name', type: 'string', description: '目标 flow 名称', required: true }
+    ],
+    code: `def goto_flow(conv, flow, flow_name):
+    """切换到另一个 flow"""
+    conv.goto_flow(flow_name)
+    return`,
+    scope: 'global',
+    isBuiltIn: true,
+    globalConfig: {
+      executionStrategy: 'sync'
+    }
+  },
+  {
+    id: 'builtin_exit_flow',
+    name: 'exit_flow',
+    description: '退出当前 flow',
+    category: 'global',
+    parameters: [],
+    code: `def exit_flow(conv, flow):
+    """退出当前 flow"""
+    conv.exit_flow()
+    return`,
+    scope: 'global',
+    isBuiltIn: true,
+    globalConfig: {
+      executionStrategy: 'sync'
+    }
+  },
+  {
+    id: 'builtin_goto_csat',
+    name: 'goto_csat_flow',
+    description: '进入满意度调查流程',
+    category: 'global',
+    parameters: [],
+    code: `def goto_csat_flow(conv, flow):
+    """进入满意度调查流程"""
+    conv.goto_csat_flow()
+    return`,
+    scope: 'global',
+    isBuiltIn: true,
+    globalConfig: {
+      executionStrategy: 'sync'
+    }
+  },
+  {
+    id: 'builtin_send_email',
+    name: 'send_email',
+    description: '发送邮件通知',
+    category: 'global',
+    parameters: [
+      { name: 'to', type: 'string', description: '收件人邮箱', required: true },
+      { name: 'subject', type: 'string', description: '邮件主题', required: true },
+      { name: 'body', type: 'string', description: '邮件正文', required: true }
+    ],
+    code: `def send_email(conv, flow, to, subject, body):
+    """发送邮件通知"""
+    return {
+        "action": "send_email",
+        "to": to,
+        "subject": subject,
+        "body": body
+    }`,
+    scope: 'global',
+    isBuiltIn: true,
+    globalConfig: {
+      executionStrategy: 'async'
+    }
+  },
+  {
+    id: 'builtin_call_api',
+    name: 'call_api',
+    description: '调用已注册的 API 操作',
+    category: 'global',
+    parameters: [
+      { name: 'api_name', type: 'string', description: 'API 名称', required: true },
+      { name: 'operation', type: 'string', description: '操作名称', required: true },
+      { name: 'params', type: 'object', description: '请求参数', required: false }
+    ],
+    code: `def call_api(conv, flow, api_name, operation, params=None):
+    """调用已注册的 API"""
+    return conv.api[api_name][operation](**(params or {}))`,
+    scope: 'global',
+    isBuiltIn: true,
+    globalConfig: {
+      executionStrategy: 'async',
+      playFiller: true
+    }
+  },
+  {
+    id: 'builtin_set_voice',
+    name: 'set_voice',
+    description: '设置语音音色',
+    category: 'global',
+    parameters: [
+      { name: 'voice_id', type: 'string', description: '语音 ID', required: true }
+    ],
+    code: `def set_voice(conv, flow, voice_id):
+    """设置语音音色"""
+    conv.set_voice(voice_id)
+    return`,
+    scope: 'global',
+    isBuiltIn: true,
+    globalConfig: {
+      executionStrategy: 'sync'
+    }
+  },
+  {
+    id: 'builtin_set_language',
+    name: 'set_language',
+    description: '设置对话语言',
+    category: 'global',
+    parameters: [
+      { name: 'lang_code', type: 'string', description: '语言代码，如 zh-CN, en-US', required: true }
+    ],
+    code: `def set_language(conv, flow, lang_code):
+    """设置对话语言"""
+    conv.set_language(lang_code)
+    return`,
+    scope: 'global',
+    isBuiltIn: true,
+    globalConfig: {
+      executionStrategy: 'sync'
+    }
+  },
+  {
+    id: 'builtin_set_asr_biasing',
+    name: 'set_asr_biasing',
+    description: '动态设置 ASR 偏置，提高特定词汇识别率',
+    category: 'global',
+    parameters: [
+      { name: 'phrases', type: 'object', description: '偏置短语列表', required: true },
+      { name: 'boost', type: 'number', description: '偏置强度', required: false, defaultValue: 1.0 }
+    ],
+    code: `def set_asr_biasing(conv, flow, phrases, boost=1.0):
+    """动态设置 ASR 偏置"""
+    conv.set_asr_biasing({"phrases": phrases, "boost": boost})
+    return`,
+    scope: 'global',
+    isBuiltIn: true,
+    globalConfig: {
+      executionStrategy: 'sync'
+    }
+  },
+  {
+    id: 'builtin_clear_asr_biasing',
+    name: 'clear_asr_biasing',
+    description: '清除动态 ASR 偏置',
+    category: 'global',
+    parameters: [],
+    code: `def clear_asr_biasing(conv, flow):
+    """清除 ASR 偏置"""
+    conv.clear_asr_biasing()
+    return`,
+    scope: 'global',
+    isBuiltIn: true,
+    globalConfig: {
+      executionStrategy: 'sync'
+    }
+  },
+  {
+    id: 'builtin_discard_recording',
+    name: 'discard_recording',
+    description: '丢弃当前通话录音（隐私保护）',
+    category: 'global',
+    parameters: [],
+    code: `def discard_recording(conv, flow):
+    """丢弃录音"""
+    conv.discard_recording()
+    return`,
+    scope: 'global',
+    isBuiltIn: true,
+    globalConfig: {
+      executionStrategy: 'sync'
+    }
+  },
+  {
+    id: 'builtin_write_metric',
+    name: 'write_metric',
+    description: '写入自定义指标数据',
+    category: 'global',
+    parameters: [
+      { name: 'metric_name', type: 'string', description: '指标名称', required: true },
+      { name: 'value', type: 'number', description: '指标值', required: true }
+    ],
+    code: `def write_metric(conv, flow, metric_name, value):
+    """写入自定义指标"""
+    conv.write_metric(metric_name, value)
+    return`,
+    scope: 'global',
+    isBuiltIn: true,
+    globalConfig: {
+      executionStrategy: 'async'
     }
   }
 ];
@@ -1566,6 +1783,7 @@ export interface ReportMetrics {
   connectedCalls: number;
   connectionRate: number;
   avgDuration: number;
+  totalDuration: number;
   avgSatisfaction: number;
   transferRate: number;
   resolutionRate: number;

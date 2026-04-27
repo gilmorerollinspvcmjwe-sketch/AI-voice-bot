@@ -84,16 +84,21 @@ export function generateTrendData(days: number = 30): TrendData[] {
 export function generateCurrentMetrics(): { current: ReportMetrics; previous: ReportMetrics } {
   const currentTotalCalls = randomInt(800, 1500);
   const currentConnectedCalls = Math.floor(currentTotalCalls * randomFloat(0.65, 0.85));
+  const currentAvgDuration = randomFloat(120, 300);
+  const currentTotalDuration = Math.floor(currentConnectedCalls * currentAvgDuration);
   
   const previousTotalCalls = randomInt(700, 1400);
   const previousConnectedCalls = Math.floor(previousTotalCalls * randomFloat(0.60, 0.80));
+  const previousAvgDuration = randomFloat(110, 290);
+  const previousTotalDuration = Math.floor(previousConnectedCalls * previousAvgDuration);
   
   return {
     current: {
       totalCalls: currentTotalCalls,
       connectedCalls: currentConnectedCalls,
       connectionRate: parseFloat((currentConnectedCalls / currentTotalCalls).toFixed(2)),
-      avgDuration: randomFloat(120, 300),
+      avgDuration: currentAvgDuration,
+      totalDuration: currentTotalDuration,
       avgSatisfaction: randomFloat(3.5, 4.8),
       transferRate: randomFloat(0.1, 0.25),
       resolutionRate: randomFloat(0.6, 0.85),
@@ -102,7 +107,8 @@ export function generateCurrentMetrics(): { current: ReportMetrics; previous: Re
       totalCalls: previousTotalCalls,
       connectedCalls: previousConnectedCalls,
       connectionRate: parseFloat((previousConnectedCalls / previousTotalCalls).toFixed(2)),
-      avgDuration: randomFloat(110, 290),
+      avgDuration: previousAvgDuration,
+      totalDuration: previousTotalDuration,
       avgSatisfaction: randomFloat(3.3, 4.6),
       transferRate: randomFloat(0.12, 0.28),
       resolutionRate: randomFloat(0.55, 0.80),

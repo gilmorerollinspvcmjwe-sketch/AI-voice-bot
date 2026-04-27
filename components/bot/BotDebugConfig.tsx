@@ -5,7 +5,7 @@ import {
   MessageSquare, User, Bot, 
   ChevronDown, ChevronRight, Hash, 
   Zap, PhoneOff, Headset, 
-  Database, Server, Clock, Tag, Play, Check, AlertCircle
+  Database, Server, Clock, Tag, Play, Check, AlertCircle, Wrench, Box, Target, FileText, VolumeX, ChevronUp
 } from 'lucide-react';
 import { BotConfiguration } from '../../types';
 import { Switch, Select, Label } from '../ui/FormComponents';
@@ -32,6 +32,26 @@ interface TokenMetrics {
   total: number;
 }
 
+// 执行事件类型
+interface ExecutionEvent {
+  type: 'tool_call' | 'code_block' | 'topic_match' | 'variable_change' | 'barge_in' | 'no_answer';
+  name?: string;
+  params?: any;
+  result?: any;
+  status?: 'success' | 'failed' | 'retrying' | 'pending';
+  duration?: number;
+  retryCount?: number;
+  maxRetry?: number;
+  confidence?: number;
+  oldValue?: any;
+  newValue?: any;
+  source?: string;
+  reason?: string;
+  detail?: string;
+  triggerType?: string;
+  boundTools?: string[];
+}
+
 interface ChatMessage {
   id: string;
   role: 'user' | 'model' | 'system';
@@ -45,6 +65,8 @@ interface ChatMessage {
     detail: string;
     reason?: string;
   };
+  executionEvents?: ExecutionEvent[];
+  showExecutionDetail?: boolean;
 }
 
 const BotDebugConfig: React.FC<BotDebugConfigProps> = ({ config }) => {
@@ -125,23 +147,89 @@ const BotDebugConfig: React.FC<BotDebugConfigProps> = ({ config }) => {
     let responseText = "好的，我记录下来了。请问还有其他问题吗？";
     let actionEvent = undefined;
     let messageTags = ['大模型回复'];
+    let executionEvents: ExecutionEvent[] = [];
 
     if (userText.includes('你好') || userText.includes('开始')) {
       responseText = "您好，这里是智能客服中心，请问有什么可以帮您？";
       messageTags = ['开场白'];
+      executionEvents.push({
+        type: 'topic_match',
+        name: '开场问候',
+        confidence: 0.95,
+        triggerType: '关键词匹配',
+        boundTools: []
+      });
     } else if (userText.includes('我是')) {
       const name = userText.replace('我是', '').replace('我叫', '');
       responseText = `${name}您好，很高兴为您服务。`;
       setExtractionVars(prev => ({ ...prev, '客户姓名': name }));
       messageTags = ['大模型回复', '信息提取'];
+      executionEvents.push(
+        {
+          type: 'topic_match',
+          name: '身份确认',
+          confidence: 0.88,
+          triggerType: '语义匹配',
+          boundTools: ['normalize_phone_digits']
+        },
+        {
+          type: 'code_block',
+          name: 'normalize_phone_digits',
+          params: { input: name },
+          result: name,
+          status: 'success',
+          duration: 5
+        },
+        {
+          type: 'variable_change',
+          name: '客户姓名',
+          oldValue: '',
+          newValue: name,
+          source: 'LLM 提取'
+        }
+      );
     } else if (userText.includes('转人工')) {
       responseText = "好的，正在为您转接高级客户经理，请稍候...";
       actionEvent = { type: 'TRANSFER' as const, detail: 'VIP专家坐席', reason: '客户主动要求' };
       messageTags = ['转人工话术', '意图识别: 转人工'];
+      executionEvents.push(
+        {
+          type: 'topic_match',
+          name: '转人工',
+          confidence: 0.97,
+          triggerType: '关键词匹配',
+          boundTools: ['transfer_call']
+        },
+        {
+          type: 'tool_call',
+          name: 'transfer_call',
+          params: { destination: 'VIP专家坐席', reason: '客户主动要求' },
+          result: { status: 'transferring' },
+          status: 'success',
+          duration: 800
+        }
+      );
     } else if (userText.includes('挂断') || userText.includes('再见') || userText.includes('不需要') || userText.includes('结束')) {
       responseText = "感谢您的来电，祝您生活愉快，再见。";
       actionEvent = { type: 'HANGUP' as const, detail: '正常挂机', reason: '业务结束' };
       messageTags = ['挂机话术', '意图识别: 挂断'];
+      executionEvents.push(
+        {
+          type: 'topic_match',
+          name: '结束通话',
+          confidence: 0.92,
+          triggerType: '语义匹配',
+          boundTools: ['hangup']
+        },
+        {
+          type: 'tool_call',
+          name: 'hangup',
+          params: { reason: '业务结束' },
+          result: { status: 'ended' },
+          status: 'success',
+          duration: 100
+        }
+      );
       const simulatedAutoTags: string[] = [];
       config.labelGroups.forEach(group => {
         if (!group.enabled || group.tags.length === 0) return;
@@ -166,6 +254,96 @@ const BotDebugConfig: React.FC<BotDebugConfigProps> = ({ config }) => {
         '客户意图': 'A级(有回访意愿)'
       }));
       messageTags = ['大模型回复', '信息提取', '预约成功'];
+      executionEvents.push(
+        {
+          type: 'topic_match',
+          name: '预约回访',
+          confidence: 0.91,
+          triggerType: '语义匹配',
+          boundTools: ['save_state', 'send_sms']
+        },
+        {
+          type: 'tool_call',
+          name: 'send_sms',
+          params: { template: 'SMS_REMINDER', phone: inputVars['客户电话'] },
+          result: { status: 'sent', messageId: 'msg_12345' },
+          status: 'success',
+          duration: 1200
+        },
+        {
+          type: 'code_block',
+          name: 'save_state',
+          params: { key: '回访时间', value: '2024-05-21 14:00' },
+          result: { success: true },
+          status: 'success',
+          duration: 3
+        },
+        {
+          type: 'variable_change',
+          name: '下次回访时间',
+          oldValue: '',
+          newValue: '2024-05-21 14:00',
+          source: 'LLM 提取'
+        },
+        {
+          type: 'variable_change',
+          name: '客户意图',
+          oldValue: '',
+          newValue: 'A级(有回访意愿)',
+          source: 'LLM 提取'
+        }
+      );
+    } else if (userText.includes('查询') || userText.includes('订单')) {
+      responseText = "正在为您查询订单信息，请稍候...";
+      messageTags = ['大模型回复', '工具调用'];
+      executionEvents.push(
+        {
+          type: 'topic_match',
+          name: '查询订单',
+          confidence: 0.89,
+          triggerType: '语义匹配',
+          boundTools: ['query_order_status']
+        },
+        {
+          type: 'tool_call',
+          name: 'query_order_status',
+          params: { order_id: '12345' },
+          result: { status: 'shipped', eta: '3天' },
+          status: 'success',
+          duration: 1500
+        }
+      );
+    } else if (userText.includes('等等') || userText.includes('打断')) {
+      responseText = "好的，请问您需要什么帮助？";
+      messageTags = ['打断处理', '重新采集'];
+      executionEvents.push(
+        {
+          type: 'barge_in',
+          detail: '用户打断',
+          reason: '用户主动打断',
+          params: { userText: userText, botText: '正在为您查询...' }
+        }
+      );
+    } else if (userText === '' || userText.includes('静默')) {
+      responseText = '';
+      messageTags = ['无需回答'];
+      executionEvents.push(
+        {
+          type: 'no_answer',
+          reason: '用户输入为静默/背景噪音',
+          detail: 'LLM 决策不生成回复，继续等待'
+        }
+      );
+    } else {
+      executionEvents.push(
+        {
+          type: 'topic_match',
+          name: '通用回复',
+          confidence: 0.75,
+          triggerType: '默认匹配',
+          boundTools: []
+        }
+      );
     }
 
     Object.values(inputVars).forEach((val) => {
@@ -200,7 +378,8 @@ const BotDebugConfig: React.FC<BotDebugConfigProps> = ({ config }) => {
         e2eTotal
       },
       actionEvent,
-      tags: messageTags
+      tags: messageTags,
+      executionEvents
     };
   };
 
@@ -231,7 +410,8 @@ const BotDebugConfig: React.FC<BotDebugConfigProps> = ({ config }) => {
             content: result.responseText,
             timestamp: Date.now(),
             latency: result.latency,
-            tags: result.tags
+            tags: result.tags,
+            executionEvents: result.executionEvents
          };
          setMessages(prev => [...prev, botMsg]);
 
@@ -253,7 +433,8 @@ const BotDebugConfig: React.FC<BotDebugConfigProps> = ({ config }) => {
             content: result.responseText,
             timestamp: Date.now(),
             latency: result.latency,
-            tags: result.tags
+            tags: result.tags,
+            executionEvents: result.executionEvents
          };
          setMessages(prev => [...prev, botMsg]);
       }
@@ -286,7 +467,30 @@ const BotDebugConfig: React.FC<BotDebugConfigProps> = ({ config }) => {
       content: openingText,
       timestamp: Date.now(),
       latency: { llmTotal: 120, e2eTTFB: 120, e2eTotal: 120 },
-      tags: ['开场白', '使用输入变量', '自动触发']
+      tags: ['开场白', '使用输入变量', '自动触发'],
+      executionEvents: [
+        {
+          type: 'topic_match',
+          name: '开场问候',
+          confidence: 0.98,
+          triggerType: 'Flow 入口',
+          boundTools: []
+        },
+        {
+          type: 'variable_change',
+          name: '客户姓名',
+          oldValue: '',
+          newValue: clientName,
+          source: '输入变量'
+        },
+        {
+          type: 'variable_change',
+          name: '欠款金额',
+          oldValue: '',
+          newValue: money,
+          source: '输入变量'
+        }
+      ]
     };
     setMessages([botMsg]);
     setIsLoading(false);
@@ -529,6 +733,161 @@ const BotDebugConfig: React.FC<BotDebugConfigProps> = ({ config }) => {
                               </span>
                             );
                         })}
+                      </div>
+                    )}
+                    
+                    {/* Execution Events Tags */}
+                    {msg.role === 'model' && msg.executionEvents && msg.executionEvents.length > 0 && (
+                      <div className="mt-2 ml-1">
+                        <button 
+                          onClick={() => {
+                            setMessages(prev => prev.map(m => 
+                              m.id === msg.id ? { ...m, showExecutionDetail: !m.showExecutionDetail } : m
+                            ));
+                          }}
+                          className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-primary transition-colors"
+                        >
+                          {(() => {
+                            const toolCount = msg.executionEvents!.filter(e => e.type === 'tool_call').length;
+                            const codeCount = msg.executionEvents!.filter(e => e.type === 'code_block').length;
+                            const topicMatch = msg.executionEvents!.find(e => e.type === 'topic_match');
+                            const varCount = msg.executionEvents!.filter(e => e.type === 'variable_change').length;
+                            const hasBargeIn = msg.executionEvents!.some(e => e.type === 'barge_in');
+                            const hasNoAnswer = msg.executionEvents!.some(e => e.type === 'no_answer');
+                            
+                            const tags = [];
+                            if (toolCount > 0) tags.push(<span key="tool" className="flex items-center gap-0.5 text-blue-600"><Wrench size={10} /> 工具调用({toolCount})</span>);
+                            if (codeCount > 0) tags.push(<span key="code" className="flex items-center gap-0.5 text-green-600"><Box size={10} /> 代码块({codeCount})</span>);
+                            if (topicMatch) tags.push(<span key="topic" className="flex items-center gap-0.5 text-purple-600"><Target size={10} /> 主题:{topicMatch.name}</span>);
+                            if (varCount > 0) tags.push(<span key="var" className="flex items-center gap-0.5 text-orange-600"><FileText size={10} /> 变量({varCount})</span>);
+                            if (hasBargeIn) tags.push(<span key="barge" className="flex items-center gap-0.5 text-yellow-600"><Zap size={10} /> 打断</span>);
+                            if (hasNoAnswer) tags.push(<span key="noanswer" className="flex items-center gap-0.5 text-slate-400"><VolumeX size={10} /> 无需回答</span>);
+                            
+                            return (
+                              <>
+                                {tags.map((t, i) => (
+                                  <React.Fragment key={i}>
+                                    {t}
+                                    {i < tags.length - 1 && <span className="text-slate-300 mx-1">|</span>}
+                                  </React.Fragment>
+                                ))}
+                                <span className="ml-1 text-slate-300">{msg.showExecutionDetail ? '▲' : '▼'}</span>
+                              </>
+                            );
+                          })()}
+                        </button>
+                        
+                        {/* Execution Events Detail Panel */}
+                        {msg.showExecutionDetail && (
+                          <div className="mt-2 p-3 bg-slate-50 rounded-lg border border-slate-200 text-[10px] space-y-3 animate-in fade-in slide-in-from-top-2">
+                            {/* Tool Calls */}
+                            {msg.executionEvents!.filter(e => e.type === 'tool_call').map((event, idx) => (
+                              <div key={`tool-${idx}`} className="border-b border-slate-100 pb-2 last:border-0">
+                                <div className="flex items-center gap-1 font-bold text-blue-700 mb-1">
+                                  <Wrench size={10} />
+                                  <span>{idx + 1}. {event.name}</span>
+                                  {event.status === 'success' && <Check size={10} className="text-green-500" />}
+                                  {event.status === 'failed' && <AlertCircle size={10} className="text-red-500" />}
+                                  {event.status === 'retrying' && <span className="text-yellow-500">⚠️ 重试 {event.retryCount}/{event.maxRetry || 3}</span>}
+                                </div>
+                                <div className="text-slate-600 ml-3">
+                                  <div>参数: <code className="bg-white px-1 rounded">{JSON.stringify(event.params || {})}</code></div>
+                                  {event.result && <div>结果: <code className="bg-white px-1 rounded">{JSON.stringify(event.result)}</code></div>}
+                                  {event.duration && <div>耗时: <span className="font-mono">{event.duration}ms</span></div>}
+                                  {event.reason && <div className="text-red-500">原因: {event.reason}</div>}
+                                </div>
+                              </div>
+                            ))}
+                            
+                            {/* Code Blocks */}
+                            {msg.executionEvents!.filter(e => e.type === 'code_block').map((event, idx) => (
+                              <div key={`code-${idx}`} className="border-b border-slate-100 pb-2 last:border-0">
+                                <div className="flex items-center gap-1 font-bold text-green-700 mb-1">
+                                  <Box size={10} />
+                                  <span>{idx + 1}. {event.name}</span>
+                                  <span className="text-[8px] px-1 py-0.5 rounded bg-green-100 text-green-600">{event.source || '全局函数'}</span>
+                                </div>
+                                <div className="text-slate-600 ml-3">
+                                  {event.params && <div>输入: <code className="bg-white px-1 rounded">{JSON.stringify(event.params)}</code></div>}
+                                  {event.result && <div>输出: <code className="bg-white px-1 rounded">{JSON.stringify(event.result)}</code></div>}
+                                  {event.duration && <div>耗时: <span className="font-mono">{event.duration}ms</span></div>}
+                                </div>
+                              </div>
+                            ))}
+                            
+                            {/* Topic Match */}
+                            {msg.executionEvents!.filter(e => e.type === 'topic_match').map((event, idx) => (
+                              <div key={`topic-${idx}`} className="border-b border-slate-100 pb-2 last:border-0">
+                                <div className="flex items-center gap-1 font-bold text-purple-700 mb-1">
+                                  <Target size={10} />
+                                  <span>主题: {event.name}</span>
+                                </div>
+                                <div className="text-slate-600 ml-3">
+                                  <div className="flex items-center gap-2">
+                                    置信度: 
+                                    <div className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden max-w-[100px]">
+                                      <div 
+                                        className="h-full bg-purple-500" 
+                                        style={{ width: `${(event.confidence || 0) * 100}%` }}
+                                      />
+                                    </div>
+                                    <span className="font-mono">{Math.round((event.confidence || 0) * 100)}%</span>
+                                  </div>
+                                  {event.triggerType && <div>触发方式: {event.triggerType}</div>}
+                                  {event.boundTools && event.boundTools.length > 0 && <div>绑定工具: {event.boundTools.join(', ')}</div>}
+                                </div>
+                              </div>
+                            ))}
+                            
+                            {/* Variable Changes */}
+                            {msg.executionEvents!.filter(e => e.type === 'variable_change').map((event, idx) => (
+                              <div key={`var-${idx}`} className="border-b border-slate-100 pb-2 last:border-0">
+                                <div className="flex items-center gap-1 font-bold text-orange-700 mb-1">
+                                  <FileText size={10} />
+                                  <span>{idx + 1}. {event.name}</span>
+                                </div>
+                                <div className="text-slate-600 ml-3">
+                                  <div>
+                                    值变化: 
+                                    <code className="bg-slate-200 px-1 rounded text-slate-400">{String(event.oldValue || '')}</code>
+                                    <span className="mx-1">→</span>
+                                    <code className="bg-orange-100 px-1 rounded text-orange-700">{String(event.newValue || '')}</code>
+                                  </div>
+                                  {event.source && <div>来源: {event.source}</div>}
+                                </div>
+                              </div>
+                            ))}
+                            
+                            {/* Barge In */}
+                            {msg.executionEvents!.filter(e => e.type === 'barge_in').map((event, idx) => (
+                              <div key={`barge-${idx}`} className="border-b border-slate-100 pb-2 last:border-0 bg-yellow-50/50 -mx-3 px-3">
+                                <div className="flex items-center gap-1 font-bold text-yellow-700 mb-1">
+                                  <Zap size={10} />
+                                  <span>用户打断</span>
+                                </div>
+                                <div className="text-slate-600 ml-3">
+                                  {event.params?.userText && <div>用户说: "{event.params.userText}"</div>}
+                                  {event.params?.botText && <div>Bot 正在说: "{event.params.botText}"</div>}
+                                  {event.reason && <div>原因: {event.reason}</div>}
+                                </div>
+                              </div>
+                            ))}
+                            
+                            {/* No Answer */}
+                            {msg.executionEvents!.filter(e => e.type === 'no_answer').map((event, idx) => (
+                              <div key={`noanswer-${idx}`} className="border-b border-slate-100 pb-2 last:border-0 bg-slate-100/50 -mx-3 px-3">
+                                <div className="flex items-center gap-1 font-bold text-slate-500 mb-1">
+                                  <VolumeX size={10} />
+                                  <span>无需回答</span>
+                                </div>
+                                <div className="text-slate-600 ml-3">
+                                  {event.reason && <div>原因: {event.reason}</div>}
+                                  {event.detail && <div>详情: {event.detail}</div>}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

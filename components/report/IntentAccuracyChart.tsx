@@ -39,7 +39,7 @@ const IntentAccuracyChart: React.FC<IntentAccuracyChartProps> = ({
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Intent Accuracy Chart */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-        <h3 className="text-base font-bold text-slate-800 mb-4">意图识别准确率</h3>
+        <h3 className="text-base font-bold text-slate-800 mb-4">主题识别准确率</h3>
         <ResponsiveContainer width="100%" height={280}>
           <BarChart
             data={sortedData}
@@ -87,13 +87,13 @@ const IntentAccuracyChart: React.FC<IntentAccuracyChartProps> = ({
 
       {/* Intent Stats Table */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-        <h3 className="text-base font-bold text-slate-800 mb-4">意图触发统计</h3>
+        <h3 className="text-base font-bold text-slate-800 mb-4">主题触发统计</h3>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-slate-50 border-b border-gray-100">
               <tr>
                 <th className="px-3 py-2 text-left text-xs font-bold text-slate-500 uppercase">
-                  意图名称
+                  主题名称
                 </th>
                 <th className="px-3 py-2 text-center text-xs font-bold text-slate-500 uppercase">
                   触发次数
@@ -123,7 +123,7 @@ const IntentAccuracyChart: React.FC<IntentAccuracyChartProps> = ({
       {/* Unmatched Intents */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 lg:col-span-2">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-base font-bold text-slate-800">未识别意图 TOP 10</h3>
+          <h3 className="text-base font-bold text-slate-800">未识别主题 TOP 10</h3>
           <span className="text-xs text-slate-500">可一键添加到知识库</span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

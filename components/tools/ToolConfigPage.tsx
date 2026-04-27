@@ -4,6 +4,7 @@ import { Edit3, Link, Plus, Power, Trash2, Wrench } from 'lucide-react';
 import { AgentTool, ExtractionConfig } from '../../types';
 import AgentToolModal from '../bot/agent/AgentToolModal';
 import McpServerModal from '../bot/agent/McpServerModal';
+import GeoLocationToolConfig from './GeoLocationToolConfig';
 
 const MOCK_EXTRACTION_CONFIGS: ExtractionConfig[] = [
   {
@@ -26,6 +27,7 @@ const INITIAL_TOOLS: AgentTool[] = [
   { id: 'tool_sms', name: 'send_sms', description: '向用户发送短信通知', type: 'SMS', enabled: true, category: 'communication', parameters: [] },
   { id: 'tool_query_order', name: 'query_order', description: '查询用户订单状态', type: 'API', enabled: true, category: 'api_call', parameters: [] },
   { id: 'tool_transfer', name: 'transfer_call', description: '转接人工客服', type: 'TRANSFER', enabled: true, category: 'transfer', parameters: [] },
+  { id: 'tool_geo_location', name: 'query_location', description: '查询地理位置信息（门店、网点等）', type: 'CUSTOM', enabled: true, category: 'other', icon: '📍', parameters: [] },
 ];
 
 const CATEGORY_OPTIONS = [
@@ -48,6 +50,7 @@ export default function ToolConfigPage() {
   const [editingTool, setEditingTool] = useState<AgentTool | null>(null);
   const [isToolModalOpen, setIsToolModalOpen] = useState(false);
   const [isMcpModalOpen, setIsMcpModalOpen] = useState(false);
+  const [isGeoModalOpen, setIsGeoModalOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<(typeof CATEGORY_OPTIONS)[number]['id']>('all');
 
   const handleSaveTool = (tool: AgentTool) => {
@@ -149,7 +152,14 @@ export default function ToolConfigPage() {
                     <Power size={12} className="mr-1" />
                     {tool.enabled ? '已启用' : '已禁用'}
                   </button>
-                  <button onClick={() => { setEditingTool(tool); setIsToolModalOpen(true); }} className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center">
+                  <button onClick={() => {
+                    if (tool.id === 'tool_geo_location') {
+                      setIsGeoModalOpen(true);
+                    } else {
+                      setEditingTool(tool);
+                      setIsToolModalOpen(true);
+                    }
+                  }} className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center">
                     <Edit3 size={12} className="mr-1" />
                     编辑
                   </button>
@@ -166,6 +176,7 @@ export default function ToolConfigPage() {
 
       {isToolModalOpen && <AgentToolModal tool={editingTool || undefined} onSave={handleSaveTool} onClose={() => setIsToolModalOpen(false)} extractionConfigs={MOCK_EXTRACTION_CONFIGS} />}
       {isMcpModalOpen && <McpServerModal onClose={() => setIsMcpModalOpen(false)} onSave={() => setIsMcpModalOpen(false)} />}
+      {isGeoModalOpen && <GeoLocationToolConfig onClose={() => setIsGeoModalOpen(false)} />}
     </div>
   );
 }

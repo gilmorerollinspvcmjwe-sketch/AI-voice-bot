@@ -23,7 +23,7 @@ const DEFAULT_FUNCTION: FlowFunction = {
   parameters: [],
   scope: 'flow',
   isBuiltIn: false,
-  category: 'visible'
+  category: 'global'
 };
 
 export default function FunctionManager({ functions = [], onSave }: FunctionManagerProps) {
@@ -34,7 +34,7 @@ export default function FunctionManager({ functions = [], onSave }: FunctionMana
   const [isEditing, setIsEditing] = useState(false);
   const [editingFunction, setEditingFunction] = useState<FlowFunction | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showCategory, setShowCategory] = useState<'all' | 'transition' | 'visible'>('all');
+  const [showCategory, setShowCategory] = useState<'all' | 'transition' | 'global'>('all');
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -70,7 +70,7 @@ export default function FunctionManager({ functions = [], onSave }: FunctionMana
   });
 
   const transitionFunctions = filteredFunctions.filter(fn => fn.category === 'transition');
-  const visibleFunctions = filteredFunctions.filter(fn => fn.category === 'visible');
+  const globalFunctions = filteredFunctions.filter(fn => fn.category === 'global');
 
   const selectedFunction = allFunctions.find(fn => fn.id === selectedId);
 
@@ -246,7 +246,7 @@ export default function FunctionManager({ functions = [], onSave }: FunctionMana
 
           {/* Category Filter */}
           <div className="flex bg-slate-100 p-1 rounded mb-2">
-            {(['all', 'transition', 'visible'] as const).map(cat => (
+            {(['all', 'transition', 'global'] as const).map(cat => (
               <button
                 key={cat}
                 onClick={() => setShowCategory(cat)}
@@ -254,7 +254,7 @@ export default function FunctionManager({ functions = [], onSave }: FunctionMana
                   showCategory === cat ? 'bg-white shadow text-primary' : 'text-slate-500'
                 }`}
               >
-                {cat === 'all' ? '全部' : cat === 'transition' ? '过渡' : '可见'}
+                {cat === 'all' ? '全部' : cat === 'transition' ? '过渡' : '全局'}
               </button>
             ))}
           </div>
@@ -263,10 +263,10 @@ export default function FunctionManager({ functions = [], onSave }: FunctionMana
 
         {/* Function List */}
         <div className="flex-1 overflow-y-auto">
-          {showCategory !== 'visible' && renderFunctionList(transitionFunctions.filter(fn => fn.isBuiltIn), '过渡函数 (内置)', ArrowRight, 'green')}
-          {showCategory !== 'visible' && renderFunctionList(transitionFunctions.filter(fn => !fn.isBuiltIn), '过渡函数 (自定义)', ArrowRight, 'green')}
-          {showCategory !== 'transition' && renderFunctionList(visibleFunctions.filter(fn => fn.isBuiltIn), '可见函数 (内置)', Zap, 'blue')}
-          {showCategory !== 'transition' && renderFunctionList(visibleFunctions.filter(fn => !fn.isBuiltIn), '可见函数 (自定义)', Zap, 'blue')}
+          {showCategory !== 'global' && renderFunctionList(transitionFunctions.filter(fn => fn.isBuiltIn), '过渡函数 (内置)', ArrowRight, 'green')}
+          {showCategory !== 'global' && renderFunctionList(transitionFunctions.filter(fn => !fn.isBuiltIn), '过渡函数 (自定义)', ArrowRight, 'green')}
+          {showCategory !== 'transition' && renderFunctionList(globalFunctions.filter(fn => fn.isBuiltIn), '全局函数 (内置)', Zap, 'blue')}
+          {showCategory !== 'transition' && renderFunctionList(globalFunctions.filter(fn => !fn.isBuiltIn), '全局函数 (自定义)', Zap, 'blue')}
           
           {filteredFunctions.length === 0 && (
             <p className="text-[10px] text-slate-400 text-center py-8">暂无匹配的代码块</p>
@@ -343,11 +343,11 @@ export default function FunctionManager({ functions = [], onSave }: FunctionMana
                         <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:border-blue-300 transition-colors flex-1">
                           <input
                             type="radio"
-                            checked={editingFunction.category === 'visible'}
+                            checked={editingFunction.category === 'global'}
                             onChange={() => setEditingFunction({ 
                               ...editingFunction, 
-                              category: 'visible',
-                              visibleConfig: {
+                              category: 'global',
+                              globalConfig: {
                                 executionStrategy: 'sync',
                                 playFiller: false
                               }
@@ -357,7 +357,7 @@ export default function FunctionManager({ functions = [], onSave }: FunctionMana
                           <div>
                             <div className="flex items-center gap-1 text-sm text-slate-700">
                               <Zap size={12} className="text-blue-500" />
-                              <span className="font-medium">可见函数</span>
+                              <span className="font-medium">全局函数</span>
                             </div>
                             <p className="text-[10px] text-slate-400 mt-0.5">用于业务执行，LLM自主调用</p>
                           </div>
@@ -444,20 +444,20 @@ export default function FunctionManager({ functions = [], onSave }: FunctionMana
                   </div>
                 )}
 
-                {/* Visible Config */}
-                {editingFunction.category === 'visible' && (
+                {/* Global Config */}
+                {editingFunction.category === 'global' && (
                   <div className="bg-blue-50 rounded-xl border border-blue-100 p-6">
-                    <h3 className="text-sm font-bold text-blue-700 mb-4">可见函数配置</h3>
+                    <h3 className="text-sm font-bold text-blue-700 mb-4">全局函数配置</h3>
                     <div className="space-y-4">
                       <div>
                         <Label label="执行策略" />
                         <select
                           className="w-full px-3 py-2 text-sm border border-slate-200 rounded bg-white"
-                          value={editingFunction.visibleConfig?.executionStrategy || 'sync'}
+                          value={editingFunction.globalConfig?.executionStrategy || 'sync'}
                           onChange={(e) => setEditingFunction({
                             ...editingFunction,
-                            visibleConfig: {
-                              ...editingFunction.visibleConfig,
+                            globalConfig: {
+                              ...editingFunction.globalConfig,
                               executionStrategy: e.target.value as 'sync' | 'async'
                             }
                           })}
@@ -469,11 +469,11 @@ export default function FunctionManager({ functions = [], onSave }: FunctionMana
                       <label className="flex items-center">
                         <input
                           type="checkbox"
-                          checked={editingFunction.visibleConfig?.playFiller || false}
+                          checked={editingFunction.globalConfig?.playFiller || false}
                           onChange={(e) => setEditingFunction({
                             ...editingFunction,
-                            visibleConfig: {
-                              ...editingFunction.visibleConfig,
+                            globalConfig: {
+                              ...editingFunction.globalConfig,
                               playFiller: e.target.checked
                             }
                           })}
@@ -481,16 +481,16 @@ export default function FunctionManager({ functions = [], onSave }: FunctionMana
                         />
                         <span className="text-sm text-slate-600">执行时播放等待音</span>
                       </label>
-                      {editingFunction.visibleConfig?.playFiller && (
+                      {editingFunction.globalConfig?.playFiller && (
                         <div>
                           <Label label="等待音内容" />
                           <Input
                             placeholder="正在处理，请稍候..."
-                            value={editingFunction.visibleConfig?.fillerContent || ''}
+                            value={editingFunction.globalConfig?.fillerContent || ''}
                             onChange={(e) => setEditingFunction({
                               ...editingFunction,
-                              visibleConfig: {
-                                ...editingFunction.visibleConfig,
+                              globalConfig: {
+                                ...editingFunction.globalConfig,
                                 fillerContent: e.target.value
                               }
                             })}
