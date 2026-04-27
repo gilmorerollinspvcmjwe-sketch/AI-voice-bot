@@ -1,5 +1,5 @@
 import React from 'react';
-import { Phone, PhoneCall, Clock, Star, Headphones, CheckCircle, TrendingUp, TrendingDown } from 'lucide-react';
+import { Phone, PhoneCall, Clock, Star, Headphones, CheckCircle, Timer, TrendingUp, TrendingDown } from 'lucide-react';
 import { ReportMetrics } from '../../types';
 
 interface MetricCardProps {
@@ -76,9 +76,18 @@ const DashboardCards: React.FC<DashboardCardsProps> = ({ current, previous, onCa
   };
 
   const formatDuration = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    const totalSecs = Math.round(seconds);
+    const mins = Math.floor(totalSecs / 60);
+    const secs = totalSecs % 60;
+    return `${mins}分${secs}秒`;
+  };
+
+  const formatTotalDuration = (seconds: number): string => {
+    const totalMins = Math.round(seconds / 60);
+    const hours = Math.floor(totalMins / 60);
+    const mins = totalMins % 60;
+    if (hours > 0) return `${hours}小时${mins}分`;
+    return `${mins}分`;
   };
 
   const cards = [
@@ -108,6 +117,14 @@ const DashboardCards: React.FC<DashboardCardsProps> = ({ current, previous, onCa
       metricType: 'avgDuration',
     },
     {
+      title: '通话总时长',
+      value: formatTotalDuration(current.totalDuration),
+      change: calculateChange(current.totalDuration, previous.totalDuration),
+      icon: <Timer size={24} />,
+      color: 'blue' as const,
+      metricType: 'totalDuration',
+    },
+    {
       title: '平均满意度',
       value: current.avgSatisfaction.toFixed(1),
       unit: '分',
@@ -115,6 +132,14 @@ const DashboardCards: React.FC<DashboardCardsProps> = ({ current, previous, onCa
       icon: <Star size={24} />,
       color: 'purple' as const,
       metricType: 'satisfaction',
+    },
+    {
+      title: '转人工量',
+      value: current.transferCount,
+      change: calculateChange(current.transferCount, previous.transferCount),
+      icon: <Headphones size={24} />,
+      color: 'red' as const,
+      metricType: 'transferCount',
     },
     {
       title: '转人工率',
@@ -126,18 +151,18 @@ const DashboardCards: React.FC<DashboardCardsProps> = ({ current, previous, onCa
       metricType: 'transferRate',
     },
     {
-      title: '机器人解决率',
-      value: `${(current.resolutionRate * 100).toFixed(1)}`,
+      title: '拦截率',
+      value: `${(current.interceptRate * 100).toFixed(1)}`,
       unit: '%',
-      change: calculateChange(current.resolutionRate, previous.resolutionRate),
+      change: calculateChange(current.interceptRate, previous.interceptRate),
       icon: <CheckCircle size={24} />,
       color: 'green' as const,
-      metricType: 'resolutionRate',
+      metricType: 'interceptRate',
     },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {cards.map((card) => (
         <MetricCard
           key={card.metricType}

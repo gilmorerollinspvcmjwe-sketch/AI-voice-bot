@@ -12,7 +12,7 @@ import {
 } from '../../types';
 
 // Bot configurations for mock data
-const MOCK_BOTS = [
+export const MOCK_BOTS = [
   { id: 'bot_1', name: '滴滴出行智能客服' },
   { id: 'bot_2', name: '电商售后机器人' },
   { id: 'bot_3', name: '银行信用卡服务' },
@@ -93,19 +93,23 @@ export function generateCurrentMetrics(): { current: ReportMetrics; previous: Re
       totalCalls: currentTotalCalls,
       connectedCalls: currentConnectedCalls,
       connectionRate: parseFloat((currentConnectedCalls / currentTotalCalls).toFixed(2)),
+      totalDuration: currentConnectedCalls * randomFloat(120, 300),
       avgDuration: randomFloat(120, 300),
       avgSatisfaction: randomFloat(3.5, 4.8),
+      transferCount: Math.floor(currentConnectedCalls * randomFloat(0.1, 0.25)),
       transferRate: randomFloat(0.1, 0.25),
-      resolutionRate: randomFloat(0.6, 0.85),
+      interceptRate: randomFloat(0.6, 0.85),
     },
     previous: {
       totalCalls: previousTotalCalls,
       connectedCalls: previousConnectedCalls,
       connectionRate: parseFloat((previousConnectedCalls / previousTotalCalls).toFixed(2)),
+      totalDuration: previousConnectedCalls * randomFloat(110, 290),
       avgDuration: randomFloat(110, 290),
       avgSatisfaction: randomFloat(3.3, 4.6),
+      transferCount: Math.floor(previousConnectedCalls * randomFloat(0.12, 0.28)),
       transferRate: randomFloat(0.12, 0.28),
-      resolutionRate: randomFloat(0.55, 0.80),
+      interceptRate: randomFloat(0.55, 0.80),
     },
   };
 }
