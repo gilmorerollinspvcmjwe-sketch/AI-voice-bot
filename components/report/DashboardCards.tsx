@@ -1,5 +1,5 @@
 import React from 'react';
-import { Phone, PhoneCall, Clock, Headphones, Timer, TrendingUp, TrendingDown } from 'lucide-react';
+import { Phone, PhoneCall, Clock, Star, Headphones, CheckCircle, Timer, TrendingUp, TrendingDown } from 'lucide-react';
 import { ReportMetrics } from '../../types';
 
 interface MetricCardProps {
@@ -76,9 +76,18 @@ const DashboardCards: React.FC<DashboardCardsProps> = ({ current, previous, onCa
   };
 
   const formatDuration = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    const totalSecs = Math.round(seconds);
+    const mins = Math.floor(totalSecs / 60);
+    const secs = totalSecs % 60;
+    return `${mins}分${secs}秒`;
+  };
+
+  const formatTotalDuration = (seconds: number): string => {
+    const totalMins = Math.round(seconds / 60);
+    const hours = Math.floor(totalMins / 60);
+    const mins = totalMins % 60;
+    if (hours > 0) return `${hours}小时${mins}分`;
+    return `${mins}分`;
   };
 
   const cards = [
@@ -109,26 +118,24 @@ const DashboardCards: React.FC<DashboardCardsProps> = ({ current, previous, onCa
     },
     {
       title: '通话时长',
-      value: Math.floor(current.totalDuration / 60),
-      unit: '分钟',
+      value: formatTotalDuration(current.totalDuration),
       change: calculateChange(current.totalDuration, previous.totalDuration),
       icon: <Timer size={24} />,
       color: 'purple' as const,
       metricType: 'totalDuration',
     },
     {
-      title: '转人工率',
-      value: `${(current.transferRate * 100).toFixed(1)}`,
-      unit: '%',
-      change: calculateChange(current.transferRate, previous.transferRate),
+      title: '转人工量',
+      value: current.transferCount,
+      change: calculateChange(current.transferCount, previous.transferCount),
       icon: <Headphones size={24} />,
       color: 'red' as const,
-      metricType: 'transferRate',
+      metricType: 'transferCount',
     },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
       {cards.map((card) => (
         <MetricCard
           key={card.metricType}

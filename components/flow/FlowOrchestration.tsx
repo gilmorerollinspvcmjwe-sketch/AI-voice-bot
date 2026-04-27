@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { BotConfiguration, ExtractionConfig } from '../../types';
 import { Select, Input, Label } from '../ui/FormComponents';
+import { FlowScenario } from './FlowListPage';
 
 // --- TYPES ---
 
@@ -57,82 +58,6 @@ interface FlowEdge {
   branchId?: string;
 }
 
-interface FlowScenario {
-  id: string;
-  name: string;
-  description: string;
-  status: 'active' | 'draft' | 'inactive';
-  lastUpdated: number;
-  nodes: FlowNode[];
-  edges: FlowEdge[];
-}
-
-// --- COMPLEX MULTI-AGENT DEMO SCENARIO V2 ---
-
-const COMPLEX_DEMO_SCENARIO: FlowScenario = {
-  id: 'complex_1',
-  name: '企业级多Agent协作总线 (混合架构)',
-  description: '演示了 "正则反射弧" 优先处理挂机指令，以及在 Agent 切换间隙插入 "等待音" 以防止静默挂机。',
-  status: 'active',
-  lastUpdated: Date.now(),
-  nodes: [
-    // 1. 入口
-    { id: 'start', type: 'TRIGGER', subType: 'inbound', label: '呼入 400 热线', x: 50, y: 350, config: { did: '400-123-4567' } },
-    
-    // 2. 正则反射弧 (新增)
-    { id: 'logic_regex', type: 'LOGIC', subType: 'regex_match', label: '敏感词/挂机拦截', x: 300, y: 350, config: { pattern: '(挂断|不需要|滚|再见)', action: 'hangup' } },
-
-    // 3. 前台接待 Agent (总控)
-    { id: 'agent_reception', type: 'AI_AGENT', subType: 'agent', label: '前台接待 Agent', x: 550, y: 350, config: { botId: 'bot_reception', role: 'receptionist', summary: '用户刚进线，未表明意图' } },
-    
-    // 4. 意图分流路由
-    { id: 'router_main', type: 'LOGIC', subType: 'intent_router', label: '主意图分流', x: 800, y: 350, config: { branches: ['售后报修', '投诉建议', '产品购买', '其他'] } },
-    
-    // --- 分支 A: 售后报修 (带等待音) ---
-    { id: 'action_filler', type: 'ACTION', subType: 'play_filler', label: '播放查询等待音', x: 1100, y: 100, config: { sound: 'keyboard_typing', text: '正在为您查询保修状态...' } },
-    { id: 'api_warranty', type: 'DATA', subType: 'http_request', label: '查询质保API', x: 1350, y: 100, config: { api: 'check_warranty' } },
-    { id: 'agent_repair', type: 'AI_AGENT', subType: 'agent', label: '维修专家 Agent', x: 1600, y: 100, config: { botId: 'bot_repair', role: 'expert' } },
-
-    // --- 分支 B: 投诉 (转内线) ---
-    { id: 'agent_complaint', type: 'AI_AGENT', subType: 'agent', label: '安抚专员 Agent', x: 1100, y: 400, config: { botId: 'bot_empathy', summary: '用户情绪激动' } },
-    { id: 'transfer_vip', type: 'ACTION', subType: 'transfer', label: '转 VIP 坐席(SIP)', x: 1350, y: 400, config: { queue: 'vip_queue' } },
-
-    // --- 结束与回流 ---
-    { id: 'end_hangup', type: 'ACTION', subType: 'hangup', label: '礼貌挂机', x: 2000, y: 200, config: { goodbye: 'default' } }
-
-  ],
-  edges: [
-    { id: 'e1', source: 'start', target: 'logic_regex' },
-    
-    // Regex Logic
-    { id: 'e_regex_hit', source: 'logic_regex', target: 'end_hangup', label: '命中拦截', branchId: 'match' },
-    { id: 'e_regex_pass', source: 'logic_regex', target: 'agent_reception', label: '未命中(放行)', branchId: 'nomatch' },
-
-    { id: 'e2', source: 'agent_reception', target: 'router_main' },
-    
-    // Branch A: Repair (With Filler)
-    { id: 'e_repair', source: 'router_main', target: 'action_filler', label: '售后报修', branchId: 'repair' },
-    { id: 'e_filler_api', source: 'action_filler', target: 'api_warranty' },
-    { id: 'e_api_agent', source: 'api_warranty', target: 'agent_repair' },
-    
-    // Branch B: Complaint
-    { id: 'e_complaint', source: 'router_main', target: 'agent_complaint', label: '投诉', branchId: 'complaint' },
-    { id: 'e_comp_trans', source: 'agent_complaint', target: 'transfer_vip' },
-  ]
-};
-
-const INITIAL_SCENARIOS: FlowScenario[] = [
-  COMPLEX_DEMO_SCENARIO,
-  {
-    id: 'simple_1',
-    name: '简单通知 - 欠费提醒',
-    description: '单轮对话通知，确认用户身份后播放欠费金额。',
-    status: 'active',
-    lastUpdated: Date.now() - 86400000,
-    nodes: [],
-    edges: []
-  }
-];
 
 // --- COMPONENT CONFIG ---
 
@@ -190,16 +115,15 @@ const TOOLBOX_GROUPS: { name: string; color: string; items: ToolboxItem[] }[] = 
 interface FlowOrchestrationProps {
   bots: BotConfiguration[];
   extractionConfigs: ExtractionConfig[];
+  currentScenario: FlowScenario | null;
+  onBack: () => void;
+  onSave: (scenario: FlowScenario) => void;
 }
 
-export default function FlowOrchestration({ bots, extractionConfigs }: FlowOrchestrationProps) {
-  const [view, setView] = useState<'LIST' | 'EDITOR'>('LIST');
-  const [scenarios, setScenarios] = useState<FlowScenario[]>(INITIAL_SCENARIOS);
-  const [currentScenario, setCurrentScenario] = useState<FlowScenario | null>(null);
-  
+export default function FlowOrchestration({ bots, extractionConfigs, currentScenario, onBack, onSave }: FlowOrchestrationProps) {
   // Editor State
-  const [nodes, setNodes] = useState<FlowNode[]>([]);
-  const [edges, setEdges] = useState<FlowEdge[]>([]);
+  const [nodes, setNodes] = useState<FlowNode[]>(currentScenario?.nodes || []);
+  const [edges, setEdges] = useState<FlowEdge[]>(currentScenario?.edges || []);
   
   // Viewport / Canvas State
   const [viewport, setViewport] = useState({ x: 0, y: 0 });
@@ -215,31 +139,16 @@ export default function FlowOrchestration({ bots, extractionConfigs }: FlowOrche
   
   const canvasRef = useRef<HTMLDivElement>(null);
 
+  // Update nodes and edges when currentScenario changes
+  useEffect(() => {
+    if (currentScenario) {
+      setNodes(currentScenario.nodes);
+      setEdges(currentScenario.edges);
+      setViewport({ x: 0, y: 0 }); // Reset viewport
+    }
+  }, [currentScenario]);
+
   // --- Handlers ---
-
-  const handleEditScenario = (scenario: FlowScenario) => {
-    setCurrentScenario(scenario);
-    setNodes(scenario.nodes);
-    setEdges(scenario.edges);
-    setViewport({ x: 0, y: 0 }); // Reset viewport
-    setView('EDITOR');
-  };
-
-  const handleCreateScenario = () => {
-    const newScenario: FlowScenario = {
-      id: Date.now().toString(),
-      name: '未命名流程',
-      description: '点击编辑描述...',
-      status: 'draft',
-      lastUpdated: Date.now(),
-      nodes: [
-        { id: 'start', type: 'TRIGGER', subType: 'inbound', label: '呼入开始', x: 50, y: 300, config: {} }
-      ],
-      edges: []
-    };
-    setScenarios([newScenario, ...scenarios]);
-    handleEditScenario(newScenario);
-  };
 
   const handleSaveScenario = () => {
     if (currentScenario) {
@@ -249,7 +158,7 @@ export default function FlowOrchestration({ bots, extractionConfigs }: FlowOrche
         edges,
         lastUpdated: Date.now()
       };
-      setScenarios(scenarios.map(s => s.id === updated.id ? updated : s));
+      onSave(updated);
       alert("流程保存成功！");
     }
   };
@@ -338,64 +247,6 @@ export default function FlowOrchestration({ bots, extractionConfigs }: FlowOrche
     return <Activity size={16} />;
   };
 
-  // --- VIEW: LIST ---
-  if (view === 'LIST') {
-    return (
-      <div className="p-8 max-w-7xl mx-auto w-full">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">流程编排 (Orchestration)</h1>
-            <p className="text-sm text-slate-500 mt-1">设计多 Agent 协作、IVR 导航及业务自动化流程</p>
-          </div>
-          <button 
-            onClick={handleCreateScenario}
-            className="bg-primary text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-sky-600 transition-all flex items-center shadow-lg shadow-sky-100"
-          >
-            <Plus size={18} className="mr-2" /> 新建流程
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-           {scenarios.map(scenario => (
-             <div key={scenario.id} className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all overflow-hidden group">
-                <div className="p-6">
-                   <div className="flex justify-between items-start mb-4">
-                      <div className={`p-2 rounded-lg ${scenario.id === 'complex_1' ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>
-                         <Workflow size={24} />
-                      </div>
-                      <div className="flex space-x-2">
-                         <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded ${scenario.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                            {scenario.status}
-                         </span>
-                         <button className="text-slate-300 hover:text-slate-600">
-                            <MoreHorizontal size={18} />
-                         </button>
-                      </div>
-                   </div>
-                   <h3 className="text-lg font-bold text-slate-800 mb-2 group-hover:text-primary transition-colors">{scenario.name}</h3>
-                   <p className="text-sm text-slate-500 leading-relaxed mb-6 h-10 line-clamp-2">
-                     {scenario.description}
-                   </p>
-                   
-                   <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                      <div className="text-xs text-slate-400">
-                        节点数: <span className="font-mono font-bold text-slate-600">{scenario.nodes.length}</span>
-                      </div>
-                      <button 
-                        onClick={() => handleEditScenario(scenario)}
-                        className="text-sm font-bold text-primary hover:underline flex items-center"
-                      >
-                        编辑画布 <ArrowLeft size={14} className="ml-1 rotate-180" />
-                      </button>
-                   </div>
-                </div>
-             </div>
-           ))}
-        </div>
-      </div>
-    );
-  }
-
   // --- VIEW: EDITOR ---
   const selectedNode = nodes.find(n => n.id === selectedNodeId);
 
@@ -404,7 +255,7 @@ export default function FlowOrchestration({ bots, extractionConfigs }: FlowOrche
       {/* Editor Toolbar */}
       <div className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 z-20 shadow-sm">
          <div className="flex items-center">
-            <button onClick={() => setView('LIST')} className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 mr-2">
+            <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 mr-2">
                <ArrowLeft size={18} />
             </button>
             <div>

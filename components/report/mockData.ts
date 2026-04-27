@@ -11,8 +11,7 @@ import {
   TimeRange
 } from '../../types';
 
-// Bot configurations for mock data
-const MOCK_BOTS = [
+export const MOCK_BOTS = [
   { id: 'bot_1', name: '滴滴出行智能客服' },
   { id: 'bot_2', name: '电商售后机器人' },
   { id: 'bot_3', name: '银行信用卡服务' },
@@ -20,7 +19,6 @@ const MOCK_BOTS = [
   { id: 'bot_5', name: '餐饮预订机器人' },
 ];
 
-// Intent configurations for mock data
 const MOCK_INTENTS = [
   { id: 'intent_1', name: '🚨 高危安全拦截' },
   { id: 'intent_2', name: '👜 物品遗失查找' },
@@ -34,7 +32,6 @@ const MOCK_INTENTS = [
   { id: 'intent_10', name: '❓ 常见问题' },
 ];
 
-// Generate dates for the last 30 days
 export function generateDates(days: number = 30): string[] {
   const dates: string[] = [];
   const today = new Date();
@@ -46,7 +43,6 @@ export function generateDates(days: number = 30): string[] {
   return dates;
 }
 
-// Generate random number with some realistic variation
 function randomInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -56,11 +52,9 @@ function randomFloat(min: number, max: number, decimals: number = 2): number {
   return parseFloat(num.toFixed(decimals));
 }
 
-// Generate trend data for the last 30 days
 export function generateTrendData(days: number = 30): TrendData[] {
   const dates = generateDates(days);
   return dates.map((date, index) => {
-    // Simulate weekday vs weekend patterns
     const dayOfWeek = new Date(date).getDay();
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
     const baseCalls = isWeekend ? 80 : 150;
@@ -80,7 +74,6 @@ export function generateTrendData(days: number = 30): TrendData[] {
   });
 }
 
-// Generate current metrics with comparison to previous period
 export function generateCurrentMetrics(): { current: ReportMetrics; previous: ReportMetrics } {
   const currentTotalCalls = randomInt(800, 1500);
   const currentConnectedCalls = Math.floor(currentTotalCalls * randomFloat(0.65, 0.85));
@@ -100,8 +93,9 @@ export function generateCurrentMetrics(): { current: ReportMetrics; previous: Re
       avgDuration: currentAvgDuration,
       totalDuration: currentTotalDuration,
       avgSatisfaction: randomFloat(3.5, 4.8),
+      transferCount: Math.floor(currentConnectedCalls * randomFloat(0.1, 0.25)),
       transferRate: randomFloat(0.1, 0.25),
-      resolutionRate: randomFloat(0.6, 0.85),
+      interceptRate: randomFloat(0.6, 0.85),
     },
     previous: {
       totalCalls: previousTotalCalls,
@@ -110,13 +104,13 @@ export function generateCurrentMetrics(): { current: ReportMetrics; previous: Re
       avgDuration: previousAvgDuration,
       totalDuration: previousTotalDuration,
       avgSatisfaction: randomFloat(3.3, 4.6),
+      transferCount: Math.floor(previousConnectedCalls * randomFloat(0.12, 0.28)),
       transferRate: randomFloat(0.12, 0.28),
-      resolutionRate: randomFloat(0.55, 0.80),
+      interceptRate: randomFloat(0.55, 0.80),
     },
   };
 }
 
-// Generate bot performance data
 export function generateBotPerformance(): BotPerformance[] {
   return MOCK_BOTS.map(bot => {
     const totalCalls = randomInt(100, 500);
@@ -135,7 +129,6 @@ export function generateBotPerformance(): BotPerformance[] {
   });
 }
 
-// Generate intent analysis data
 export function generateIntentAnalysis(): IntentAnalysis[] {
   return MOCK_INTENTS.map(intent => ({
     intentId: intent.id,
@@ -146,10 +139,8 @@ export function generateIntentAnalysis(): IntentAnalysis[] {
   }));
 }
 
-// Generate hourly distribution (24 hours)
 export function generateHourlyDistribution(): HourlyDistribution[] {
   return Array.from({ length: 24 }, (_, hour) => {
-    // Simulate peak hours (9-12, 14-17)
     const isPeakHour = (hour >= 9 && hour <= 12) || (hour >= 14 && hour <= 17);
     const baseCount = isPeakHour ? 80 : 20;
     const variation = randomInt(-15, 15);
@@ -161,7 +152,6 @@ export function generateHourlyDistribution(): HourlyDistribution[] {
   });
 }
 
-// Generate duration distribution
 export function generateDurationDistribution(): DurationDistribution[] {
   const ranges = [
     { range: '0-30秒', min: 0, max: 30 },
@@ -187,7 +177,6 @@ export function generateDurationDistribution(): DurationDistribution[] {
   }));
 }
 
-// Generate hangup reason distribution
 export function generateHangupReasonDistribution(): HangupReasonDistribution[] {
   const reasons = [
     { reason: '正常结束', weight: 45 },
@@ -211,7 +200,6 @@ export function generateHangupReasonDistribution(): HangupReasonDistribution[] {
   });
 }
 
-// Generate unmatched intents (TOP 10)
 export function generateUnmatchedIntents(): UnmatchedIntent[] {
   const unmatchedTexts = [
     '我要投诉你们的服务',
@@ -238,10 +226,9 @@ export function generateUnmatchedIntents(): UnmatchedIntent[] {
     .slice(0, 10);
 }
 
-// Generate satisfaction distribution (1-5 stars)
 export function generateSatisfactionDistribution(): { rating: number; count: number; percentage: number }[] {
   const ratings = [1, 2, 3, 4, 5];
-  const weights = [5, 10, 20, 35, 30]; // Percentage distribution
+  const weights = [5, 10, 20, 35, 30];
   
   const total = 1000;
   return ratings.map((rating, index) => {
@@ -257,7 +244,6 @@ export function generateSatisfactionDistribution(): { rating: number; count: num
   });
 }
 
-// Generate call records for detailed view
 export function generateCallRecords(count: number = 50): CallRecordDetail[] {
   const statuses: ('answered' | 'no_answer' | 'busy' | 'failed')[] = ['answered', 'no_answer', 'busy', 'failed'];
   const hangupReasons: ('normal' | 'user_hangup' | 'timeout' | 'transfer' | 'error')[] = ['normal', 'user_hangup', 'timeout', 'transfer', 'error'];
@@ -288,7 +274,6 @@ export function generateCallRecords(count: number = 50): CallRecordDetail[] {
   });
 }
 
-// Get data based on time range
 export function getReportData(timeRange: TimeRange) {
   let days = 30;
   switch (timeRange) {

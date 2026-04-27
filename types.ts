@@ -1782,11 +1782,13 @@ export interface ReportMetrics {
   totalCalls: number;
   connectedCalls: number;
   connectionRate: number;
+  totalDuration: number;
   avgDuration: number;
   totalDuration: number;
   avgSatisfaction: number;
+  transferCount: number;
   transferRate: number;
-  resolutionRate: number;
+  interceptRate: number;
 }
 
 export interface TrendData {

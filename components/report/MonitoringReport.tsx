@@ -1,18 +1,20 @@
 import React, { useState, useMemo } from 'react';
 import {
   BarChart3,
+  Bot,
   Calendar,
   Download,
   TrendingUp,
   Clock,
   Target,
   Phone,
+  ChevronDown,
+  Calendar as CalendarIcon,
 } from 'lucide-react';
 import { TimeRange } from '../../types';
-import { getReportData } from './mockData';
+import { getReportData, MOCK_BOTS } from './mockData';
 import DashboardCards from './DashboardCards';
 import TrendChart, { HourlyHeatmap } from './TrendChart';
-import BotPerformanceTable from './BotPerformanceTable';
 import IntentAccuracyChart from './IntentAccuracyChart';
 import CallDurationDistribution from './CallDurationDistribution';
 
@@ -36,24 +38,49 @@ const MonitoringReport: React.FC = () => {
   const [timeRange, setTimeRange] = useState<TimeRange>('this_month');
   const [activeTab, setActiveTab] = useState('overview');
   const [isLoading, setIsLoading] = useState(false);
-
-  // Get report data based on time range
+  
+  const [startDate, setStartDate] = useState<string>(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  
+  const [selectedBots, setSelectedBots] = useState<string[]>([]);
+  const [showBotDropdown, setShowBotDropdown] = useState(false);
+  
   const reportData = useMemo(() => getReportData(timeRange), [timeRange]);
 
-  // Handle time range change
   const handleTimeRangeChange = (newRange: TimeRange) => {
     setIsLoading(true);
     setTimeRange(newRange);
-    // Simulate loading delay
     setTimeout(() => setIsLoading(false), 300);
   };
+  
+  const handleCustomDateChange = () => {
+    setIsLoading(true);
+    setTimeRange('custom');
+    setTimeout(() => setIsLoading(false), 300);
+  };
+  
+  const handleBotToggle = (botId: string) => {
+    setSelectedBots(prev => {
+      if (prev.includes(botId)) {
+        return prev.filter(id => id !== botId);
+      } else {
+        return [...prev, botId];
+      }
+    });
+  };
+  
+  const handleSelectAllBots = () => {
+    if (selectedBots.length === MOCK_BOTS.length) {
+      setSelectedBots([]);
+    } else {
+      setSelectedBots(MOCK_BOTS.map(bot => bot.id));
+    }
+  };
 
-  // Export data handler
   const handleExport = () => {
     alert('导出功能开发中...');
   };
 
-  // Render tab content
   const renderTabContent = () => {
     if (isLoading) {
       return (
@@ -67,16 +94,13 @@ const MonitoringReport: React.FC = () => {
       case 'overview':
         return (
           <div className="space-y-6">
-            {/* Dashboard Cards */}
             <DashboardCards
               current={reportData.metrics.current}
               previous={reportData.metrics.previous}
               onCardClick={(metricType) => console.log('Clicked:', metricType)}
             />
 
-            {/* Charts Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Call Trend */}
               <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
@@ -87,7 +111,6 @@ const MonitoringReport: React.FC = () => {
                 <TrendChart data={reportData.trendData} type="calls" height={250} />
               </div>
 
-              {/* Hourly Distribution */}
               <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
@@ -99,8 +122,6 @@ const MonitoringReport: React.FC = () => {
               </div>
             </div>
 
-            {/* Bot Performance Preview */}
-            <BotPerformanceTable data={reportData.botPerformance} />
           </div>
         );
 
@@ -153,7 +174,6 @@ const MonitoringReport: React.FC = () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
       <div className="mb-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
@@ -163,11 +183,10 @@ const MonitoringReport: React.FC = () => {
             </p>
           </div>
 
-          {/* Time Range Selector */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center flex-wrap gap-3">
             <div className="flex items-center bg-white border border-gray-200 rounded-lg p-1">
               <Calendar size={16} className="text-slate-400 ml-2" />
-              {TIME_RANGE_OPTIONS.map((option) => (
+              {TIME_RANGE_OPTIONS.filter(option => option.value !== 'custom').map((option) => (
                 <button
                   key={option.value}
                   onClick={() => handleTimeRangeChange(option.value)}
@@ -180,9 +199,88 @@ const MonitoringReport: React.FC = () => {
                   {option.label}
                 </button>
               ))}
+              <button
+                onClick={() => setTimeRange('custom')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                  timeRange === 'custom'
+                    ? 'bg-primary text-white'
+                    : 'text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                自定义
+              </button>
             </div>
 
-            {/* Export Button */}
+            {timeRange === 'custom' && (
+              <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg p-2">
+                <CalendarIcon size={16} className="text-slate-400" />
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="text-sm border-none focus:ring-0"
+                />
+                <span className="text-slate-400">至</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="text-sm border-none focus:ring-0"
+                />
+                <button
+                  onClick={handleCustomDateChange}
+                  className="px-3 py-1 bg-primary text-white text-sm rounded-md"
+                >
+                  应用
+                </button>
+              </div>
+            )}
+
+            <div className="relative">
+              <button
+                onClick={() => setShowBotDropdown(!showBotDropdown)}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm font-medium"
+              >
+                <Bot size={16} />
+                机器人
+                <ChevronDown size={14} className={`transition-transform ${showBotDropdown ? 'rotate-180' : ''}`} />
+              </button>
+              {showBotDropdown && (
+                <div className="absolute right-0 top-full mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-2">
+                  <div className="px-4 py-2 border-b border-gray-100">
+                    <button
+                      onClick={handleSelectAllBots}
+                      className="flex items-center w-full text-left text-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedBots.length === MOCK_BOTS.length}
+                        onChange={handleSelectAllBots}
+                        className="mr-2"
+                      />
+                      全选
+                    </button>
+                  </div>
+                  {MOCK_BOTS.map((bot) => (
+                    <div key={bot.id} className="px-4 py-2 hover:bg-slate-50">
+                      <button
+                        onClick={() => handleBotToggle(bot.id)}
+                        className="flex items-center w-full text-left text-sm"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedBots.includes(bot.id)}
+                          onChange={() => handleBotToggle(bot.id)}
+                          className="mr-2"
+                        />
+                        {bot.name}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <button
               onClick={handleExport}
               className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm font-medium"
@@ -194,7 +292,6 @@ const MonitoringReport: React.FC = () => {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="mb-6">
         <div className="flex flex-wrap gap-2 bg-slate-100 p-1 rounded-xl">
           {TAB_OPTIONS.map((tab) => {
@@ -217,7 +314,6 @@ const MonitoringReport: React.FC = () => {
         </div>
       </div>
 
-      {/* Tab Content */}
       <div className="animate-in fade-in duration-300">{renderTabContent()}</div>
     </div>
   );
