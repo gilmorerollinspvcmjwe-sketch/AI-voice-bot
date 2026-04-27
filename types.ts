@@ -50,10 +50,23 @@ export interface BotVariable {
   source?: 'system' | 'user_input' | 'extraction' | 'api' | 'flow';
 }
 
+// 实体类型定义
+export interface BotEntity {
+  id: string;
+  name: string;
+  description: string;
+  validationRule: 'number' | 'letter' | 'date' | 'id_card' | 'phone' | 'email' | 'regex' | 'custom';
+  regexPattern?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Parameter {
   id: string;
   key: string;
   description: string;
+  source?: 'llm' | 'variable';
+  variableName?: string;
 }
 
 export interface ExtractionConfig {
@@ -61,7 +74,13 @@ export interface ExtractionConfig {
   name: string;
   description: string;
   lastUpdated: number;
-  params: { id: string; key: string; desc: string }[];
+  params: { 
+    id: string; 
+    key: string; 
+    desc: string;
+    source: 'llm' | 'variable';
+    variableName?: string;
+  }[];
   interfaceUrl: string;
   method: 'GET' | 'POST' | 'PUT' | 'DELETE';
   authType: 'basic' | 'url' | 'none';
@@ -421,6 +440,21 @@ export interface AgentTool {
     fallbackAction: 'transfer_human' | 'hangup' | 'goto_node';
     fallbackTargetId?: string;
   };
+  
+  // 给模型的工具详细说明（模型使用指南）
+  modelReadme?: string;
+
+  // === 工具调用话术配置 ===
+  // 工具调用开始话术
+  startSpeech?: string;
+  // 工具是否需要返回结果（向用户汇报）
+  needReturn?: boolean;
+  // 工具调用成功话术
+  successSpeech?: string;
+  // 工具调用失败话术
+  failureSpeech?: string;
+  // 工具调用中，客户咨询问题的回复话术
+  interruptSpeech?: string;
 }
 
 export interface DelayProfile {
@@ -929,17 +963,22 @@ export interface BotConfiguration extends MarketingConfig, ProfileCollectionConf
 
   // Topic Skill Library Config
   topicSkillLibraryConfig?: TopicSkillLibraryConfig;
+
+  // 触发器配置
+  triggers?: BotTrigger[];
 }
 
 // 主题技能类型定义
 export interface TopicSkill {
   id: string;
   name: string;
+  description?: string;
   isEnabled: boolean;
   exampleQuestions: string[];
   prompt: string;
   tools: string[];
   variables: string[];
+  knowledgeTags?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -960,6 +999,26 @@ export interface MarketingConfig {
   marketingTimings?: string[];
   marketingConflictStrategy?: 'service_first' | 'marketing_first';
   activeCampaignIds?: string[];
+}
+
+// 触发器配置
+export interface BotTrigger {
+  id: string;
+  name: string;
+  description?: string;
+  triggerTime: 'call_start' | 'call_end';
+  action: 'satisfaction_survey' | 'send_sms' | 'extract_info' | 'call_api';
+  actionConfig?: {
+    smsTemplateId?: string;
+    smsParams?: Record<string, string>;
+    apiConfigId?: string;
+    apiParams?: Record<string, string>;
+    extractionFields?: string[];
+    surveyQuestions?: string[];
+  };
+  isEnabled: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // Profile Collection Config
@@ -1766,6 +1825,18 @@ export interface FlowDebugScenario {
   }>;
 }
 
+export interface FlowVersion {
+  id: string;
+  flowId: string;
+  version: string;
+  flowData: FlowDefinition;
+  createdAt: number;
+  createdBy: string;
+  description: string;
+  isPublished: boolean;
+  publishedAt?: number;
+}
+
 export interface FlowConfig {
   id: string;
   name: string;
@@ -1774,6 +1845,7 @@ export interface FlowConfig {
   functions?: FlowFunction[];
   annotations: FlowAnnotation[];
   debugScenarios: FlowDebugScenario[];
+  versions?: FlowVersion[];
   metadata?: FlowMetadata;
 }
 

@@ -17,6 +17,7 @@ import FlowEdgeConfig from './FlowEdgeConfig';
 import FlowNodeConfig from './FlowNodeConfig';
 import FlowStudioListPanel from './FlowStudioListPanel';
 import FlowStudioToolbar from './FlowStudioToolbar';
+import FlowVersionManager from './FlowVersionManager';
 import { simulateFlowScenario } from './flowDebugSimulation';
 
 interface FlowStudioProps {
@@ -29,7 +30,7 @@ interface FlowStudioProps {
   availableDelayProfiles?: DelayProfile[];
 }
 
-type DrawerMode = 'flow' | 'node' | 'edge' | 'debug' | null;
+type DrawerMode = 'flow' | 'node' | 'edge' | 'debug' | 'version' | null;
 
 function cloneFlowConfig(flow: FlowConfig): FlowConfig {
   const cloned = JSON.parse(JSON.stringify(flow)) as FlowConfig;
@@ -39,6 +40,7 @@ function cloneFlowConfig(flow: FlowConfig): FlowConfig {
     flows: cloned.flows || [],
     annotations: cloned.annotations || [],
     debugScenarios: cloned.debugScenarios || [],
+    versions: cloned.versions || [],
   };
 }
 
@@ -225,6 +227,35 @@ export default function FlowStudio({
     }
     if (drawerMode === 'edge') setSelectedEdgeId(null);
     setDrawerMode(null);
+  };
+
+  const openVersionManager = () => {
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+    setDrawerMode('version');
+  };
+
+  const handleCreateVersion = (version: string, description: string) => {
+    const newVersion = {
+      id: `version_${Date.now()}`,
+      flowId: activeFlow.id,
+      version,
+      flowData: JSON.parse(JSON.stringify(activeFlow)),
+      createdAt: Date.now(),
+      createdBy: '当前用户',
+      description,
+      isPublished: false,
+    };
+    updateDraftFlow((currentFlow) => ({
+      ...currentFlow,
+      versions: [...(currentFlow.versions || []), newVersion],
+    }));
+  };
+
+  const handleRollbackVersion = (version: any) => {
+    if (!confirm(`确定回滚到版本 ${version.version} 吗？`)) return;
+    updateActiveFlow(() => JSON.parse(JSON.stringify(version.flowData)));
+    handleCreateVersion(`${version.version}-rollback`, `回滚到 ${version.version}`);
   };
 
   const closeDebug = () => {
@@ -426,6 +457,7 @@ export default function FlowStudio({
         zoom={zoom}
         onCloseDrawer={closeDrawer}
         onOpenDebug={runDebugScenario}
+        onOpenVersion={openVersionManager}
         onZoomIn={() => setZoom((current) => Math.min(current + 0.1, 1.8))}
         onZoomOut={() => setZoom((current) => Math.max(current - 0.1, 0.6))}
         onResetView={() => {
@@ -508,6 +540,7 @@ export default function FlowStudio({
                 availableVariables={availableVariables}
                 availableTools={availableTools}
                 availableDelayProfiles={availableDelayProfiles}
+                availableFlows={draftFlow.flows.filter(f => f.id !== activeFlow.id).map(f => ({ id: f.id, name: f.name, description: f.metadata?.description }))}
                 onChange={handleNodeChange}
                 onClose={closeDrawer}
                 readOnly={readOnly}
@@ -530,6 +563,7 @@ export default function FlowStudio({
                 edge={selectedEdge}
                 sourceNode={selectedEdgeSource}
                 targetNode={selectedEdgeTarget}
+                availableFlows={draftFlow.flows.map(f => ({ id: f.id, name: f.name }))}
                 availableFunctions={draftFlow.functions || availableFunctions}
                 onChange={handleEdgeChange}
                 onClose={closeDrawer}
@@ -537,6 +571,16 @@ export default function FlowStudio({
               />
             ) : null}
 
+            {drawerMode === 'version' ? (
+              <FlowVersionManager
+                versions={draftFlow.versions || []}
+                currentFlow={activeFlow}
+                onVersionChange={(versions) => updateDraftFlow((currentFlow) => ({ ...currentFlow, versions }))}
+                onRollback={handleRollbackVersion}
+                onClose={closeDrawer}
+                readOnly={readOnly}
+              />
+            ) : null}
           </aside>
         ) : null}
 

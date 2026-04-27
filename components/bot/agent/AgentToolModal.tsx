@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, Plug, Plus, Trash2, HelpCircle, Music, MessageSquare } from 'lucide-react';
+import { X, Plug, Plus, Trash2, HelpCircle, MessageSquare } from 'lucide-react';
 import { AgentTool, ExtractionConfig, AgentToolParameter } from '../../../types';
 import { Input, Select, Switch, Label } from '../../ui/FormComponents';
 
@@ -22,36 +22,16 @@ const DEFAULT_TOOL: AgentTool = {
     fillerType: 'TTS',
     fillerContent: '正在为您查询，请稍候...'
   },
-  responseInstruction: ''
+  responseInstruction: '',
+  startSpeech: '正在为您查询，请稍候...',
+  needReturn: true,
+  successSpeech: '查询已完成，结果如下：',
+  failureSpeech: '抱歉，查询遇到了问题，请稍后再试或联系人工客服。',
+  interruptSpeech: '正在处理中，请稍候，处理完成后我会为您解答。'
 };
 
 export default function AgentToolModal({ tool, onSave, onClose, extractionConfigs }: AgentToolModalProps) {
   const [formData, setFormData] = useState<AgentTool>(tool || { ...DEFAULT_TOOL, id: Date.now().toString() });
-
-  // When API ref changes, auto-populate parameters if empty
-  const handleRefChange = (refId: string) => {
-    const api = extractionConfigs.find(c => c.id === refId);
-    let newParams = formData.parameters;
-    
-    if (api && formData.type === 'API') {
-      // Auto generate params from API config
-      const apiParams: AgentToolParameter[] = api.params.map(p => ({
-        name: p.key,
-        type: 'string', // Default assumption
-        description: p.desc || `Parameter for ${p.key}`,
-        required: true
-      }));
-      newParams = apiParams;
-    }
-    
-    setFormData(prev => ({ 
-      ...prev, 
-      refId, 
-      parameters: newParams,
-      // Auto-suggest name if empty
-      name: prev.name || (api ? `query_${api.name}` : '')
-    }));
-  };
 
   const addParameter = () => {
     setFormData(prev => ({
@@ -97,64 +77,14 @@ export default function AgentToolModal({ tool, onSave, onClose, extractionConfig
           
           {/* 1. Basic Info */}
           <section>
-            <div className="flex items-center space-x-4 mb-4">
-               <div className="flex-1">
-                  <Label label="工具类型" required />
-                  <div className="flex bg-slate-100 p-1 rounded-lg">
-                     {['API', 'SMS'].map(t => (
-                       <button
-                         key={t}
-                         onClick={() => setFormData(prev => ({ ...prev, type: t as any }))}
-                         className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${
-                           formData.type === t ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                         }`}
-                       >
-                         {t === 'API' && '外部接口'}
-                         {t === 'SMS' && '发送短信'}
-                       </button>
-                     ))}
-                  </div>
-               </div>
-               
-               {formData.type === 'API' && (
-                 <div className="flex-[2]">
-                    <Label label="关联 API 配置" required />
-                    <Select 
-                       options={[{label: '请选择...', value: ''}, ...extractionConfigs.map(c => ({label: c.name, value: c.id}))]}
-                       value={formData.refId || ''}
-                       onChange={(e) => handleRefChange(e.target.value)}
-                    />
-                 </div>
-               )}
-
-               {formData.type === 'SMS' && (
-                 <div className="flex-[2]">
-                    <Label label="短信模版 ID" required />
-                    <Input 
-                       placeholder="例如: SMS_123456"
-                       value={formData.smsTemplateId || ''}
-                       onChange={(e) => setFormData({...formData, smsTemplateId: e.target.value})}
-                    />
-                 </div>
-               )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 mb-4">
-               <div>
-                  <Label label="函数名称" required tooltip="LLM 将使用此名称调用工具，建议使用蛇形命名法 (e.g. query_order)" />
-                  <Input 
-                    className="font-mono text-xs"
-                    placeholder="e.g. query_order_status"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  />
-               </div>
-               <div>
-                  <Label label="中文别名 (可选)" />
-                  <Input 
-                    placeholder="e.g. 查询订单"
-                  />
-               </div>
+            <div className="mb-4">
+               <Label label="工具名称" required tooltip="LLM 将使用此名称调用工具，建议使用蛇形命名法 (e.g. query_order)" />
+               <Input 
+                 className="font-mono text-xs"
+                 placeholder="e.g. query_order_status"
+                 value={formData.name}
+                 onChange={(e) => setFormData({...formData, name: e.target.value})}
+               />
             </div>
 
             <div className="mb-4">
@@ -167,15 +97,36 @@ export default function AgentToolModal({ tool, onSave, onClose, extractionConfig
                />
             </div>
 
-            {/* New Response Instruction */}
-            <div>
-               <Label label="结果回复指引" tooltip="指导大模型在获取到接口数据后，如何向用户播报结果。可包含话术风格或必须播报的字段。" />
+            {/* 接口选择 */}
+            <div className="mb-4">
+               <Label label="关联接口" tooltip="选择已配置好的接口方案，工具将调用此接口执行。" />
+               <select 
+                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded bg-white outline-none focus:border-primary"
+                 value={formData.refId || ''}
+                 onChange={(e) => setFormData({...formData, refId: e.target.value})}
+               >
+                 <option value="">不关联接口（仅作为模型能力）</option>
+                 {extractionConfigs.map(config => (
+                   <option key={config.id} value={config.id}>{config.name} - {config.description}</option>
+                 ))}
+               </select>
+               {formData.refId && (
+                 <p className="text-[10px] text-slate-400 mt-1">
+                   已关联接口：{extractionConfigs.find(c => c.id === formData.refId)?.description || '暂无描述'}
+                 </p>
+               )}
+            </div>
+
+            {/* 模型使用指南 */}
+            <div className="mb-4">
+               <Label label="模型使用指南" tooltip="详细说明工具的使用方法、注意事项、示例等，帮助模型更好地理解和使用此工具。" />
                <textarea 
-                  className="w-full h-20 px-3 py-2 text-sm border border-slate-300 rounded focus:border-primary outline-none resize-none bg-blue-50/20"
-                  placeholder="例如：请以热情的语气回复，重点播报订单状态和预计到达时间。如果订单已发货，请询问用户是否需要发送物流短信。"
-                  value={formData.responseInstruction || ''}
-                  onChange={(e) => setFormData({...formData, responseInstruction: e.target.value})}
+                  className="w-full h-24 px-3 py-2 text-sm border border-slate-300 rounded focus:border-primary outline-none resize-none bg-blue-50/20"
+                  placeholder="例如：&#10;1. 此工具需要在获取到订单号后才能调用&#10;2. 如果用户没有提供订单号，请先询问用户&#10;3. 返回结果包含 order_status 字段，值为：pending/shipped/delivered"
+                  value={formData.modelReadme || ''}
+                  onChange={(e) => setFormData({...formData, modelReadme: e.target.value})}
                />
+               <p className="text-[10px] text-slate-400 mt-1">给模型的详细使用说明，包括调用时机、参数要求、返回值说明等</p>
             </div>
           </section>
 
@@ -237,46 +188,87 @@ export default function AgentToolModal({ tool, onSave, onClose, extractionConfig
              </div>
           </section>
 
-          {/* 3. Execution UX */}
-          <section className="bg-indigo-50/50 rounded-xl p-4 border border-indigo-100">
-             <div className="flex justify-between items-center mb-4">
-                <h4 className="text-sm font-bold text-indigo-900 flex items-center">
-                   <Music size={16} className="mr-2" /> 执行体验
-                </h4>
-                <div className="flex items-center space-x-2">
-                   <span className="text-xs text-indigo-700">启用防静默填充</span>
-                   <Switch 
-                      label="" 
-                      checked={formData.executionStrategy?.playFiller || false}
-                      onChange={(v) => setFormData(prev => ({ ...prev, executionStrategy: { ...prev.executionStrategy!, playFiller: v } }))}
-                   />
-                </div>
-             </div>
+          {/* 3. 工具调用话术 */}
+          <section className="bg-emerald-50/50 rounded-xl p-4 border border-emerald-100">
+             <h4 className="text-sm font-bold text-emerald-900 flex items-center mb-4">
+                <MessageSquare size={16} className="mr-2" /> 工具调用话术
+             </h4>
              
-             {formData.executionStrategy?.playFiller && (
-                <div className="grid grid-cols-3 gap-4 animate-in fade-in">
+             <div className="space-y-4">
+               <div>
+                 <div className="flex items-center gap-2 mb-2">
+                   <Label label="工具调用开始话术" />
+                   <HelpCircle size={12} className="text-slate-400" />
+                 </div>
+                 <textarea 
+                   value={formData.startSpeech || ''}
+                   onChange={(e) => setFormData({...formData, startSpeech: e.target.value})}
+                   placeholder="工具开始执行时机器人说的话，如：正在为您查询，请稍候..."
+                   className="w-full px-3 py-2 text-xs border border-emerald-200 rounded-lg focus:outline-none focus:border-primary resize-none bg-white"
+                   rows={2}
+                 />
+               </div>
+
+               <div className="flex items-center justify-between py-2 px-3 bg-white rounded-lg border border-emerald-200">
+                 <div className="flex items-center gap-2">
+                   <span className="text-xs font-medium text-slate-700">工具是否需要返回结果</span>
+                   <HelpCircle size={12} className="text-slate-400" />
+                 </div>
+                 <Switch 
+                   label="" 
+                   checked={formData.needReturn !== false}
+                   onChange={(value) => setFormData({...formData, needReturn: value})}
+                 />
+               </div>
+               <p className="text-[10px] text-emerald-600 -mt-2">关闭后，工具执行完成不会向用户汇报结果（适用于后台记录类工具）</p>
+
+               {formData.needReturn !== false && (
+                 <div className="space-y-4 animate-in fade-in">
                    <div>
-                      <Label label="填充类型" />
-                      <Select 
-                         options={[{label: 'TTS 播报', value: 'TTS'}, {label: '音频文件', value: 'AUDIO'}]}
-                         value={formData.executionStrategy.fillerType}
-                         onChange={(e) => setFormData(prev => ({ ...prev, executionStrategy: { ...prev.executionStrategy!, fillerType: e.target.value as any } }))}
-                      />
+                     <div className="flex items-center gap-2 mb-2">
+                       <Label label="工具调用成功话术" />
+                       <HelpCircle size={12} className="text-slate-400" />
+                     </div>
+                     <textarea 
+                       value={formData.successSpeech || ''}
+                       onChange={(e) => setFormData({...formData, successSpeech: e.target.value})}
+                       placeholder="工具执行成功后的回复，如：查询已完成，结果如下："
+                       className="w-full px-3 py-2 text-xs border border-emerald-200 rounded-lg focus:outline-none focus:border-primary resize-none bg-white"
+                       rows={2}
+                     />
                    </div>
-                   <div className="col-span-2">
-                      <Label label={formData.executionStrategy.fillerType === 'TTS' ? '播报文案' : '音频 URL'} />
-                      <Input 
-                         value={formData.executionStrategy.fillerContent}
-                         onChange={(e) => setFormData(prev => ({ ...prev, executionStrategy: { ...prev.executionStrategy!, fillerContent: e.target.value } }))}
-                         placeholder={formData.executionStrategy.fillerType === 'TTS' ? "正在查询，请稍候..." : "https://..."}
-                      />
+
+                   <div>
+                     <div className="flex items-center gap-2 mb-2">
+                       <Label label="工具调用失败话术" />
+                       <HelpCircle size={12} className="text-slate-400" />
+                     </div>
+                     <textarea 
+                       value={formData.failureSpeech || ''}
+                       onChange={(e) => setFormData({...formData, failureSpeech: e.target.value})}
+                       placeholder="工具执行失败后的回复，如：抱歉，查询遇到了问题..."
+                       className="w-full px-3 py-2 text-xs border border-emerald-200 rounded-lg focus:outline-none focus:border-primary resize-none bg-white"
+                       rows={2}
+                     />
                    </div>
-                </div>
-             )}
-             <p className="text-[10px] text-indigo-400 mt-2 flex items-center">
-                <HelpCircle size={10} className="mr-1" />
-                当模型决定调用此工具时，系统将立即播放填充音，直到工具执行完成并生成新的回复。
-             </p>
+                 </div>
+               )}
+
+               <div>
+                 <div className="flex items-center gap-2 mb-2">
+                   <Label label="调用中客户咨询回复话术" />
+                   <HelpCircle size={12} className="text-slate-400" />
+                 </div>
+                 <textarea 
+                   value={formData.interruptSpeech || ''}
+                   onChange={(e) => setFormData({...formData, interruptSpeech: e.target.value})}
+                   placeholder="工具执行期间，如果客户插话问问题，机器人如何回复"
+                   className="w-full px-3 py-2 text-xs border border-emerald-200 rounded-lg focus:outline-none focus:border-primary resize-none bg-white"
+                   rows={2}
+                 />
+                 <p className="text-[10px] text-emerald-600 mt-1">工具执行与对话并行，客户可在等待时继续说话</p>
+               </div>
+             </div>
           </section>
 
         </div>

@@ -1,7 +1,7 @@
 
 
 import React, { useState } from 'react';
-import { ModelType, ExtractionConfig } from '../../types';
+import { ModelType, ExtractionConfig, BotVariable } from '../../types';
 import { 
   Plus, 
   Trash2, 
@@ -9,7 +9,8 @@ import {
   Edit3, 
   HelpCircle,
   ChevronDown,
-  ArrowRight
+  ArrowRight,
+  Variable
 } from 'lucide-react';
 
 const DEFAULT_CONFIG: ExtractionConfig = {
@@ -38,9 +39,10 @@ const INTERFACE_TEMPLATES = [
 interface InterfaceConfigProps {
   configs: ExtractionConfig[];
   onUpdateConfigs: (configs: ExtractionConfig[]) => void;
+  availableVariables?: BotVariable[];
 }
 
-export default function InterfaceConfig({ configs, onUpdateConfigs }: InterfaceConfigProps) {
+export default function InterfaceConfig({ configs, onUpdateConfigs, availableVariables = [] }: InterfaceConfigProps) {
   const [view, setView] = useState<'LIST' | 'FORM'>('LIST');
   const [editingConfig, setEditingConfig] = useState<ExtractionConfig | null>(null);
 
@@ -84,7 +86,8 @@ export default function InterfaceConfig({ configs, onUpdateConfigs }: InterfaceC
     <ExtractionFormView 
       initialData={editingConfig!} 
       onSave={handleSave} 
-      onCancel={() => { setView('LIST'); setEditingConfig(null); }} 
+      onCancel={() => { setView('LIST'); setEditingConfig(null); }}
+      availableVariables={availableVariables}
     />
   );
 }
@@ -201,8 +204,9 @@ const FormRow: React.FC<FormRowProps> = ({ label, required, tooltip, children, a
 const ExtractionFormView: React.FC<{ 
   initialData: ExtractionConfig; 
   onSave: (c: ExtractionConfig) => void; 
-  onCancel: () => void; 
-}> = ({ initialData, onSave, onCancel }) => {
+  onCancel: () => void;
+  availableVariables: BotVariable[];
+}> = ({ initialData, onSave, onCancel, availableVariables }) => {
   const [config, setConfig] = useState<ExtractionConfig>({ ...initialData });
   const [showTemplates, setShowTemplates] = useState(false);
 
@@ -360,16 +364,95 @@ const ExtractionFormView: React.FC<{
            </div>
         )}
 
-        <FormRow label="url参数">
-           <button className="px-3 py-1.5 border border-dashed border-gray-300 rounded text-xs text-slate-600 flex items-center hover:border-primary hover:text-primary transition-all">
-             <Plus size={12} className="mr-1" /> 添加接口参数
-           </button>
-        </FormRow>
-
-        <FormRow label="header参数">
-           <button className="px-3 py-1.5 border border-dashed border-gray-300 rounded text-xs text-slate-600 flex items-center hover:border-primary hover:text-primary transition-all">
-             <Plus size={12} className="mr-1" /> 添加接口参数
-           </button>
+        <FormRow label="接口参数" alignTop>
+           <div className="w-full space-y-3">
+             {config.params.map((param, idx) => (
+               <div key={param.id} className="flex items-center space-x-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                 <input 
+                   className="w-32 px-3 py-1.5 border border-gray-200 rounded text-sm outline-none focus:border-primary bg-white"
+                   value={param.key}
+                   onChange={(e) => {
+                     const newParams = [...config.params];
+                     newParams[idx] = { ...param, key: e.target.value };
+                     updateField('params', newParams);
+                   }}
+                   placeholder="参数名"
+                 />
+                 <input 
+                   className="flex-1 px-3 py-1.5 border border-gray-200 rounded text-sm outline-none focus:border-primary bg-white"
+                   value={param.desc}
+                   onChange={(e) => {
+                     const newParams = [...config.params];
+                     newParams[idx] = { ...param, desc: e.target.value };
+                     updateField('params', newParams);
+                   }}
+                   placeholder="参数描述"
+                 />
+                 
+                 {/* 来源选择 */}
+                 <div className="flex items-center space-x-2">
+                   <select
+                     className="px-2 py-1.5 text-xs border border-gray-200 rounded outline-none focus:border-primary bg-white"
+                     value={param.source || 'llm'}
+                     onChange={(e) => {
+                       const newParams = [...config.params];
+                       newParams[idx] = { 
+                         ...param, 
+                         source: e.target.value as 'llm' | 'variable',
+                         variableName: e.target.value === 'variable' ? (availableVariables[0]?.name || '') : undefined
+                       };
+                       updateField('params', newParams);
+                     }}
+                   >
+                     <option value="llm">LLM提取</option>
+                     <option value="variable">变量映射</option>
+                   </select>
+                   
+                   {param.source === 'variable' && (
+                     <select
+                       className="px-2 py-1.5 text-xs border border-gray-200 rounded outline-none focus:border-primary bg-white min-w-[120px]"
+                       value={param.variableName || ''}
+                       onChange={(e) => {
+                         const newParams = [...config.params];
+                         newParams[idx] = { ...param, variableName: e.target.value };
+                         updateField('params', newParams);
+                       }}
+                     >
+                       <option value="">选择变量</option>
+                       {availableVariables.map(v => (
+                         <option key={v.id} value={v.name}>{v.name} ({v.description})</option>
+                       ))}
+                     </select>
+                   )}
+                 </div>
+                 
+                 <button 
+                   onClick={() => {
+                     const newParams = config.params.filter((_, i) => i !== idx);
+                     updateField('params', newParams);
+                   }}
+                   className="p-1.5 text-slate-300 hover:text-red-500 transition-colors"
+                 >
+                   <Trash2 size={14} />
+                 </button>
+               </div>
+             ))}
+             <button 
+               onClick={() => {
+                 updateField('params', [
+                   ...config.params, 
+                   { id: Date.now().toString(), key: '', desc: '', source: 'llm' }
+                 ]);
+               }}
+               className="px-3 py-1.5 border border-dashed border-gray-300 rounded text-xs text-slate-600 flex items-center hover:border-primary hover:text-primary transition-all"
+             >
+               <Plus size={12} className="mr-1" /> 添加参数
+             </button>
+             
+             {availableVariables.length === 0 && (
+               <p className="text-[10px] text-slate-400">暂无可用变量，变量映射功能需要先在机器人配置中定义变量</p>
+             )}
+           </div>
         </FormRow>
 
         <FormRow label="请求体" alignTop>

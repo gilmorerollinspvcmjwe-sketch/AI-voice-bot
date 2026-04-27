@@ -170,7 +170,7 @@ const BotBusinessConfig: React.FC<BotBusinessConfigProps> = ({ config, updateFie
 
   // --- Parameter Management (Copied logic from BotBasicConfig) ---
   const addParameter = () => {
-    const newParam: Parameter = { id: Date.now().toString(), key: '', description: '' };
+    const newParam: Parameter = { id: Date.now().toString(), key: '', description: '', source: 'llm' };
     updateField('parameters', [...config.parameters, newParam]);
   };
 
@@ -423,37 +423,83 @@ const BotBusinessConfig: React.FC<BotBusinessConfigProps> = ({ config, updateFie
                         </div>
                         <div className="space-y-3 max-h-80 overflow-y-auto">
                           {config.parameters.map((param) => (
-                            <div key={param.id} className="flex space-x-2 items-center">
-                              <div className="flex-1 min-w-0 relative">
-                                 <select 
-                                   className="w-full px-2 py-1 text-[11px] border border-gray-200 rounded bg-white outline-none appearance-none"
-                                   value={param.key}
-                                   onChange={(e) => updateParameter(param.id, 'key', e.target.value)}
-                                 >
-                                   <option value="">选择变量 (英)</option>
-                                   {config.variables?.map(v => (
-                                     <option key={v.id} value={v.name}>{v.name}</option>
-                                   ))}
-                                 </select>
-                                 <ChevronDown size={10} className="absolute right-1 top-2 text-gray-400 pointer-events-none" />
+                            <div key={param.id} className="p-3 bg-white rounded border border-gray-200 space-y-2">
+                              {/* 第一行：参数名和来源选择 */}
+                              <div className="flex space-x-2 items-center">
+                                <div className="flex-1 min-w-0 relative">
+                                   <select 
+                                     className="w-full px-2 py-1 text-[11px] border border-gray-200 rounded bg-white outline-none appearance-none"
+                                     value={param.key}
+                                     onChange={(e) => updateParameter(param.id, 'key', e.target.value)}
+                                   >
+                                     <option value="">选择接口参数</option>
+                                     {config.variables?.map(v => (
+                                       <option key={v.id} value={v.name}>{v.name}</option>
+                                     ))}
+                                   </select>
+                                   <ChevronDown size={10} className="absolute right-1 top-2 text-gray-400 pointer-events-none" />
+                                </div>
+                                
+                                <select
+                                  className="w-24 px-2 py-1 text-[11px] border border-gray-200 rounded bg-white outline-none appearance-none"
+                                  value={param.source || 'llm'}
+                                  onChange={(e) => {
+                                    const newSource = e.target.value as 'llm' | 'variable';
+                                    const updates: any = { source: newSource };
+                                    if (newSource === 'variable') {
+                                      updates.variableName = config.variables?.[0]?.name || '';
+                                      updates.description = '';
+                                    } else {
+                                      updates.variableName = undefined;
+                                    }
+                                    updateParameter(param.id, 'source', newSource);
+                                    if (updates.variableName !== undefined) {
+                                      updateParameter(param.id, 'variableName', updates.variableName);
+                                    }
+                                  }}
+                                >
+                                  <option value="llm">LLM提取</option>
+                                  <option value="variable">变量映射</option>
+                                </select>
+
+                                <button onClick={() => removeParameter(param.id)} className="text-slate-300 hover:text-red-500 shrink-0">
+                                   <Trash2 size={12} />
+                                </button>
                               </div>
                               
-                              <div className="flex-[2] min-w-0">
-                                <input
-                                  type="text"
-                                  className="w-full px-2 py-1 text-[11px] border border-gray-200 rounded bg-white outline-none focus:border-primary placeholder:text-slate-300"
-                                  placeholder="输入提取指令/描述"
-                                  value={param.description || ''}
-                                  onChange={(e) => updateParameter(param.id, 'description', e.target.value)}
-                                />
-                              </div>
-
-                              <button onClick={() => removeParameter(param.id)} className="text-slate-300 hover:text-red-500 shrink-0">
-                                 <Trash2 size={12} />
-                              </button>
+                              {/* 第二行：根据来源显示不同输入 */}
+                              {param.source === 'variable' ? (
+                                <div className="flex items-center space-x-2">
+                                  <span className="text-[10px] text-slate-500">映射变量：</span>
+                                  <select
+                                    className="flex-1 px-2 py-1 text-[11px] border border-gray-200 rounded bg-white outline-none appearance-none"
+                                    value={param.variableName || ''}
+                                    onChange={(e) => updateParameter(param.id, 'variableName', e.target.value)}
+                                  >
+                                    <option value="">选择已有变量</option>
+                                    {config.variables?.map(v => (
+                                      <option key={v.id} value={v.name}>{v.name} ({v.description || '无描述'})</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              ) : (
+                                <div className="flex-[2] min-w-0">
+                                  <input
+                                    type="text"
+                                    className="w-full px-2 py-1 text-[11px] border border-gray-200 rounded bg-white outline-none focus:border-primary placeholder:text-slate-300"
+                                    placeholder="输入提取指令/描述，指导LLM如何提取此参数"
+                                    value={param.description || ''}
+                                    onChange={(e) => updateParameter(param.id, 'description', e.target.value)}
+                                  />
+                                </div>
+                              )}
                             </div>
                           ))}
                           {config.parameters.length === 0 && <div className="text-[10px] text-slate-400 text-center py-4">暂无变量</div>}
+                        </div>
+                        
+                        <div className="mt-3 p-2 bg-blue-50 rounded text-[10px] text-blue-600">
+                          <span className="font-bold">提示：</span>LLM提取会分析对话内容自动提取信息；变量映射会直接使用已配置的变量值，不经过LLM提取。
                         </div>
                       </div>
                    </div>

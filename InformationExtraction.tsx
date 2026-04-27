@@ -2,14 +2,15 @@
 import React, { useState } from 'react';
 import InterfaceConfig from './components/extraction/InterfaceConfig';
 import TriggerConfig from './components/extraction/TriggerConfig';
-import { ExtractionConfig } from './types';
+import { ExtractionConfig, BotVariable } from './types';
 
 interface InformationExtractionProps {
   configs: ExtractionConfig[];
   onUpdateConfigs: (configs: ExtractionConfig[]) => void;
+  availableVariables?: BotVariable[];
 }
 
-export default function InformationExtraction({ configs, onUpdateConfigs }: InformationExtractionProps) {
+export default function InformationExtraction({ configs, onUpdateConfigs, availableVariables = [] }: InformationExtractionProps) {
   const [activeTab, setActiveTab] = useState<'INTERFACE' | 'TRIGGER'>('INTERFACE');
 
   return (
@@ -41,6 +42,7 @@ export default function InformationExtraction({ configs, onUpdateConfigs }: Info
           <InterfaceConfig 
             configs={configs}
             onUpdateConfigs={onUpdateConfigs}
+            availableVariables={availableVariables}
           />
         )}
         {activeTab === 'TRIGGER' && <TriggerConfig />}

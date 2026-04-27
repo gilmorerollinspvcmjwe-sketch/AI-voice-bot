@@ -1,13 +1,14 @@
 import React from 'react';
-import { Bug, RotateCcw, Workflow, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { Bug, History, RotateCcw, Workflow, X, ZoomIn, ZoomOut } from 'lucide-react';
 
-type DrawerMode = 'flow' | 'node' | 'edge' | 'debug' | null;
+type DrawerMode = 'flow' | 'node' | 'edge' | 'debug' | 'version' | null;
 
 interface FlowStudioToolbarProps {
   drawerMode: DrawerMode;
   zoom: number;
   onCloseDrawer: () => void;
   onOpenDebug: () => void;
+  onOpenVersion: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onResetView: () => void;
@@ -18,6 +19,7 @@ export default function FlowStudioToolbar({
   zoom,
   onCloseDrawer,
   onOpenDebug,
+  onOpenVersion,
   onZoomIn,
   onZoomOut,
   onResetView,
@@ -29,7 +31,9 @@ export default function FlowStudioToolbar({
         ? '节点配置'
         : drawerMode === 'edge'
           ? '边条件配置'
-          : null;
+          : drawerMode === 'version'
+            ? '版本管理'
+            : null;
 
   return (
     <div className="border-b border-gray-200 bg-white px-4 py-3">
@@ -90,6 +94,17 @@ export default function FlowStudioToolbar({
             <span className="inline-flex items-center gap-1">
               <Bug size={14} />
               场景调试
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onOpenVersion}
+            className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50"
+          >
+            <span className="inline-flex items-center gap-1">
+              <History size={14} />
+              版本管理
             </span>
           </button>
 

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Wrench, Code, Variable } from 'lucide-react';
+import { Wrench, Code, Variable, Workflow } from 'lucide-react';
 import { AgentTool, FlowFunction } from '../../../types';
 
 interface PromptEditorProps {
@@ -9,11 +9,12 @@ interface PromptEditorProps {
   variables?: { name: string; description?: string }[];
   availableTools?: AgentTool[];
   availableFunctions?: FlowFunction[];
+  availableFlows?: Array<{ id: string; name: string; description?: string }>;
   height?: string;
 }
 
 interface ItemData {
-  type: 'variable' | 'tool' | 'codeblock';
+  type: 'variable' | 'tool' | 'codeblock' | 'flow';
   id: string;
   name: string;
   displayText: string;
@@ -24,6 +25,7 @@ const CHIP_CLASS: Record<string, string> = {
   variable: 'inline-flex items-center gap-1 px-1.5 py-0 rounded text-[11px] font-mono border bg-emerald-100 text-emerald-700 border-emerald-200',
   tool: 'inline-flex items-center gap-1 px-1.5 py-0 rounded text-[11px] font-mono border bg-primary/10 text-primary border-primary/20',
   codeblock: 'inline-flex items-center gap-1 px-1.5 py-0 rounded text-[11px] font-mono border bg-blue-500/10 text-blue-600 border-blue-200',
+  flow: 'inline-flex items-center gap-1 px-1.5 py-0 rounded text-[11px] font-mono border bg-purple-100 text-purple-700 border-purple-200',
 };
 
 function escapeHtml(s: string) {
@@ -37,6 +39,7 @@ export default function PromptEditor({
   variables = [],
   availableTools = [],
   availableFunctions = [],
+  availableFlows = [],
   height = 'h-40'
 }: PromptEditorProps) {
   const [showDropdown, setShowDropdown] = useState(false);
@@ -51,7 +54,8 @@ export default function PromptEditor({
   const allItems: ItemData[] = [
     ...variables.map(v => ({ type: 'variable' as const, id: v.name, name: v.name, displayText: `{{${v.name}}}`, desc: v.description || '' })),
     ...availableTools.map(t => ({ type: 'tool' as const, id: t.id, name: t.name, displayText: `/${t.name}`, desc: t.description || '' })),
-    ...availableFunctions.map(f => ({ type: 'codeblock' as const, id: f.id, name: f.name, displayText: `/${f.name}`, desc: f.description || '' }))
+    ...availableFunctions.map(f => ({ type: 'codeblock' as const, id: f.id, name: f.name, displayText: `/${f.name}`, desc: f.description || '' })),
+    ...availableFlows.map(f => ({ type: 'flow' as const, id: f.id, name: f.name, displayText: `/flow:${f.name}`, desc: f.description || '' }))
   ];
 
   const filteredItems = searchQuery
@@ -67,6 +71,7 @@ export default function PromptEditor({
       { type: 'variable' as const, regex: /\{\{(\w+)\}\}/ },
       { type: 'tool' as const, regex: /\/([a-zA-Z_]\w*)/ },
       { type: 'codeblock' as const, regex: /\/([a-zA-Z_]\w*)/ },
+      { type: 'flow' as const, regex: /\/flow:([a-zA-Z_]\w*)/ },
     ];
 
     while (remaining.length > 0) {
@@ -82,6 +87,7 @@ export default function PromptEditor({
             if (!availableFunctions.find(f => f.name === m[1])) continue;
             if (availableTools.find(t => t.name === m[1])) continue;
           }
+          if (p.type === 'flow' && !availableFlows.find(f => f.name === m[1])) continue;
           earliestIdx = m.index;
           earliestMatch = { type: p.type, match: m, end: m.index + m[0].length };
         }
@@ -110,6 +116,7 @@ export default function PromptEditor({
         variable: `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>`,
         tool: `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`,
         codeblock: `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`,
+        flow: `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>`,
       };
       return `<span contenteditable="false" class="${CHIP_CLASS[p.itemType!]}" data-ref="${escapeHtml(p.content)}">${iconMap[p.itemType!]}${escapeHtml(p.itemName!)}<span class="ml-px cursor-pointer opacity-60 hover:opacity-100 hover:text-red-500" data-remove="true"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></span>`;
     }).join('');
@@ -597,6 +604,29 @@ export default function PromptEditor({
                         className={`w-full px-3 py-2 text-xs text-left flex items-center gap-2 ${globalIdx === selectedIndex ? 'bg-primary/5' : 'hover:bg-slate-50'}`}
                       >
                         <span className="font-mono text-blue-600 font-medium">{item.displayText}</span>
+                        {item.desc && <span className="text-slate-400 truncate ml-1">{item.desc}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {filteredItems.filter(i => i.type === 'flow').length > 0 && (
+                <div className="pt-1">
+                  <div className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">
+                    <Workflow size={10} /> 流程
+                  </div>
+                  {filteredItems.filter(i => i.type === 'flow').map((item) => {
+                    const globalIdx = filteredItems.indexOf(item);
+                    return (
+                      <button
+                        key={item.id}
+                        data-index={globalIdx}
+                        onClick={() => insertItem(item)}
+                        onMouseEnter={() => setSelectedIndex(globalIdx)}
+                        className={`w-full px-3 py-2 text-xs text-left flex items-center gap-2 ${globalIdx === selectedIndex ? 'bg-primary/5' : 'hover:bg-slate-50'}`}
+                      >
+                        <span className="font-mono text-purple-600 font-medium">{item.displayText}</span>
                         {item.desc && <span className="text-slate-400 truncate ml-1">{item.desc}</span>}
                       </button>
                     );

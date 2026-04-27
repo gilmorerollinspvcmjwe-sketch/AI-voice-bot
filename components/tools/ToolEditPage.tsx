@@ -22,7 +22,12 @@ const DEFAULT_TOOL: AgentTool = {
     fillerType: 'TTS',
     fillerContent: '正在为您查询，请稍候...'
   },
-  responseInstruction: ''
+  responseInstruction: '',
+  startSpeech: '正在为您查询，请稍候...',
+  needReturn: true,
+  successSpeech: '查询已完成，结果如下：',
+  failureSpeech: '抱歉，查询遇到了问题，请稍后再试或联系人工客服。',
+  interruptSpeech: '正在处理中，请稍候，处理完成后我会为您解答。'
 };
 
 export default function ToolEditPage({ tool, onSave, onClose, extractionConfigs }: ToolEditPageProps) {
@@ -321,6 +326,85 @@ export default function ToolEditPage({ tool, onSave, onClose, extractionConfigs 
 
              {isToolOptimizationEnabled && (
                <>
+               {/* 工具调用话术配置 */}
+               <div className="bg-white p-6 rounded-xl border border-gray-200 space-y-5">
+                 <h3 className="text-sm font-bold text-slate-700 pb-2 border-b border-gray-100">工具调用话术</h3>
+                 
+                 <div>
+                   <div className="flex items-center gap-2 mb-2">
+                     <span className="text-sm font-medium text-slate-700">工具调用开始话术</span>
+                     <HelpCircle size={12} className="text-slate-400" />
+                   </div>
+                   <textarea 
+                     value={formData.startSpeech || ''}
+                     onChange={(e) => setFormData({...formData, startSpeech: e.target.value})}
+                     placeholder="工具开始执行时机器人说的话，如：正在为您查询，请稍候..."
+                     className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none bg-slate-50"
+                     rows={2}
+                   />
+                 </div>
+
+                 <div className="flex items-center justify-between py-3 px-4 bg-slate-50 rounded-lg border border-slate-200">
+                   <div className="flex items-center gap-2">
+                     <span className="text-sm font-medium text-slate-700">工具是否需要返回结果</span>
+                     <HelpCircle size={12} className="text-slate-400" />
+                   </div>
+                   <Switch 
+                     label="" 
+                     checked={formData.needReturn !== false}
+                     onChange={(value) => setFormData({...formData, needReturn: value})}
+                   />
+                 </div>
+                 <p className="text-xs text-slate-400 -mt-2">关闭后，工具执行完成不会向用户汇报结果（适用于后台记录类工具）</p>
+
+                 {formData.needReturn !== false && (
+                   <>
+                     <div>
+                       <div className="flex items-center gap-2 mb-2">
+                         <span className="text-sm font-medium text-slate-700">工具调用成功话术</span>
+                         <HelpCircle size={12} className="text-slate-400" />
+                       </div>
+                       <textarea 
+                         value={formData.successSpeech || ''}
+                         onChange={(e) => setFormData({...formData, successSpeech: e.target.value})}
+                         placeholder="工具执行成功后的回复，如：查询已完成，结果如下："
+                         className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none bg-slate-50"
+                         rows={2}
+                       />
+                     </div>
+
+                     <div>
+                       <div className="flex items-center gap-2 mb-2">
+                         <span className="text-sm font-medium text-slate-700">工具调用失败话术</span>
+                         <HelpCircle size={12} className="text-slate-400" />
+                       </div>
+                       <textarea 
+                         value={formData.failureSpeech || ''}
+                         onChange={(e) => setFormData({...formData, failureSpeech: e.target.value})}
+                         placeholder="工具执行失败后的回复，如：抱歉，查询遇到了问题..."
+                         className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none bg-slate-50"
+                         rows={2}
+                       />
+                     </div>
+                   </>
+                 )}
+
+                 <div>
+                   <div className="flex items-center gap-2 mb-2">
+                     <span className="text-sm font-medium text-slate-700">调用中客户咨询回复话术</span>
+                     <HelpCircle size={12} className="text-slate-400" />
+                   </div>
+                   <textarea 
+                     value={formData.interruptSpeech || ''}
+                     onChange={(e) => setFormData({...formData, interruptSpeech: e.target.value})}
+                     placeholder="工具执行期间，如果客户插话问问题，机器人如何回复"
+                     className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none bg-slate-50"
+                     rows={2}
+                   />
+                   <p className="text-xs text-slate-400 mt-1">工具执行与对话并行，客户可在等待时继续说话</p>
+                 </div>
+               </div>
+
                <div className="bg-white p-6 rounded-xl border border-gray-200 space-y-5">
                  <h3 className="text-sm font-bold text-slate-700 pb-2 border-b border-gray-100">超时配置</h3>
                  

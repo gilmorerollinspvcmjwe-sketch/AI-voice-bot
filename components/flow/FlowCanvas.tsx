@@ -367,12 +367,28 @@ export default function FlowCanvas({
                 (item) => item.targetType === 'edge' && item.targetId === edge.id,
               );
 
+              // 根据边类型设置样式
+              const edgeType = edge.edgeType || 'normal';
+              let strokeColor = selected ? '#0284c7' : '#94a3b8';
+              let strokeWidth = selected ? 3 : 2;
+              let strokeDasharray = 'none';
+
+              if (edgeType === 'conditional') {
+                strokeColor = selected ? '#ea580c' : '#f97316'; // 橙色
+              } else if (edgeType === 'fallback') {
+                strokeColor = selected ? '#6b7280' : '#d1d5db'; // 灰色
+                strokeDasharray = '6 4'; // 虚线
+              } else if (edgeType === 'goto_flow') {
+                strokeColor = selected ? '#7c3aed' : '#a78bfa'; // 紫色
+              }
+
               return (
                 <g key={edge.id}>
                   <path
                     d={renderCurve(startX, startY, endX, endY)}
-                    stroke={selected ? '#0284c7' : '#94a3b8'}
-                    strokeWidth={selected ? 3 : 2}
+                    stroke={strokeColor}
+                    strokeWidth={strokeWidth}
+                    strokeDasharray={strokeDasharray}
                     fill="none"
                     markerEnd="url(#flow-arrow)"
                     className="cursor-pointer"
@@ -390,7 +406,12 @@ export default function FlowCanvas({
                       width="112"
                       height="28"
                     >
-                      <div className="rounded-full border border-gray-200 bg-white px-2 py-1 text-center text-[10px] text-slate-500 shadow-sm">
+                      <div className={`rounded-full border px-2 py-1 text-center text-[10px] shadow-sm ${
+                        edgeType === 'conditional' ? 'border-orange-200 bg-orange-50 text-orange-700' :
+                        edgeType === 'fallback' ? 'border-gray-200 bg-gray-50 text-gray-600' :
+                        edgeType === 'goto_flow' ? 'border-purple-200 bg-purple-50 text-purple-700' :
+                        'border-gray-200 bg-white text-slate-500'
+                      }`}>
                         {edge.label}
                       </div>
                     </foreignObject>

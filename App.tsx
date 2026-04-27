@@ -408,7 +408,7 @@ const INITIAL_EXTRACTION_CONFIGS: ExtractionConfig[] = [
     name: '查询最近订单',
     description: '根据手机号获取用户最近一笔行程信息',
     lastUpdated: Date.now(),
-    params: [{ id: '1', key: 'user_phone', desc: '用户手机号' }],
+    params: [{ id: '1', key: 'user_phone', desc: '用户手机号', source: 'llm' }],
     interfaceUrl: 'https://api.didi.com/v1/orders/last',
     method: 'GET',
     authType: 'url',
@@ -425,7 +425,7 @@ const INITIAL_EXTRACTION_CONFIGS: ExtractionConfig[] = [
     name: '检测路线偏移',
     description: '分析实际行驶路线与预估路线的差异',
     lastUpdated: Date.now(),
-    params: [{ id: '1', key: 'order_id', desc: '订单ID' }],
+    params: [{ id: '1', key: 'order_id', desc: '订单ID', source: 'llm' }],
     interfaceUrl: 'https://api.didi.com/v1/risk/route_deviation',
     method: 'POST',
     authType: 'basic',
@@ -539,7 +539,7 @@ export default function App() {
       case '函数管理':
         return <FunctionManager />;
       case '信息提取配置':
-        return <InformationExtraction configs={extractionConfigs} onUpdateConfigs={setExtractionConfigs} />;
+        return <InformationExtraction configs={extractionConfigs} onUpdateConfigs={setExtractionConfigs} availableVariables={DIDI_VARIABLES} />;
       case '机器人模版':
         return <TemplateMarket />;
       case '音色市场':

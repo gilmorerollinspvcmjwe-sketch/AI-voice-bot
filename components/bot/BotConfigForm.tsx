@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ArrowRight, Workflow, Bot } from 'lucide-react';
 import { BotConfiguration, ExtractionConfig, MarketingCampaign, FlowConfig, FlowNodeType, ExitNodeType } from '../../types';
 import { generateBotPrompt } from '../../services/geminiService';
@@ -13,6 +13,8 @@ import BotIntentConfig from './intent/BotIntentConfig';
 import BotMarketingConfig from './BotMarketingConfig';
 
 import BotKnowledgeConfig from './BotKnowledgeConfig';
+import BotTopicManager from './BotTopicManager';
+import BotTriggerManager from './BotTriggerManager';
 import FlowStudio from '../flow/FlowStudio';
 
 interface BotConfigFormProps {
@@ -364,8 +366,22 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
     orchestrationType: initialData.orchestrationType || 'WORKFLOW' 
   });
   
-  const [activeTab, setActiveTab] = useState<'BASIC' | 'FLOW' | 'TOOLS' | 'STRATEGY' | 'BUSINESS' | 'VARIABLES' | 'DEBUG' | 'TEST' | 'MARKETING' | 'KNOWLEDGE' | 'FLOW_CONFIG'>('BASIC');
+  const [activeTab, setActiveTab] = useState<'BASIC' | 'FLOW' | 'TOOLS' | 'STRATEGY' | 'BUSINESS' | 'VARIABLES' | 'DEBUG' | 'TEST' | 'MARKETING' | 'KNOWLEDGE' | 'FLOW_CONFIG' | 'TOPIC' | 'TRIGGER'>('BASIC');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const moreButtonRef = useRef<HTMLButtonElement>(null);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+
+  useEffect(() => {
+    if (isMoreOpen && moreButtonRef.current) {
+      const rect = moreButtonRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: rect.width
+      });
+    }
+  }, [isMoreOpen]);
 
   const updateField = <K extends keyof BotConfiguration>(key: K, value: BotConfiguration[K]) => {
     setConfig(prev => ({ ...prev, [key]: value }));
@@ -422,30 +438,81 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
       </div>
 
       {/* Main Tabs Navigation */}
-      <div className="flex border-b border-gray-200 mb-8 space-x-8 overflow-x-auto">
-        {[
-          { id: 'BASIC', label: '基础配置' },
-          { id: 'FLOW', label: '意图技能' },
-          { id: 'FLOW_CONFIG', label: '流程配置' },
-
-          { id: 'STRATEGY', label: '对话策略' },
-          { id: 'VARIABLES', label: '变量配置' },
-          { id: 'BUSINESS', label: '业务分析' },
-          { id: 'MARKETING', label: '营销活动' },
-          { id: 'DEBUG', label: '模型调试' },
-          { id: 'TEST', label: '批量评测' },
-          { id: 'KNOWLEDGE', label: '知识检索配置' },
-        ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            className={`pb-3 text-sm font-medium transition-all relative whitespace-nowrap ${
-              activeTab === tab.id ? 'text-primary border-b-2 border-primary' : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="border-b border-gray-200 mb-8">
+        <div className="flex space-x-8 overflow-x-auto pb-px">
+          {[
+            { id: 'BASIC', label: '基础配置' },
+            { id: 'FLOW_CONFIG', label: '流程配置' },
+            { id: 'TOPIC', label: '主题管理' },
+            { id: 'TRIGGER', label: '触发器' },
+            { id: 'STRATEGY', label: '对话策略' },
+            { id: 'VARIABLES', label: '变量配置' },
+            { id: 'DEBUG', label: '模型调试' },
+            { id: 'KNOWLEDGE', label: '知识检索配置' },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`pb-3 text-sm font-medium transition-all relative whitespace-nowrap ${
+                activeTab === tab.id ? 'text-primary border-b-2 border-primary' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+          
+          {/* 更多配置下拉菜单 */}
+          <div className="relative">
+            <button
+              ref={moreButtonRef}
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsMoreOpen(!isMoreOpen);
+              }}
+              className={`pb-3 text-sm font-medium transition-all relative whitespace-nowrap flex items-center gap-1 ${
+                ['FLOW', 'BUSINESS', 'MARKETING', 'TEST'].includes(activeTab) ? 'text-primary border-b-2 border-primary' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              更多配置
+              <svg className={`w-4 h-4 transition-transform ${isMoreOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            
+            {isMoreOpen && (
+              <div 
+                className="fixed bg-white border border-gray-200 rounded-lg shadow-lg z-[100]"
+                style={{
+                  top: `${dropdownPosition.top}px`,
+                  left: `${dropdownPosition.left}px`,
+                  minWidth: '50px'
+                }}
+              >
+                {[
+                  { id: 'FLOW', label: '意图技能' },
+                  { id: 'BUSINESS', label: '业务分析' },
+                  { id: 'MARKETING', label: '营销活动' },
+                  { id: 'TEST', label: '批量评测' },
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setActiveTab(tab.id as any);
+                      setIsMoreOpen(false);
+                    }}
+                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors first:rounded-t-lg last:rounded-b-lg ${
+                      activeTab === tab.id 
+                        ? 'bg-primary/5 text-primary font-medium' 
+                        : 'text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Tab Panels */}
@@ -522,7 +589,25 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
            </div>
         )}
 
+        {/* Topic Management */}
+        {activeTab === 'TOPIC' && (
+          <div className="animate-in fade-in duration-500">
+            <BotTopicManager
+              config={config}
+              updateField={updateField}
+            />
+          </div>
+        )}
 
+        {/* Trigger Management */}
+        {activeTab === 'TRIGGER' && (
+          <div className="animate-in fade-in duration-500">
+            <BotTriggerManager
+              config={config}
+              updateField={updateField}
+            />
+          </div>
+        )}
 
         {activeTab === 'STRATEGY' && (
           <BotStrategyConfig 
@@ -537,10 +622,6 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
           <BotVariableConfig 
             variables={config.variables || []} 
             onUpdate={(vars) => updateField('variables', vars)} 
-            stateDefaults={config.stateDefaults || ''}
-            stateWriteRules={config.stateWriteRules || ''}
-            onStateDefaultsChange={(value) => updateField('stateDefaults', value)}
-            onStateWriteRulesChange={(value) => updateField('stateWriteRules', value)}
             onSave={handleSave}
             onCancel={onCancel}
           />
