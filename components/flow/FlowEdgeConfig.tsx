@@ -1,8 +1,9 @@
 // 边配置面板，用于配置连线的类型、条件、优先级等。
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, GitBranch, HelpCircle, X } from 'lucide-react';
-import { FlowEdge, FlowFunction, FlowNode } from '../../types';
+import { ChevronDown, ChevronUp, GitBranch, HelpCircle, Sparkles, X } from 'lucide-react';
+import { BotVariable, FlowEdge, FlowFunction, FlowNode } from '../../types';
 import { Label } from '../ui/FormComponents';
+import VisualConditionBuilder from '../bot/intent/nodes/VisualConditionBuilder';
 
 interface FlowEdgeConfigProps {
   edge: FlowEdge | null;
@@ -10,6 +11,7 @@ interface FlowEdgeConfigProps {
   targetNode: FlowNode | null;
   availableFlows?: Array<{ id: string; name: string }>;
   availableFunctions: FlowFunction[];
+  availableVariables?: BotVariable[];
   onChange: (edge: FlowEdge) => void;
   onClose: () => void;
   readOnly?: boolean;
@@ -28,11 +30,9 @@ function Section({ title, icon, children, defaultExpanded = true }: { title: str
   );
 }
 
-const EDGE_TYPES = [
-  { value: 'normal', label: '普通连线', desc: '默认路径，无条件分支' },
-  { value: 'conditional', label: '条件分支', desc: '根据条件函数或表达式判断' },
-  { value: 'fallback', label: '兜底分支', desc: '其他条件都不满足时的默认路径' },
-  { value: 'goto_flow', label: '跨 Flow 跳转', desc: '跳转到其他 Flow' },
+const EDGE_BRANCH_TYPES = [
+  { value: 'conditional', label: '条件分支', desc: '按变量或表达式判断路径', icon: <GitBranch size={16} /> },
+  { value: 'llm_branch', label: '模型路由', desc: '由模型根据提示词选择路径', icon: <Sparkles size={16} /> },
 ];
 
 export default function FlowEdgeConfig({
@@ -41,6 +41,7 @@ export default function FlowEdgeConfig({
   targetNode,
   availableFlows = [],
   availableFunctions,
+  availableVariables = [],
   onChange,
   onClose,
   readOnly = false,
@@ -54,7 +55,35 @@ export default function FlowEdgeConfig({
     onChange({ ...edge, ...updates });
   };
 
-  const edgeType = edge.edgeType || 'normal';
+  const edgeType = edge.edgeType === 'conditional' ? 'conditional' : 'llm_branch';
+  const conditionExpression = edge.condition?.expression || edge.conditionSummary || '';
+  const variableNames = availableVariables.map((variable) => variable.name).filter(Boolean);
+
+  const updateEdgeType = (nextType: FlowEdge['edgeType']) => {
+    if (nextType === 'conditional') {
+      updateEdge({
+        edgeType: 'conditional',
+        condition: edge.condition || { mode: 'expression', expression: conditionExpression },
+      });
+      return;
+    }
+
+    updateEdge({
+      edgeType: 'llm_branch',
+      llmRoutingPrompt: edge.llmRoutingPrompt || edge.description || edge.conditionSummary || '',
+    });
+  };
+
+  const updateConditionExpression = (expression: string) => {
+    updateEdge({
+      conditionSummary: expression,
+      condition: {
+        ...(edge.condition || {}),
+        mode: 'expression',
+        expression,
+      },
+    });
+  };
 
   return (
     <div className="flex h-full flex-col bg-white">
@@ -70,7 +99,7 @@ export default function FlowEdgeConfig({
         {/* 基础信息 */}
         <Section title="基础信息" icon={<GitBranch size={16} />}>
           <div>
-            <Label label="边标签" tooltip="给人看的短标签，如：是/否/成功/失败" />
+            <Label label="边标签" tooltip="给人看的短标签，如：验证成功、需要转人工、继续追问" />
             <input
               value={edge.label || ''}
               disabled={readOnly}
@@ -80,7 +109,7 @@ export default function FlowEdgeConfig({
             />
           </div>
           <div>
-            <Label label="边描述" tooltip="给模型看的路由信号，描述什么情况下走这条边" />
+            <Label label="边描述" tooltip="给运营和调试人员看的备注，不参与机器判断" />
             <textarea
               rows={3}
               value={edge.description || ''}
@@ -95,7 +124,7 @@ export default function FlowEdgeConfig({
         {/* 边类型 */}
         <Section title="边类型" icon={<GitBranch size={16} />}>
           <div className="space-y-2">
-            {EDGE_TYPES.map((item) => {
+            {EDGE_BRANCH_TYPES.map((item) => {
               const selected = edgeType === item.value;
               return (
                 <label
@@ -109,11 +138,11 @@ export default function FlowEdgeConfig({
                     name={`edge_type_${edge.id}`}
                     checked={selected}
                     disabled={readOnly}
-                    onChange={() => updateEdge({ edgeType: item.value as FlowEdge['edgeType'] })}
+                    onChange={() => updateEdgeType(item.value as FlowEdge['edgeType'])}
                     className="mt-1 h-4 w-4 border-slate-300 text-primary focus:ring-primary"
                   />
                   <div>
-                    <div className="text-sm font-medium text-slate-800">{item.label}</div>
+                    <div className="flex items-center gap-2 text-sm font-medium text-slate-800">{item.icon}{item.label}</div>
                     <div className="mt-0.5 text-xs text-slate-500">{item.desc}</div>
                   </div>
                 </label>
@@ -126,7 +155,17 @@ export default function FlowEdgeConfig({
         {edgeType === 'conditional' ? (
           <Section title="条件配置" icon={<GitBranch size={16} />}>
             <div>
-              <Label label="条件函数" tooltip="选择用于判断是否走这条边的函数" />
+              <Label label="条件表达式" tooltip="参考意图识别模块的条件分支：可以按变量、状态值、文本内容组合判断" />
+              <div className="rounded-xl border border-amber-100 bg-amber-50/30 p-3">
+                <VisualConditionBuilder
+                  value={conditionExpression}
+                  onChange={updateConditionExpression}
+                  availableVariables={variableNames}
+                />
+              </div>
+            </div>
+            <div>
+              <Label label="条件函数" tooltip="可选：选择用于辅助判断或执行转场的函数" />
               <select
                 value={edge.transitionFunctionId || ''}
                 disabled={readOnly}
@@ -140,17 +179,6 @@ export default function FlowEdgeConfig({
               </select>
             </div>
             <div>
-              <Label label="条件表达式" tooltip="可选，用自然语言描述条件" />
-              <textarea
-                rows={2}
-                value={edge.conditionSummary || ''}
-                disabled={readOnly}
-                onChange={(e) => updateEdge({ conditionSummary: e.target.value })}
-                className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 disabled:bg-slate-100"
-                placeholder="如：用户已提供手机号且格式正确"
-              />
-            </div>
-            <div>
               <Label label="前置实体要求" tooltip="这些实体满足前不应触发此边" />
               <input
                 value={(edge.requiredEntities || []).join(', ')}
@@ -159,6 +187,26 @@ export default function FlowEdgeConfig({
                 className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 disabled:bg-slate-100"
                 placeholder="如：phone, order_id（逗号分隔）"
               />
+            </div>
+          </Section>
+        ) : null}
+
+        {/* 模型路由配置 */}
+        {edgeType === 'llm_branch' ? (
+          <Section title="模型路由" icon={<Sparkles size={16} />}>
+            <div>
+              <Label label="路由规则" tooltip="说明模型选择该连线的业务条件" />
+              <textarea
+                rows={6}
+                value={edge.llmRoutingPrompt || ''}
+                disabled={readOnly}
+                onChange={(e) => updateEdge({ llmRoutingPrompt: e.target.value })}
+                className="w-full resize-none rounded-xl border border-sky-200 bg-sky-50/30 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 disabled:bg-slate-100"
+                placeholder="例如：用户确认手机号无误并愿意继续验证时，进入此路径；用户拒绝、质疑或要求人工时不进入。"
+              />
+              <p className="mt-2 text-[11px] leading-5 text-slate-400">
+                用于模型判断分支走向；备注信息请填写在“边描述”。
+              </p>
             </div>
           </Section>
         ) : null}

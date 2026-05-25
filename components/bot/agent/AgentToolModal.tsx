@@ -26,6 +26,8 @@ const DEFAULT_TOOL: AgentTool = {
   responseInstruction: '',
   startSpeech: '正在为您查询，请稍候...',
   needReturn: true,
+  directPlayOnReturn: false,
+  directReturnSpeech: '查询已完成，请您注意查收。',
   successSpeech: '查询已完成，结果如下：',
   failureSpeech: '抱歉，查询遇到了问题，请稍后再试或联系人工客服。',
   interruptSpeech: '正在处理中，请稍候，处理完成后我会为您解答。'
@@ -348,11 +350,47 @@ export default function AgentToolModal({ tool, onSave, onClose, extractionConfig
 
                {formData.needReturn !== false && (
                  <div className="space-y-4 animate-in fade-in">
+                   <div className="space-y-3 rounded-lg border border-emerald-200 bg-white p-3">
+                     <div className="flex items-center justify-between">
+                       <div className="flex items-center gap-2">
+                         <span className="text-xs font-medium text-slate-700">返回结果后直接播报</span>
+                         <HelpCircle size={12} className="text-slate-400" />
+                       </div>
+                       <Switch
+                         label=""
+                         checked={formData.directPlayOnReturn === true}
+                         onChange={(value) => setFormData({ ...formData, directPlayOnReturn: value })}
+                       />
+                     </div>
+                     <p className="text-[10px] text-emerald-600">
+                       开启后，工具返回结果时直接播放固定话术，不再调用模型生成回复。
+                     </p>
+
+                     {formData.directPlayOnReturn === true && (
+                       <div className="animate-in fade-in">
+                         <div className="flex items-center gap-2 mb-2">
+                           <Label label="固定播报话术" />
+                           <HelpCircle size={12} className="text-slate-400" />
+                         </div>
+                         <textarea
+                           value={formData.directReturnSpeech || ''}
+                           onChange={(e) => setFormData({ ...formData, directReturnSpeech: e.target.value })}
+                           placeholder="如：已为您完成处理，请稍后查看短信通知。"
+                           className="w-full px-3 py-2 text-xs border border-emerald-200 rounded-lg focus:outline-none focus:border-primary resize-none bg-white"
+                           rows={2}
+                         />
+                       </div>
+                     )}
+                   </div>
+
                    <div>
                      <div className="flex items-center gap-2 mb-2">
                        <Label label="工具调用成功话术" />
                        <HelpCircle size={12} className="text-slate-400" />
                      </div>
+                     <p className="text-[10px] text-slate-400 mb-2">
+                       {formData.directPlayOnReturn === true ? '直接播报开启时，此话术仅作为后台记录或兜底参考。' : '工具结果会交给模型组织回复时，可用这段话作为成功回复前缀。'}
+                     </p>
                      <textarea 
                        value={formData.successSpeech || ''}
                        onChange={(e) => setFormData({...formData, successSpeech: e.target.value})}

@@ -23,6 +23,7 @@ interface FlowStudioProps {
   initialFlow: FlowConfig;
   onSave?: (flow: FlowConfig) => void;
   readOnly?: boolean;
+  initialActiveFlowId?: string;
   availableFunctions?: FlowFunction[];
   availableVariables?: BotVariable[];
   availableTools?: AgentTool[];
@@ -114,13 +115,14 @@ export default function FlowStudio({
   initialFlow,
   onSave,
   readOnly = false,
+  initialActiveFlowId,
   availableFunctions = [],
   availableVariables = [],
   availableTools = [],
   availableDelayProfiles = [],
 }: FlowStudioProps) {
   const [draftFlow, setDraftFlow] = useState<FlowConfig>(() => cloneFlowConfig(initialFlow));
-  const [activeFlowId, setActiveFlowId] = useState(initialFlow.entryFlowId);
+  const [activeFlowId, setActiveFlowId] = useState(initialActiveFlowId || initialFlow.entryFlowId);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedNodeSnapshot, setSelectedNodeSnapshot] = useState<FlowNode | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
@@ -138,14 +140,14 @@ export default function FlowStudio({
 
   useEffect(() => {
     setDraftFlow(cloneFlowConfig(initialFlow));
-    setActiveFlowId(initialFlow.entryFlowId);
+    setActiveFlowId(initialActiveFlowId || initialFlow.entryFlowId);
     setSelectedNodeId(null);
     setSelectedNodeSnapshot(null);
     setSelectedEdgeId(null);
     setDrawerMode(null);
     setIsDebugOpen(false);
     setSelectedDebugScenarioId(initialFlow.debugScenarios?.[0]?.id || null);
-  }, [initialFlow]);
+  }, [initialFlow, initialActiveFlowId]);
 
   useEffect(() => {
     if (!isFullscreen && !isDebugOpen) return undefined;
@@ -549,6 +551,7 @@ export default function FlowStudio({
                 targetNode={selectedEdgeTarget}
                 availableFlows={draftFlow.flows.map(f => ({ id: f.id, name: f.name }))}
                 availableFunctions={draftFlow.functions || availableFunctions}
+                availableVariables={availableVariables}
                 onChange={handleEdgeChange}
                 onClose={closeDrawer}
                 readOnly={readOnly}

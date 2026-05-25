@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { ArrowRight, Workflow, Bot, Plus, Edit2, Trash2 } from 'lucide-react';
-import { BotConfiguration, ExtractionConfig, MarketingCampaign, FlowConfig, FlowNodeType, ExitNodeType } from '../../types';
+import { BotConfiguration, ExtractionConfig, MarketingCampaign, FlowConfig, FlowDefinition, FlowNodeType, ExitNodeType } from '../../types';
 import { generateBotPrompt } from '../../services/geminiService';
 import BotBasicConfig from './BotBasicConfig';
 import BotStrategyConfig from './BotStrategyConfig';
@@ -375,6 +375,8 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
   // Flow 列表页状态
   const [flowEditMode, setFlowEditMode] = useState(false);
   const [editingFlowId, setEditingFlowId] = useState<string | null>(null);
+  const [flowInfoMode, setFlowInfoMode] = useState<'CREATE' | 'EDIT' | null>(null);
+  const [flowInfoDraft, setFlowInfoDraft] = useState({ id: '', name: '', description: '' });
 
   useEffect(() => {
     if (isMoreOpen && moreButtonRef.current) {
@@ -424,6 +426,92 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
       toast.classList.add('opacity-0', 'transition-opacity', 'duration-500');
       setTimeout(() => toast.remove(), 500);
     }, 2000);
+  };
+
+  const openCreateFlowInfo = () => {
+    setFlowInfoDraft({
+      id: '',
+      name: `新建 Flow ${(flowConfig.flows || []).length + 1}`,
+      description: '',
+    });
+    setFlowInfoMode('CREATE');
+  };
+
+  const openEditFlowInfo = (flow: FlowDefinition) => {
+    setFlowInfoDraft({
+      id: flow.id,
+      name: flow.name,
+      description: flow.metadata?.description || '',
+    });
+    setFlowInfoMode('EDIT');
+  };
+
+  const closeFlowInfo = () => {
+    setFlowInfoMode(null);
+    setFlowInfoDraft({ id: '', name: '', description: '' });
+  };
+
+  const saveFlowInfo = () => {
+    const nextName = flowInfoDraft.name.trim();
+    const nextDescription = flowInfoDraft.description.trim();
+
+    if (!nextName) {
+      alert('请填写 Flow 名称');
+      return;
+    }
+
+    if (flowInfoMode === 'CREATE') {
+      const stamp = Date.now();
+      const newFlow: FlowDefinition = {
+        id: `flow_${stamp}`,
+        name: nextName,
+        metadata: {
+          description: nextDescription,
+          createdAt: stamp,
+          updatedAt: stamp,
+        },
+        nodes: [{
+          id: `start_${stamp}`,
+          type: FlowNodeType.START,
+          position: { x: 80, y: 220 },
+          data: {
+            name: '开始',
+            description: 'Flow 入口节点',
+            stepType: 'default',
+            stepPrompt: { prompt: '', visibleFunctionIds: [], transitionFunctionIds: [] },
+          },
+        }],
+        edges: [],
+      };
+
+      updateField('flowConfig', {
+        ...flowConfig,
+        flows: [...(flowConfig.flows || []), newFlow],
+        entryFlowId: flowConfig.entryFlowId || newFlow.id,
+      });
+      closeFlowInfo();
+      return;
+    }
+
+    if (flowInfoMode === 'EDIT') {
+      updateField('flowConfig', {
+        ...flowConfig,
+        flows: (flowConfig.flows || []).map((flow) => (
+          flow.id === flowInfoDraft.id
+            ? {
+                ...flow,
+                name: nextName,
+                metadata: {
+                  ...(flow.metadata || {}),
+                  description: nextDescription,
+                  updatedAt: Date.now(),
+                },
+              }
+            : flow
+        )),
+      });
+      closeFlowInfo();
+    }
   };
 
   return (
@@ -557,28 +645,10 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
              <div className="flex items-center justify-between mb-6">
                <div>
                  <h3 className="text-sm font-bold text-slate-800">流程列表</h3>
-                 <p className="text-xs text-slate-400 mt-1">管理所有 Flow，点击编辑进入流程图编辑器</p>
+                 <p className="text-xs text-slate-400 mt-1">先维护 Flow 名称和给大模型的提示词，再点击“编辑流程”进入流程图编辑器</p>
                </div>
                <button 
-                 onClick={() => {
-                   const newFlow = {
-                     id: `flow_${Date.now()}`,
-                     name: `新建 Flow ${(flowConfig.flows || []).length + 1}`,
-                     metadata: { description: '' },
-                     nodes: [{ 
-                       id: `start_${Date.now()}`, 
-                       type: 'START', 
-                       position: { x: 80, y: 220 },
-                       data: { name: '开始', description: 'Flow 入口节点', stepType: 'default', stepPrompt: { prompt: '', visibleFunctionIds: [], transitionFunctionIds: [] }}
-                     }],
-                     edges: [],
-                   };
-                   updateField('flowConfig', {
-                     ...flowConfig,
-                     flows: [...(flowConfig.flows || []), newFlow],
-                     entryFlowId: flowConfig.entryFlowId || newFlow.id,
-                   });
-                 }}
+                 onClick={openCreateFlowInfo}
                  className="px-4 py-2 bg-primary text-white rounded-lg text-xs font-bold hover:bg-sky-600 shadow-sm flex items-center gap-1"
                >
                  <Plus size={14} /> 新建 Flow
@@ -615,13 +685,19 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
                        </div>
                        <div className="flex items-center gap-2">
                          <button 
+                           onClick={() => openEditFlowInfo(flow)}
+                           className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center gap-1"
+                         >
+                           <Edit2 size={12} /> 编辑
+                         </button>
+                         <button 
                            onClick={() => {
                              setEditingFlowId(flow.id);
                              setFlowEditMode(true);
                            }}
-                           className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center gap-1"
+                           className="px-3 py-1.5 rounded-lg text-xs font-bold border border-sky-100 text-primary hover:bg-sky-50 flex items-center gap-1"
                          >
-                           <Edit2 size={12} /> 编辑
+                           <Workflow size={12} /> 编辑流程
                          </button>
                          <button 
                            onClick={() => {
@@ -644,6 +720,58 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
                  </div>
                )}
              </div>
+
+             {flowInfoMode && (
+               <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 px-4">
+                 <div className="w-full max-w-xl rounded-2xl bg-white shadow-2xl border border-slate-200">
+                   <div className="px-6 py-5 border-b border-slate-100">
+                     <h3 className="text-base font-bold text-slate-900">
+                       {flowInfoMode === 'CREATE' ? '新建 Flow' : '编辑 Flow 信息'}
+                     </h3>
+                     <p className="text-xs text-slate-400 mt-1">
+                       这里编辑 Flow 的名称和描述；描述会作为给大模型理解这个 Flow 用途的提示词。
+                     </p>
+                   </div>
+                   <div className="p-6 space-y-5">
+                     <div>
+                       <label className="block text-xs font-bold text-slate-600 mb-2">Flow 名称</label>
+                       <input
+                         value={flowInfoDraft.name}
+                         onChange={(event) => setFlowInfoDraft(prev => ({ ...prev, name: event.target.value }))}
+                         className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
+                         placeholder="例如：身份验证 Flow"
+                       />
+                     </div>
+                     <div>
+                       <label className="block text-xs font-bold text-slate-600 mb-2">Flow 描述 / 大模型提示词</label>
+                       <textarea
+                         value={flowInfoDraft.description}
+                         onChange={(event) => setFlowInfoDraft(prev => ({ ...prev, description: event.target.value }))}
+                         className="h-36 w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
+                         placeholder="说明这个 Flow 负责什么、什么时候进入、要收集哪些信息、成功和失败时如何流转。"
+                       />
+                       <p className="text-[11px] text-slate-400 mt-2">
+                         示例：用于核验用户手机号和验证码。若验证通过，进入订单查询；若多次失败，转人工处理。
+                       </p>
+                     </div>
+                   </div>
+                   <div className="px-6 py-4 bg-slate-50 rounded-b-2xl flex justify-end gap-3">
+                     <button
+                       onClick={closeFlowInfo}
+                       className="px-4 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-white"
+                     >
+                       取消
+                     </button>
+                     <button
+                       onClick={saveFlowInfo}
+                       className="px-4 py-2 rounded-lg bg-primary text-sm font-bold text-white hover:bg-sky-600"
+                     >
+                       保存
+                     </button>
+                   </div>
+                 </div>
+               </div>
+             )}
              
              <div className="flex justify-start space-x-4 pt-4 border-t border-gray-100 mt-6">
                <button onClick={handleSave} className="px-6 py-2 bg-primary text-white rounded hover:bg-sky-600 text-sm font-medium shadow-sm transition-all">
@@ -673,6 +801,7 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
              <div className="flex-1 min-h-0">
                <FlowStudio
                  initialFlow={flowConfig}
+                 initialActiveFlowId={editingFlowId}
                  onSave={(flow: FlowConfig) => {
                    updateField('flowConfig', flow);
                  }}

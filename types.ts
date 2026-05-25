@@ -453,6 +453,10 @@ export interface AgentTool {
   startSpeech?: string;
   // 工具是否需要返回结果（向用户汇报）
   needReturn?: boolean;
+  // 工具返回结果后是否跳过模型，直接播放固定话术
+  directPlayOnReturn?: boolean;
+  // 直接播放的固定话术
+  directReturnSpeech?: string;
   // 工具调用成功话术
   successSpeech?: string;
   // 工具调用失败话术
@@ -1988,9 +1992,10 @@ export interface FlowEdge {
   source: string;
   target: string;
   label?: string;
-  edgeType?: 'normal' | 'conditional' | 'fallback' | 'goto_flow';
+  edgeType?: 'normal' | 'conditional' | 'llm_branch' | 'fallback' | 'goto_flow';
   description?: string;
   conditionSummary?: string;
+  llmRoutingPrompt?: string;
   priority?: number;
   requiredEntities?: string[];
   transitionFunctionId?: string;

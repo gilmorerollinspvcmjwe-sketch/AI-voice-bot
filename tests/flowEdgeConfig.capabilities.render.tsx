@@ -27,7 +27,7 @@ const html = renderToString(
   />,
 );
 
-for (const text of ['Transition Function', 'Condition Summary', 'Priority']) {
+for (const text of ['条件分支', '条件表达式', '优先级']) {
   if (!html.includes(text)) {
     throw new Error(`Expected FlowEdgeConfig to render section: ${text}`);
   }
