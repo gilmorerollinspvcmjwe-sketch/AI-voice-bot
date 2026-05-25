@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Plug, Plus, Trash2, HelpCircle, MessageSquare } from 'lucide-react';
-import { AgentTool, ExtractionConfig, AgentToolParameter } from '../../../types';
+import { AgentTool, ExtractionConfig, AgentToolParameter, BotVariable } from '../../../types';
 import { Input, Select, Switch, Label } from '../../ui/FormComponents';
 
 interface AgentToolModalProps {
@@ -9,6 +9,7 @@ interface AgentToolModalProps {
   onSave: (tool: AgentTool) => void;
   onClose: () => void;
   extractionConfigs: ExtractionConfig[];
+  availableVariables?: BotVariable[];
 }
 
 const DEFAULT_TOOL: AgentTool = {
@@ -30,13 +31,28 @@ const DEFAULT_TOOL: AgentTool = {
   interruptSpeech: '正在处理中，请稍候，处理完成后我会为您解答。'
 };
 
-export default function AgentToolModal({ tool, onSave, onClose, extractionConfigs }: AgentToolModalProps) {
+const VARIABLE_TYPE_LABELS: Record<BotVariable['type'], string> = {
+  TEXT: '文本',
+  NUMBER: '数字',
+  DATE: '日期',
+  DATETIME: '日期时间',
+  TIME: '时间',
+  BOOLEAN: '布尔值',
+};
+
+const mapVariableTypeToParameterType = (type: BotVariable['type']) => {
+  if (type === 'NUMBER') return 'number';
+  if (type === 'BOOLEAN') return 'boolean';
+  return 'string';
+};
+
+export default function AgentToolModal({ tool, onSave, onClose, extractionConfigs, availableVariables = [] }: AgentToolModalProps) {
   const [formData, setFormData] = useState<AgentTool>(tool || { ...DEFAULT_TOOL, id: Date.now().toString() });
 
   const addParameter = () => {
     setFormData(prev => ({
       ...prev,
-      parameters: [...prev.parameters, { name: '', type: 'string', description: '', required: true }]
+      parameters: [...prev.parameters, { name: '', type: 'string', description: '', required: true, source: 'llm' }]
     }));
   };
 
@@ -51,6 +67,65 @@ export default function AgentToolModal({ tool, onSave, onClose, extractionConfig
       ...prev,
       parameters: prev.parameters.filter((_, i) => i !== index)
     }));
+  };
+
+  const updateParameterSource = (index: number, source: AgentToolParameter['source']) => {
+    if (source === 'variable') {
+      const firstVariable = availableVariables[0];
+      updateParameter(index, firstVariable ? {
+        source: 'variable',
+        variableId: firstVariable.id,
+        variableName: firstVariable.name,
+        variableType: firstVariable.type,
+        name: firstVariable.name,
+        type: mapVariableTypeToParameterType(firstVariable.type),
+        description: firstVariable.description || '',
+      } : {
+        source: 'variable',
+        variableId: '',
+        variableName: '',
+        variableType: undefined,
+        name: '',
+        type: 'string',
+        description: '',
+      });
+      return;
+    }
+
+    updateParameter(index, {
+      source: 'llm',
+      variableId: undefined,
+      variableName: undefined,
+      variableType: undefined,
+      name: '',
+      type: 'string',
+      description: '',
+    });
+  };
+
+  const updateReferencedVariable = (index: number, variableId: string) => {
+    const variable = availableVariables.find((item) => item.id === variableId);
+    if (!variable) {
+      updateParameter(index, {
+        variableId: '',
+        variableName: '',
+        variableType: undefined,
+        name: '',
+        type: 'string',
+        description: '',
+      });
+      return;
+    }
+
+    updateParameter(index, {
+      source: 'variable',
+      variableId: variable.id,
+      variableName: variable.name,
+      variableType: variable.type,
+      name: variable.name,
+      type: mapVariableTypeToParameterType(variable.type),
+      description: variable.description || '',
+    });
   };
 
   const handleSubmit = () => {
@@ -147,41 +222,90 @@ export default function AgentToolModal({ tool, onSave, onClose, extractionConfig
 
              <div className="space-y-3">
                 {formData.parameters.map((param, idx) => (
-                   <div key={idx} className="flex items-start space-x-2 bg-slate-50 p-2 rounded border border-slate-100">
-                      <div className="w-1/4">
-                         <label className="text-[10px] font-bold text-slate-500 mb-1 block">参数名</label>
-                         <input 
-                            className="w-full px-2 py-1 text-xs border border-gray-200 rounded font-mono"
-                            value={param.name}
-                            onChange={(e) => updateParameter(idx, { name: e.target.value })}
-                            placeholder="order_id"
-                         />
-                      </div>
-                      <div className="w-1/5">
-                         <label className="text-[10px] font-bold text-slate-500 mb-1 block">类型</label>
-                         <select 
-                            className="w-full px-2 py-1 text-xs border border-gray-200 rounded bg-white"
-                            value={param.type}
-                            onChange={(e) => updateParameter(idx, { type: e.target.value })}
-                         >
-                            <option value="string">String</option>
-                            <option value="number">Number</option>
-                            <option value="boolean">Boolean</option>
-                         </select>
-                      </div>
-                      <div className="flex-1">
-                         <label className="text-[10px] font-bold text-slate-500 mb-1 block">描述</label>
-                         <input 
-                            className="w-full px-2 py-1 text-xs border border-gray-200 rounded"
-                            value={param.description}
-                            onChange={(e) => updateParameter(idx, { description: e.target.value })}
-                            placeholder="参数用途说明"
-                         />
-                      </div>
-                      <div className="w-10 pt-5 text-center">
-                         <button onClick={() => removeParameter(idx)} className="text-slate-300 hover:text-red-500">
-                            <Trash2 size={14} />
-                         </button>
+                   <div key={idx} className="bg-slate-50 p-2 rounded border border-slate-100">
+                      <div className="flex items-start space-x-2">
+                         <div className="w-28">
+                            <label className="text-[10px] font-bold text-slate-500 mb-1 block">参数来源</label>
+                            <select
+                               className="w-full px-2 py-1 text-xs border border-gray-200 rounded bg-white"
+                               value={param.source || 'llm'}
+                               onChange={(e) => updateParameterSource(idx, e.target.value as AgentToolParameter['source'])}
+                            >
+                               <option value="llm">自定义参数</option>
+                               <option value="variable">引用变量</option>
+                            </select>
+                         </div>
+
+                         {(param.source || 'llm') === 'variable' ? (
+                            <>
+                               <div className="flex-1">
+                                  <label className="text-[10px] font-bold text-slate-500 mb-1 block">变量</label>
+                                  <select
+                                     className="w-full px-2 py-1 text-xs border border-gray-200 rounded bg-white font-mono"
+                                     value={param.variableId || ''}
+                                     onChange={(e) => updateReferencedVariable(idx, e.target.value)}
+                                  >
+                                     {availableVariables.length === 0 && <option value="">暂无可引用变量</option>}
+                                     {availableVariables.map((variable) => (
+                                        <option key={variable.id} value={variable.id}>
+                                           {variable.name}
+                                        </option>
+                                     ))}
+                                  </select>
+                               </div>
+                               <div className="w-24">
+                                  <label className="text-[10px] font-bold text-slate-500 mb-1 block">类型</label>
+                                  <div className="px-2 py-1 text-xs border border-gray-200 rounded bg-white text-slate-500">
+                                     {param.variableType ? VARIABLE_TYPE_LABELS[param.variableType] : '-'}
+                                  </div>
+                               </div>
+                               <div className="flex-1">
+                                  <label className="text-[10px] font-bold text-slate-500 mb-1 block">说明</label>
+                                  <div className="px-2 py-1 text-xs border border-gray-200 rounded bg-white text-slate-500 truncate">
+                                     {param.description || '-'}
+                                  </div>
+                               </div>
+                            </>
+                         ) : (
+                            <>
+                               <div className="w-1/4">
+                                  <label className="text-[10px] font-bold text-slate-500 mb-1 block">参数名</label>
+                                  <input 
+                                     className="w-full px-2 py-1 text-xs border border-gray-200 rounded font-mono"
+                                     value={param.name}
+                                     onChange={(e) => updateParameter(idx, { name: e.target.value })}
+                                     placeholder="order_id"
+                                  />
+                               </div>
+                               <div className="w-1/5">
+                                  <label className="text-[10px] font-bold text-slate-500 mb-1 block">类型</label>
+                                  <select 
+                                     className="w-full px-2 py-1 text-xs border border-gray-200 rounded bg-white"
+                                     value={param.type}
+                                     onChange={(e) => updateParameter(idx, { type: e.target.value })}
+                                  >
+                                     <option value="string">String</option>
+                                     <option value="number">Number</option>
+                                     <option value="boolean">Boolean</option>
+                                  </select>
+                               </div>
+                               <div className="flex-1">
+                                  <label className="text-[10px] font-bold text-slate-500 mb-1 block">描述</label>
+                                  <input 
+                                     className="w-full px-2 py-1 text-xs border border-gray-200 rounded"
+                                     value={param.description}
+                                     onChange={(e) => updateParameter(idx, { description: e.target.value })}
+                                     placeholder="参数用途说明"
+                                  />
+                               </div>
+                            </>
+                         )}
+
+                         <div className="w-10 pt-5 text-center">
+                            <button onClick={() => removeParameter(idx)} className="text-slate-300 hover:text-red-500">
+                               <Trash2 size={14} />
+                            </button>
+                         </div>
                       </div>
                    </div>
                 ))}

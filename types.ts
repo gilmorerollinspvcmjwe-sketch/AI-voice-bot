@@ -393,6 +393,10 @@ export interface AgentToolParameter {
   type: string;
   description: string;
   required: boolean;
+  source?: 'llm' | 'variable';
+  variableId?: string;
+  variableName?: string;
+  variableType?: BotVariable['type'];
 }
 
 export interface AgentTool {

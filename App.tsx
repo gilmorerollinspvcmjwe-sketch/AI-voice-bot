@@ -559,7 +559,7 @@ export default function App() {
       case '通话记录':
         return <CallRecordManager />;
       case '工具配置':
-        return <ToolConfigPage />;
+        return <ToolConfigPage bots={bots} />;
       default:
         return (
           <div className="flex flex-col items-center justify-center h-full text-slate-400">

@@ -1,7 +1,7 @@
 // 工具配置页，承接工具与 MCP 能力资产的配置入口。
 import React, { useMemo, useState } from 'react';
 import { Edit3, Link, Plus, Power, Trash2, Wrench } from 'lucide-react';
-import { AgentTool, ExtractionConfig } from '../../types';
+import { AgentTool, BotConfiguration, BotVariable, ExtractionConfig } from '../../types';
 import AgentToolModal from '../bot/agent/AgentToolModal';
 import McpServerModal from '../bot/agent/McpServerModal';
 import GeoLocationToolConfig from './GeoLocationToolConfig';
@@ -45,13 +45,35 @@ const CATEGORY_LABELS: Record<string, string> = {
   other: '其他',
 };
 
-export default function ToolConfigPage() {
+interface ToolConfigPageProps {
+  bots?: BotConfiguration[];
+}
+
+export default function ToolConfigPage({ bots = [] }: ToolConfigPageProps) {
   const [tools, setTools] = useState<AgentTool[]>(INITIAL_TOOLS);
   const [editingTool, setEditingTool] = useState<AgentTool | null>(null);
   const [isToolModalOpen, setIsToolModalOpen] = useState(false);
   const [isMcpModalOpen, setIsMcpModalOpen] = useState(false);
   const [isGeoModalOpen, setIsGeoModalOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<(typeof CATEGORY_OPTIONS)[number]['id']>('all');
+
+  const availableVariables = useMemo<BotVariable[]>(() => {
+    const uniqueVariables = new Map<string, BotVariable>();
+
+    bots.forEach((bot) => {
+      (bot.variables || []).forEach((variable) => {
+        const key = `${variable.name}|${variable.type}|${variable.description || ''}`;
+        if (!uniqueVariables.has(key)) {
+          uniqueVariables.set(key, {
+            ...variable,
+            id: `${bot.id}:${variable.id}`,
+          });
+        }
+      });
+    });
+
+    return Array.from(uniqueVariables.values());
+  }, [bots]);
 
   const handleSaveTool = (tool: AgentTool) => {
     const nextTools = [...tools];
@@ -174,7 +196,15 @@ export default function ToolConfigPage() {
         )}
       </div>
 
-      {isToolModalOpen && <AgentToolModal tool={editingTool || undefined} onSave={handleSaveTool} onClose={() => setIsToolModalOpen(false)} extractionConfigs={MOCK_EXTRACTION_CONFIGS} />}
+      {isToolModalOpen && (
+        <AgentToolModal
+          tool={editingTool || undefined}
+          onSave={handleSaveTool}
+          onClose={() => setIsToolModalOpen(false)}
+          extractionConfigs={MOCK_EXTRACTION_CONFIGS}
+          availableVariables={availableVariables}
+        />
+      )}
       {isMcpModalOpen && <McpServerModal onClose={() => setIsMcpModalOpen(false)} onSave={() => setIsMcpModalOpen(false)} />}
       {isGeoModalOpen && <GeoLocationToolConfig onClose={() => setIsGeoModalOpen(false)} />}
     </div>
