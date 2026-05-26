@@ -26,6 +26,7 @@ import OutboundTasks from './components/outbound/OutboundTasks';
 import ContactLists from './components/outbound/ContactLists';
 import CampaignManager, { MOCK_CAMPAIGNS as INITIAL_CAMPAIGNS } from './components/marketing/CampaignManager';
 import CustomerProfileManager from './components/marketing/CustomerProfileManager';
+import FollowUpManager from './components/followup/FollowUpManager';
 import MonitoringReport from './components/report/MonitoringReport';
 import CallRecordManager from './components/call/CallRecordManager';
 import ToolConfigPage from './components/tools/ToolConfigPage';
@@ -519,6 +520,8 @@ export default function App() {
         return <CampaignManager campaigns={campaigns} onUpdateCampaigns={setCampaigns} />;
       case '客户画像':
         return <CustomerProfileManager />;
+      case '自动跟进':
+        return <FollowUpManager />;
       // -----------------------
       case '机器人配置':
         return view === 'LIST' ? (

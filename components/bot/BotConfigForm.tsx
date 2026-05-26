@@ -583,7 +583,7 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
                 {[
                   { id: 'FLOW', label: '意图技能' },
                   { id: 'BUSINESS', label: '业务分析' },
-                  { id: 'MARKETING', label: '营销活动' },
+                  { id: 'MARKETING', label: '营销与跟进', isPrimaryAction: true },
                   { id: 'TEST', label: '批量评测' },
                 ].map(tab => (
                   <button
@@ -595,7 +595,9 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
                     className={`w-full text-left px-4 py-2.5 text-sm transition-colors first:rounded-t-lg last:rounded-b-lg ${
                       activeTab === tab.id 
                         ? 'bg-primary/5 text-primary font-medium' 
-                        : 'text-slate-600 hover:bg-slate-50'
+                        : tab.isPrimaryAction
+                          ? 'text-primary font-semibold bg-blue-50/60 hover:bg-blue-50'
+                          : 'text-slate-600 hover:bg-slate-50'
                     }`}
                   >
                     {tab.label}

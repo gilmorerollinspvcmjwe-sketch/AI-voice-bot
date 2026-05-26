@@ -1198,11 +1198,15 @@ export interface TopicSkill {
   id: string;
   name: string;
   description?: string;
+  topicType?: 'normal' | 'flow';
+  linkedFlowId?: string;
   isEnabled: boolean;
   exampleQuestions: string[];
   prompt: string;
   tools: string[];
   variables: string[];
+  entities?: string[];
+  flows?: string[];
   knowledgeTags?: string[];
   createdAt: string;
   updatedAt: string;
@@ -1222,8 +1226,9 @@ export interface TopicSkillLibraryConfig {
 export interface MarketingConfig {
   marketingEnabled?: boolean;
   marketingTimings?: string[];
-  marketingConflictStrategy?: 'service_first' | 'marketing_first';
+  marketingConflictStrategy?: 'service_first' | 'record_only' | 'disabled' | 'marketing_first';
   activeCampaignIds?: string[];
+  customerOperationsConfig?: BotMarketingConfig;
 }
 
 // 触发器配置
@@ -1484,6 +1489,7 @@ export interface Seat {
   name: string;
   botConfigId: string;
   concurrency: number;
+  queuePromptAudioId?: string;
   status: 'active' | 'disabled';
   createdAt: number;
 }
@@ -1747,27 +1753,87 @@ export interface CallRecord {
   recordingUrl?: string;
 }
 
-// --- Smart Marketing (New) ---
+// --- Smart Marketing and Follow-up Operations ---
+
+export type CustomerTagType = 'basic' | 'behavior' | 'intent' | 'risk' | 'result';
+export type CustomerTagSource = 'call_recognition' | 'manual' | 'marketing_result' | 'follow_up_result';
+export type ConfidenceLevel = 'high' | 'medium' | 'low';
+
+export interface CustomerTag {
+  id: string;
+  name: string;
+  type: CustomerTagType;
+  source: CustomerTagSource;
+  confidence: ConfidenceLevel;
+  updatedAt: number;
+  expiresAt?: number;
+  explanation: string;
+}
+
+export interface CustomerInteraction {
+  id: string;
+  type: 'call' | 'marketing' | 'follow_up' | 'manual';
+  time: number;
+  title: string;
+  detail: string;
+  result?: string;
+  botName?: string;
+  flowName?: string;
+}
 
 export interface CustomerProfile {
   id: string;
   name: string;
   phoneNumber: string;
   region: string; // e.g. "Shanghai"
-  tags: string[]; // e.g. ["High Net Worth", "Price Sensitive"]
+  tags: string[]; // 保留旧页面兼容，展示时优先使用 structuredTags
+  structuredTags?: CustomerTag[];
+  customerLevel?: '普通客户' | 'VIP客户' | '企业客户' | '高价值客户';
+  marketingStatus?: '可推荐' | '已触达' | '已拒绝' | '冷却中' | '禁止触达';
+  followUpStatus?: '无跟进' | '待跟进' | '跟进中' | '已完成' | '已取消';
+  riskStatus?: '正常' | '投诉风险' | '情绪异常' | '黑名单';
+  lastCallResult?: '已解决' | '未解决' | '有意向' | '拒绝' | '转人工' | '未接通';
+  recommendedCampaignIds?: string[];
+  touchBlockReasons?: string[];
+  interactions?: CustomerInteraction[];
   lastInteraction: number;
   notes?: string;
+}
+
+export type MarketingGoal = 'conversion' | 'renewal' | 'reactivation' | 'care' | 'follow_up';
+export type MarketingTriggerTiming = 'post_resolution' | 'price_inquiry' | 'interest_detected' | 'hesitation' | 'pre_hangup';
+
+export interface MarketingSpeechVariant {
+  id: string;
+  label: string;
+  matchTags: string[];
+  content: string;
+}
+
+export interface CampaignStats {
+  exposureCount: number;
+  interestedCount: number;
+  rejectedCount: number;
+  transferCount: number;
+  conversionCount: number;
+  negativeFeedbackCount: number;
 }
 
 export interface MarketingCampaign {
   id: string;
   name: string;
   status: 'active' | 'draft' | 'ended' | 'scheduled';
+  goal?: MarketingGoal;
+  priority?: number;
   
   // Targeting
   targetRegions: string[]; // e.g. ["Shanghai", "Beijing"]
   targetTags: string[]; // e.g. ["VIP"]
   excludeTags?: string[];
+  targetLastCallResults?: string[];
+  requireNoRecentTouch?: boolean;
+  requireFollowUpTask?: boolean;
+  excludeRiskTags?: string[];
   
   // Validity
   startDate: string; // YYYY-MM-DD
@@ -1775,13 +1841,115 @@ export interface MarketingCampaign {
   
   // Content
   speechContent: string; // TTS text for the bot to say
+  speechVariants?: MarketingSpeechVariant[];
+  interestedReply?: string;
+  rejectedReply?: string;
   smsTemplateId?: string; // Optional follow-up SMS
+  
+  // Trigger and execution
+  triggerTimings?: MarketingTriggerTiming[];
+  executableBotIds?: string[];
+  executableFlowIds?: string[];
+  requireUserConfirmation?: boolean;
+  allowAutoFollowUp?: boolean;
   
   // Stats
   exposureCount: number;
   conversionCount: number;
+  stats?: CampaignStats;
   
   updatedAt: number;
+}
+
+export type FollowUpTrigger = 'later_contact' | 'explicit_time' | 'considering' | 'appointment_success' | 'no_answer' | 'post_call_review';
+export type FollowUpAction = 'auto_call' | 'manual_task' | 'write_tag' | 'enter_flow';
+export type FollowUpTaskStatus = 'pending' | 'running' | 'connected' | 'no_answer' | 'completed' | 'rejected' | 'cancelled' | 'failed' | 'transferred' | 'expired';
+
+export interface TouchProtectionPolicy {
+  maxDailyCalls: number;
+  maxWeeklyCalls?: number;
+  avoidNightCalls: boolean;
+  avoidHolidays: boolean;
+  rejectCooldownDays: number;
+  blockComplaintRisk: boolean;
+  blockBlacklist: boolean;
+}
+
+export interface FollowUpRetryPolicy {
+  maxRetries: number;
+  retryIntervalHours: number;
+  maxDailyAttempts: number;
+  failureAction: 'close' | 'transfer' | 'delay';
+}
+
+export interface FollowUpRule {
+  id: string;
+  name: string;
+  enabled: boolean;
+  applicableBotIds: string[];
+  applicableFlowIds: string[];
+  botNames?: string[];
+  flowNames?: string[];
+  triggers: FollowUpTrigger[];
+  useUserSpecifiedTime: boolean;
+  defaultDelayDays: number;
+  preferredTimeRange: string;
+  actions: FollowUpAction[];
+  executionBotId?: string;
+  executionFlowId?: string;
+  retryPolicy: FollowUpRetryPolicy;
+  touchProtection: TouchProtectionPolicy;
+  exitConditions: string[];
+}
+
+export interface FollowUpAttempt {
+  id: string;
+  taskId: string;
+  executedAt: number;
+  result: 'connected' | 'no_answer' | 'busy' | 'failed' | 'transferred';
+  summary: string;
+}
+
+export interface FollowUpTask {
+  id: string;
+  customerName: string;
+  phoneNumber: string;
+  sourceCallId: string;
+  sourceBotName: string;
+  sourceFlowName: string;
+  reason: string;
+  plannedCallTime: number;
+  executionBotName: string;
+  executionFlowName: string;
+  status: FollowUpTaskStatus;
+  retryCount: number;
+  latestResult: string;
+  ruleId?: string;
+  attempts: FollowUpAttempt[];
+}
+
+export interface BotMarketingConfig {
+  profileRecognitionEnabled?: boolean;
+  autoExtractTags?: boolean;
+  autoGenerateSummary?: boolean;
+  autoDetectIntent?: boolean;
+  autoDetectFollowUpTime?: boolean;
+  marketingRecommendationEnabled?: boolean;
+  enabledCampaignIds?: string[];
+  triggerTimings?: MarketingTriggerTiming[];
+  conflictStrategy?: 'service_first' | 'record_only' | 'disabled';
+  followUpEnabled?: boolean;
+  enabledFollowUpRuleIds?: string[];
+  defaultExecutionBotId?: string;
+  defaultExecutionFlowId?: string;
+  askWhenTimeUnclear?: boolean;
+  defaultFollowUpDelayDays?: number;
+  touchProtection?: TouchProtectionPolicy;
+  writeBackTags?: boolean;
+  writeBackSummary?: boolean;
+  writeBackMarketingResult?: boolean;
+  writeBackFollowUpResult?: boolean;
+  generateReportData?: boolean;
 }
 
 // --- Monitoring Report Types (New) ---
@@ -1847,6 +2015,216 @@ export interface UnmatchedIntent {
   text: string;
   count: number;
   lastTime: number;
+}
+
+export type RealtimeCallStatus = 'in_call' | 'queueing' | 'transferring' | 'error';
+
+export interface RealtimeBotStatus {
+  botId: string;
+  botName: string;
+  status: 'online' | 'offline' | 'warning';
+  activeCalls: number;
+  queueCount: number;
+  concurrencyUsed: number;
+  concurrencyLimit: number;
+  lastHeartbeat: number;
+}
+
+export interface RealtimeCallQueueItem {
+  id: string;
+  customerPhone: string;
+  botName: string;
+  currentFlow: string;
+  currentNode: string;
+  duration: number;
+  status: RealtimeCallStatus;
+  startedAt: number;
+}
+
+export interface ConcurrencyTrendPoint {
+  time: string;
+  used: number;
+  limit: number;
+}
+
+export interface RealtimeMonitorData {
+  activeCalls: number;
+  queueingCalls: number;
+  idleSeats: number;
+  concurrencyUsed: number;
+  concurrencyLimit: number;
+  todayCalls: number;
+  todayErrors: number;
+  todayTransfers: number;
+  botStatuses: RealtimeBotStatus[];
+  concurrencyTrend: ConcurrencyTrendPoint[];
+  queueItems: RealtimeCallQueueItem[];
+}
+
+export interface AlertEvent {
+  id: string;
+  time: number;
+  level: 'high' | 'medium' | 'low';
+  type: string;
+  botName: string;
+  callId: string;
+  reason: string;
+  status: 'open' | 'acknowledged' | 'recovered';
+  flowName: string;
+  nodeName: string;
+  target: string;
+  errorMessage: string;
+  suggestion: string;
+}
+
+export interface BusinessResultReport {
+  id: string;
+  businessName: string;
+  triggerCount: number;
+  completedCount: number;
+  completionRate: number;
+  failedCount: number;
+  failureRate: number;
+  transferCount: number;
+  transferRate: number;
+  transferAfterCompleted: number;
+  avgHandleTime: number;
+  abandonedCount: number;
+  topFailureReason: string;
+  relatedFlowName: string;
+  relatedTools: string[];
+  failureSamples: string[];
+}
+
+export interface FlowFunnelNodeReport {
+  nodeId: string;
+  nodeName: string;
+  nodeType: string;
+  enteredCount: number;
+  arrivedCount: number;
+  passedCount: number;
+  passRate: number;
+  dropRate: number;
+  transferRate: number;
+  avgStaySeconds: number;
+  userHangupCount: number;
+  transferCount: number;
+  toolFailureCount: number;
+  errorCount: number;
+}
+
+export interface FlowFunnelEdgeReport {
+  edgeId: string;
+  fromNode: string;
+  toNode: string;
+  branchType: 'conditional' | 'llm_branch' | 'normal';
+  conditionText: string;
+  hitCount: number;
+  hitRate: number;
+}
+
+export interface FlowFunnelReport {
+  flowId: string;
+  flowName: string;
+  botName: string;
+  enteredCount: number;
+  completedCount: number;
+  nodes: FlowFunnelNodeReport[];
+  edges: FlowFunnelEdgeReport[];
+  lossReasons: Array<{ reason: string; count: number; percentage: number }>;
+}
+
+export interface ToolCallReport {
+  toolId: string;
+  toolName: string;
+  toolType: 'API' | 'SMS' | 'TRANSFER' | 'FUNCTION';
+  callCount: number;
+  successCount: number;
+  successRate: number;
+  failureRate: number;
+  avgLatencyMs: number;
+  timeoutCount: number;
+  directPlayCount: number;
+  directPlaySuccessRate: number;
+  modelReplyCount: number;
+  savedModelCalls: number;
+  topFailureReason: string;
+  botCount: number;
+  errorCodes: Array<{ code: string; count: number }>;
+  recentFailureSamples: string[];
+  relatedFlowNodes: string[];
+}
+
+export interface TransferReportReason {
+  reason: string;
+  count: number;
+  percentage: number;
+  successCount: number;
+  successRate: number;
+  avgQueueSeconds: number;
+  queueHangupRate: number;
+  mainSourceFlow: string;
+}
+
+export interface TransferReport {
+  totalTransfers: number;
+  transferRate: number;
+  successRate: number;
+  avgQueueSeconds: number;
+  timeoutCount: number;
+  queueHangupCount: number;
+  solvedAfterTransferRate: number;
+  reasons: TransferReportReason[];
+  queueBands: Array<{ range: string; count: number; percentage: number }>;
+}
+
+export interface CallFlowPathItem {
+  nodeName: string;
+  nodeType: string;
+  enteredAt: number;
+  staySeconds: number;
+  marker?: 'tool' | 'transfer' | 'error';
+}
+
+export interface CallToolRecord {
+  toolName: string;
+  calledAt: number;
+  paramsSummary: string;
+  resultSummary: string;
+  status: 'success' | 'failed' | 'timeout';
+  latencyMs: number;
+}
+
+export interface CallDetail {
+  id: string;
+  startedAt: number;
+  customerPhone: string;
+  botName: string;
+  status: 'completed' | 'failed' | 'transferred' | 'error';
+  duration: number;
+  businessName: string;
+  result: '完成' | '失败' | '转人工' | '异常';
+  satisfaction?: number;
+  recordingUrl?: string;
+  transcript: Array<{ speaker: 'user' | 'bot' | 'agent'; text: string; time: number }>;
+  flowPath: CallFlowPathItem[];
+  toolRecords: CallToolRecord[];
+  transferRecords: Array<{ reason: string; queueSeconds: number; result: string; time: number }>;
+  alertRecords: Array<{ type: string; message: string; time: number }>;
+  businessSummary: string;
+}
+
+export interface ReportSubscription {
+  id: string;
+  name: string;
+  reportType: 'daily' | 'weekly' | 'monthly' | 'custom';
+  frequency: '每日' | '每周' | '每月';
+  sendTime: string;
+  recipients: string[];
+  filters: string[];
+  fileFormat: 'Excel' | 'CSV';
+  enabled: boolean;
+  contentSummary: string[];
 }
 
 // Extend CallRecord with report-related fields

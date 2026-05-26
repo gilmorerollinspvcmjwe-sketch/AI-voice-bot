@@ -1,22 +1,16 @@
-import React, { useState, useMemo } from 'react';
-import {
-  BarChart3,
-  Bot,
-  Calendar,
-  Download,
-  TrendingUp,
-  Clock,
-  Target,
-  Phone,
-  ChevronDown,
-  Calendar as CalendarIcon,
-} from 'lucide-react';
-import { TimeRange } from '../../types';
+﻿// 监控报表入口，组织实时监控、经营报表、流程分析、工具转人工和通话明细。
+import React, { useMemo, useState } from 'react';
+import { BarChart3, Bot, Calendar, ChevronDown, Download, ListChecks, Phone, Radio, Wrench } from 'lucide-react';
+import { AlertEvent, TimeRange } from '../../types';
 import { getReportData, MOCK_BOTS } from './mockData';
-import DashboardCards from './DashboardCards';
-import TrendChart, { HourlyHeatmap } from './TrendChart';
-import IntentAccuracyChart from './IntentAccuracyChart';
-import CallDurationDistribution from './CallDurationDistribution';
+import { cx } from './reportUi';
+import RealtimeReportTab from './RealtimeReportTab';
+import BusinessReportTab from './BusinessReportTab';
+import FlowAnalysisTab from './FlowAnalysisTab';
+import ToolTransferTab from './ToolTransferTab';
+import CallDetailsTab from './CallDetailsTab';
+import AlertCenterPanel from './AlertCenterPanel';
+import SubscriptionPanel from './SubscriptionPanel';
 
 const TIME_RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
   { value: 'today', label: '今日' },
@@ -28,295 +22,113 @@ const TIME_RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
 ];
 
 const TAB_OPTIONS = [
-  { id: 'overview', label: '总览', icon: BarChart3 },
-  { id: 'trends', label: '趋势分析', icon: TrendingUp },
-  { id: 'intents', label: '主题分析', icon: Target },
-  { id: 'duration', label: '通话质量', icon: Clock },
+  { id: 'realtime', label: '实时监控', icon: Radio },
+  { id: 'business', label: '经营报表', icon: BarChart3 },
+  { id: 'flow', label: '流程分析', icon: ListChecks },
+  { id: 'toolTransfer', label: '工具与转人工', icon: Wrench },
+  { id: 'calls', label: '通话明细', icon: Phone },
 ];
 
-const MonitoringReport: React.FC = () => {
+const BUSINESS_LINE_OPTIONS = ['全部业务线', '售后服务', '营销外呼', '投诉处理'];
+const CALL_DIRECTION_OPTIONS = ['全部呼叫', '呼入', '外呼'];
+
+export default function MonitoringReport() {
   const [timeRange, setTimeRange] = useState<TimeRange>('this_month');
-  const [activeTab, setActiveTab] = useState('overview');
-  const [isLoading, setIsLoading] = useState(false);
-  
-  const [startDate, setStartDate] = useState<string>(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  
+  const [activeTab, setActiveTab] = useState('realtime');
   const [selectedBots, setSelectedBots] = useState<string[]>([]);
   const [showBotDropdown, setShowBotDropdown] = useState(false);
-  
+  const [businessLine, setBusinessLine] = useState(BUSINESS_LINE_OPTIONS[0]);
+  const [callDirection, setCallDirection] = useState(CALL_DIRECTION_OPTIONS[0]);
+
   const reportData = useMemo(() => getReportData(timeRange), [timeRange]);
 
-  const handleTimeRangeChange = (newRange: TimeRange) => {
-    setIsLoading(true);
-    setTimeRange(newRange);
-    setTimeout(() => setIsLoading(false), 300);
-  };
-  
-  const handleCustomDateChange = () => {
-    setIsLoading(true);
-    setTimeRange('custom');
-    setTimeout(() => setIsLoading(false), 300);
-  };
-  
-  const handleBotToggle = (botId: string) => {
-    setSelectedBots(prev => {
-      if (prev.includes(botId)) {
-        return prev.filter(id => id !== botId);
-      } else {
-        return [...prev, botId];
-      }
-    });
-  };
-  
-  const handleSelectAllBots = () => {
-    if (selectedBots.length === MOCK_BOTS.length) {
-      setSelectedBots([]);
-    } else {
-      setSelectedBots(MOCK_BOTS.map(bot => bot.id));
-    }
+  // 演示版导出先给出明确反馈，后续可替换真实下载。
+  const handleExport = () => {
+    alert(`正在导出${TAB_OPTIONS.find(tab => tab.id === activeTab)?.label || '当前'}报表，格式支持 Excel / CSV。`);
   };
 
-  const handleExport = () => {
-    alert('导出功能开发中...');
+  // 演示版告警处理先给出明确反馈。
+  const handleAcknowledgeAlert = (alertItem: AlertEvent) => {
+    alert(`已确认告警：${alertItem.type}`);
   };
+
+  const renderFilters = () => (
+    <div className="flex flex-wrap items-center gap-3">
+      <div className="flex items-center rounded-lg border border-gray-200 bg-white p-1">
+        <Calendar size={16} className="ml-2 text-slate-400" />
+        {TIME_RANGE_OPTIONS.map(option => (
+          <button
+            key={option.value}
+            onClick={() => setTimeRange(option.value)}
+            className={cx('rounded-md px-3 py-1.5 text-sm font-medium transition-all', timeRange === option.value ? 'bg-primary text-white' : 'text-slate-600 hover:bg-slate-50')}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="relative">
+        <button onClick={() => setShowBotDropdown(!showBotDropdown)} className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+          <Bot size={16} /> 机器人 <ChevronDown size={14} />
+        </button>
+        {showBotDropdown && (
+          <div className="absolute right-0 top-full z-50 mt-1 w-64 rounded-lg border border-gray-200 bg-white py-2 shadow-lg">
+            {MOCK_BOTS.map(bot => (
+              <label key={bot.id} className="flex cursor-pointer items-center px-4 py-2 text-sm hover:bg-slate-50">
+                <input type="checkbox" className="mr-2" checked={selectedBots.includes(bot.id)} onChange={() => setSelectedBots(prev => (prev.includes(bot.id) ? prev.filter(id => id !== bot.id) : [...prev, bot.id]))} />
+                {bot.name}
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <select value={businessLine} onChange={e => setBusinessLine(e.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-slate-700">
+        {BUSINESS_LINE_OPTIONS.map(option => <option key={option}>{option}</option>)}
+      </select>
+      <select value={callDirection} onChange={e => setCallDirection(e.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-slate-700">
+        {CALL_DIRECTION_OPTIONS.map(option => <option key={option}>{option}</option>)}
+      </select>
+      <button onClick={handleExport} className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+        <Download size={16} /> 导出
+      </button>
+    </div>
+  );
 
   const renderTabContent = () => {
-    if (isLoading) {
-      return (
-        <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        </div>
-      );
+    if (activeTab === 'realtime') {
+      return <RealtimeReportTab data={reportData.realtimeMonitor} onViewCallDetail={() => setActiveTab('calls')} />;
     }
-
-    switch (activeTab) {
-      case 'overview':
-        return (
-          <div className="space-y-6">
-            <DashboardCards
-              current={reportData.metrics.current}
-              previous={reportData.metrics.previous}
-              onCardClick={(metricType) => console.log('Clicked:', metricType)}
-            />
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                    <Phone size={18} className="text-blue-500" />
-                    通话趋势
-                  </h3>
-                </div>
-                <TrendChart data={reportData.trendData} type="calls" height={250} />
-              </div>
-
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                    <Clock size={18} className="text-orange-500" />
-                    时段分布热力图
-                  </h3>
-                </div>
-                <HourlyHeatmap data={reportData.hourlyDistribution} height={250} />
-              </div>
-            </div>
-
-          </div>
-        );
-
-      case 'trends':
-        return (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-                <h3 className="text-base font-bold text-slate-800 mb-4">通话量趋势</h3>
-                <TrendChart data={reportData.trendData} type="calls" height={300} />
-              </div>
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-                <h3 className="text-base font-bold text-slate-800 mb-4">满意度趋势</h3>
-                <TrendChart data={reportData.trendData} type="satisfaction" height={300} />
-              </div>
-            </div>
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-              <h3 className="text-base font-bold text-slate-800 mb-4">平均通话时长趋势</h3>
-              <TrendChart data={reportData.trendData} type="duration" height={300} />
-            </div>
-          </div>
-        );
-
-      case 'intents':
-        return (
-          <div className="space-y-6">
-            <IntentAccuracyChart
-              data={reportData.intentAnalysis}
-              unmatchedIntents={reportData.unmatchedIntents}
-            />
-          </div>
-        );
-
-      case 'duration':
-        return (
-          <div className="space-y-6">
-            <CallDurationDistribution
-              durationData={reportData.durationDistribution}
-              hangupReasonData={reportData.hangupReasonDistribution}
-              avgWaitTime={reportData.metrics.current.avgDuration * 0.1}
-              avgHandleTime={reportData.metrics.current.avgDuration}
-            />
-          </div>
-        );
-
-      default:
-        return null;
+    if (activeTab === 'business') {
+      return <div className="space-y-6"><BusinessReportTab data={reportData.businessResults} onOpenFlow={() => setActiveTab('flow')} /><AlertCenterPanel alerts={reportData.alertEvents} onAcknowledge={handleAcknowledgeAlert} /><SubscriptionPanel subscriptions={reportData.subscriptions} onCreate={handleExport} /></div>;
     }
+    if (activeTab === 'flow') {
+      return <FlowAnalysisTab report={reportData.flowFunnels[0]} />;
+    }
+    if (activeTab === 'toolTransfer') {
+      return <ToolTransferTab tools={reportData.toolCalls} transferReport={reportData.transferReport} />;
+    }
+    if (activeTab === 'calls') {
+      return <CallDetailsTab calls={reportData.callDetails} />;
+    }
+    return null;
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="mb-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">监控报表</h1>
-            <p className="text-sm text-slate-500 mt-1">
-              实时监控机器人运行状态和关键业务指标
-            </p>
-          </div>
-
-          <div className="flex items-center flex-wrap gap-3">
-            <div className="flex items-center bg-white border border-gray-200 rounded-lg p-1">
-              <Calendar size={16} className="text-slate-400 ml-2" />
-              {TIME_RANGE_OPTIONS.filter(option => option.value !== 'custom').map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => handleTimeRangeChange(option.value)}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
-                    timeRange === option.value
-                      ? 'bg-primary text-white'
-                      : 'text-slate-600 hover:bg-slate-50'
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-              <button
-                onClick={() => setTimeRange('custom')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
-                  timeRange === 'custom'
-                    ? 'bg-primary text-white'
-                    : 'text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                自定义
-              </button>
-            </div>
-
-            {timeRange === 'custom' && (
-              <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg p-2">
-                <CalendarIcon size={16} className="text-slate-400" />
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="text-sm border-none focus:ring-0"
-                />
-                <span className="text-slate-400">至</span>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="text-sm border-none focus:ring-0"
-                />
-                <button
-                  onClick={handleCustomDateChange}
-                  className="px-3 py-1 bg-primary text-white text-sm rounded-md"
-                >
-                  应用
-                </button>
-              </div>
-            )}
-
-            <div className="relative">
-              <button
-                onClick={() => setShowBotDropdown(!showBotDropdown)}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm font-medium"
-              >
-                <Bot size={16} />
-                机器人
-                <ChevronDown size={14} className={`transition-transform ${showBotDropdown ? 'rotate-180' : ''}`} />
-              </button>
-              {showBotDropdown && (
-                <div className="absolute right-0 top-full mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-2">
-                  <div className="px-4 py-2 border-b border-gray-100">
-                    <button
-                      onClick={handleSelectAllBots}
-                      className="flex items-center w-full text-left text-sm"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedBots.length === MOCK_BOTS.length}
-                        onChange={handleSelectAllBots}
-                        className="mr-2"
-                      />
-                      全选
-                    </button>
-                  </div>
-                  {MOCK_BOTS.map((bot) => (
-                    <div key={bot.id} className="px-4 py-2 hover:bg-slate-50">
-                      <button
-                        onClick={() => handleBotToggle(bot.id)}
-                        className="flex items-center w-full text-left text-sm"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedBots.includes(bot.id)}
-                          onChange={() => handleBotToggle(bot.id)}
-                          className="mr-2"
-                        />
-                        {bot.name}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <button
-              onClick={handleExport}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm font-medium"
-            >
-              <Download size={16} />
-              导出
-            </button>
-          </div>
-        </div>
+    <div className="mx-auto max-w-7xl p-6">
+      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div><h1 className="text-2xl font-bold text-slate-900">监控报表</h1><p className="mt-1 text-sm text-slate-500">覆盖实时运行、异常告警、业务结果、流程漏斗、工具转人工和通话钻取。</p></div>
+        {renderFilters()}
       </div>
 
-      <div className="mb-6">
-        <div className="flex flex-wrap gap-2 bg-slate-100 p-1 rounded-xl">
-          {TAB_OPTIONS.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-all ${
-                  activeTab === tab.id
-                    ? 'bg-white text-primary shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-                }`}
-              >
-                <Icon size={16} />
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
+      <div className="mb-6 flex flex-wrap gap-2 rounded-xl bg-slate-100 p-1">
+        {TAB_OPTIONS.map(tab => {
+          const Icon = tab.icon;
+          return <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={cx('flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all', activeTab === tab.id ? 'bg-white text-primary shadow-sm' : 'text-slate-600 hover:bg-slate-200/50 hover:text-slate-900')}><Icon size={16} />{tab.label}</button>;
+        })}
       </div>
 
-      <div className="animate-in fade-in duration-300">{renderTabContent()}</div>
+      {renderTabContent()}
     </div>
   );
-};
-
-export default MonitoringReport;
+}

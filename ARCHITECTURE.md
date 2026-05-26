@@ -44,6 +44,7 @@ types.ts：全项目共享的数据结构
 4. 机器人配置由 `BotConfigForm` 汇总多个子配置页，保存后回写 `App.tsx` 的机器人列表。
 5. 流程编排模块使用 `FlowConfig / FlowDefinition / FlowNode / FlowEdge` 等类型描述流程，并由画布、配置面板、调试面板共同编辑。
 6. 服务层提供模拟接口、提示词生成、RAG 检索、向量库、函数目录和问答分类存取，供页面按需调用。
+7. 客户画像、营销活动和自动跟进共享模拟数据；机器人配置决定是否启用识别、推荐、跟进、触达保护和结果回写。
 
 ## 5. 根目录文件职责
 
@@ -95,9 +96,9 @@ types.ts：全项目共享的数据结构
 | `BotIntentConfig.tsx` | 管理机器人意图、相似问法和意图内微流程。 |
 | `BotDebugConfig.tsx` | 提供机器人调试配置入口。 |
 | `BotTestConfig.tsx` | 管理测试用例、测试会话和结果展示。 |
-| `BotTopicManager.tsx` | 管理话题技能和问答分类绑定。 |
+| `BotTopicManager.tsx` | 管理普通主题和流程主题；普通主题配置提示词、工具、实体和流程引用，流程主题只一一绑定 Flow。 |
 | `BotTriggerManager.tsx` | 管理机器人触发条件和触发动作。 |
-| `BotMarketingConfig.tsx` | 将机器人与营销活动、用户画像和外呼目标关联。 |
+| `BotMarketingConfig.tsx` | 配置机器人级客户运营能力绑定，包括画像识别、营销活动、自动跟进规则、策略模板与结果回写。 |
 | `PromptGeneratorModal.tsx` | 调用 Gemini 服务生成或优化机器人提示词。 |
 
 #### Agent 工具子模块：`components/bot/agent`
@@ -225,19 +226,29 @@ types.ts：全项目共享的数据结构
 | `components/outbound/OutboundTasks.tsx` | 管理外呼任务列表。 |
 | `components/outbound/OutboundTaskDetail.tsx` | 展示单个外呼任务详情和状态操作。 |
 | `components/outbound/ContactLists.tsx` | 管理外呼联系单。 |
-| `components/marketing/CampaignManager.tsx` | 管理营销活动，向 `App.tsx` 暴露活动状态。 |
-| `components/marketing/CustomerProfileManager.tsx` | 展示和管理客户画像。 |
+| `components/marketing/CampaignManager.tsx` | 管理营销活动的目标人群规则、排除人群规则、触发规则、语音话术、关联 Flow 和效果统计。 |
+| `components/marketing/CustomerProfileManager.tsx` | 展示结构化客户标签、标签来源、AI 洞察、营销状态、跟进状态和禁止触达原因。 |
+| `components/marketing/mockCustomerOperations.ts` | 提供客户画像、营销活动和自动跟进的共享演示数据。 |
+| `components/followup/FollowUpManager.tsx` | 管理自动跟进任务、规则画布、节点配置和跟进报表。 |
 | `components/call/CallRecordManager.tsx` | 通话记录模块入口。 |
 | `components/call/CallRecordList.tsx` | 展示通话记录列表。 |
 | `components/call/CallRecordDetail.tsx` | 展示单通电话的详情。 |
-| `components/report/MonitoringReport.tsx` | 监控报表页面入口。 |
-| `components/report/DashboardCards.tsx` | 展示核心指标卡片。 |
+| `components/report/MonitoringReport.tsx` | 增强版监控报表入口，组织实时监控、经营报表、流程分析、工具转人工和通话明细。 |
+| `components/report/reportUi.tsx` | 提供增强报表共享的指标卡、状态标签和格式化工具。 |
+| `components/report/RealtimeReportTab.tsx` | 展示实时运行看板、机器人在线状态、并发趋势和实时通话队列。 |
+| `components/report/AlertCenterPanel.tsx` | 展示异常告警中心，支持查看告警详情和标记处理。 |
+| `components/report/BusinessReportTab.tsx` | 展示业务结果报表和业务完成率明细。 |
+| `components/report/FlowAnalysisTab.tsx` | 展示流程漏斗、节点流失和边命中分析。 |
+| `components/report/ToolTransferTab.tsx` | 展示工具调用报表、直接播报统计和转人工分析。 |
+| `components/report/CallDetailsTab.tsx` | 展示通话明细列表和单通电话钻取详情。 |
+| `components/report/SubscriptionPanel.tsx` | 展示报表订阅配置和导出入口。 |
+| `components/report/DashboardCards.tsx` | 展示旧版核心指标卡片，供历史报表组件复用。 |
 | `components/report/TrendChart.tsx` | 展示趋势图和小时热力图。 |
 | `components/report/BotPerformanceTable.tsx` | 展示机器人表现表格。 |
 | `components/report/IntentAccuracyChart.tsx` | 展示意图准确率图表。 |
 | `components/report/CallDurationDistribution.tsx` | 展示通话时长分布。 |
 | `components/report/SatisfactionAnalysis.tsx` | 展示满意度分析。 |
-| `components/report/mockData.ts` | 生成报表和通话记录模拟数据。 |
+| `components/report/mockData.ts` | 生成报表、通话记录、实时监控、告警、流程漏斗、工具转人工和订阅模拟数据。 |
 
 ### 6.10 其他组件
 
@@ -262,6 +273,7 @@ types.ts：全项目共享的数据结构
 | `embeddingService.ts` | 生成文本向量、预处理文本、计算相似度并维护向量缓存。 |
 | `vectorDBService.ts` | 提供浏览器内模拟向量库的增删查改和检索。 |
 | `ragService.ts` | 构建 RAG 检索上下文、处理知识召回和机器人 RAG 配置。 |
+| `customerOperationsService.ts` | 提供客户触达保护、活动匹配、跟进任务生成和重试策略的前端模拟逻辑。 |
 
 ## 8. 类型模型：`types.ts`
 
@@ -271,8 +283,8 @@ types.ts：全项目共享的数据结构
 - **意图与节点流程**：意图、节点、连线、播放、收集、LLM、条件、接口、短信、转接、脚本等节点配置。
 - **Agent 与工具**：工具参数、工具定义、MCP 服务、函数、预设工具和增强工具。
 - **知识与 RAG**：问答对、分类、候选知识、RAG 配置、向量库配置、召回结果。
-- **运营资源**：坐席、音色、模板、号码、地理分组、工作时间、录音、外呼任务、营销活动。
-- **报表与记录**：通话记录、指标、趋势、机器人表现、意图分析、未匹配问题。
+- **运营资源**：坐席、音色、模板、号码、地理分组、工作时间、录音、外呼任务、客户画像、营销活动、自动跟进。
+- **报表与记录**：通话记录、指标、趋势、机器人表现、意图分析、实时监控、告警、业务结果、流程漏斗、工具调用、转人工和报表订阅。
 - **Flow 工作台**：Flow 节点、连线、元数据、注释、调试场景、版本和完整流程配置。
 
 ## 9. 模块调用关系
@@ -304,6 +316,8 @@ App.tsx
 4. **机器人配置分片管理**：`BotConfigForm` 只负责汇总和保存，具体配置拆到多个子组件，便于按业务域维护。
 5. **流程能力逐步演进**：项目同时保留旧版 `FlowOrchestration/FlowEditor` 和新版 `FlowStudio/FlowWorkbench`，说明流程编排正在从简单画布向多 Flow 工作台演进。
 6. **本地持久化只用于轻量配置**：函数目录和问答分类使用 `localStorage`，不承担正式后端数据存储职责。
+7. **监控报表增强分层**：新版监控报表入口只负责筛选和页签切换，实时监控、告警、业务结果、流程漏斗、工具转人工、通话钻取和订阅分别拆为子组件，保持页面可维护。
+8. **客户运营闭环保持语音机器人内聚**：客户画像、营销活动和自动跟进只服务语音机器人场景，不扩展成全渠道平台；自动跟进负责业务上下文，外呼任务负责拨号执行。
 
 ## 11. 测试覆盖
 
@@ -317,3 +331,7 @@ App.tsx
 | `tests/flowWorkbenchNodeConfig.render.tsx` | 工作台节点配置面板渲染。 |
 | `tests/polyaiConfigHelpers.behavior.ts` | PolyAI 配置辅助函数行为。 |
 | `tests/toolConfigPage.render.tsx` | 工具配置页渲染。 |
+| `tests/monitoringReport.enhancement.static.mjs` | 监控报表增强模块的静态能力检查。 |
+| `tests/voiceCustomerOperations.static.mjs` | 客户画像、营销活动、自动跟进和机器人营销配置的静态能力检查。 |
+| `tests/customerOperations.behavior.mjs` | 客户触达保护、活动匹配、跟进任务生成和重试策略行为检查。 |
+| `tests/customerOperations.enterpriseUi.static.mjs` | 客户运营 B 端形态的静态能力检查，包括规则画布、筛选、规则配置和能力绑定。 |

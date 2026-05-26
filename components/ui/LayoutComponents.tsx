@@ -35,6 +35,7 @@ import {
   MessageSquare,
   FolderOpen,
   Megaphone,
+  CalendarClock,
   UserSquare,
   Code,
   Wrench
@@ -63,6 +64,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeSubItem, onNavigate }) =
     { icon: Wrench, label: '工具配置', id: '工具配置' },
     { icon: UserSquare, label: '客户画像', id: '客户画像' },
     { icon: Megaphone, label: '营销活动', id: '营销活动' },
+    { icon: CalendarClock, label: '自动跟进', id: '自动跟进' },
     { 
       icon: PhoneForwarded, 
       label: '外呼任务', 

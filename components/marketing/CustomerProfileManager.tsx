@@ -1,382 +1,321 @@
-
-import React, { useState } from 'react';
-import { 
-  UserSquare, Search, Filter, MapPin, Tag, MoreHorizontal, 
-  X, Phone, MessageSquare, Ticket, Clock, Edit3, Calendar,
-  ShieldCheck, Zap, History, Settings
+// 这个页面展示语音机器人沉淀的客户画像，复用营销和自动跟进的演示数据。
+import React, { useMemo, useState } from 'react';
+import {
+  AlertTriangle,
+  Bot,
+  CalendarClock,
+  History,
+  Megaphone,
+  Phone,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Tag,
+  UserSquare,
+  X,
 } from 'lucide-react';
-import { CustomerProfile } from '../../types';
-import { TagInput, Label } from '../ui/FormComponents';
+import { CustomerInteraction, CustomerProfile, CustomerTag } from '../../types';
+import { formatDateTime, MOCK_CUSTOMER_PROFILES, MOCK_MARKETING_CAMPAIGNS } from './mockCustomerOperations';
 
-// --- Types for Local Use ---
-interface TimelineEvent {
-  id: string;
-  type: 'CALL' | 'MARKETING' | 'TICKET' | 'SYSTEM';
-  date: string;
-  title: string;
-  detail: string;
-  status?: string;
-}
+const TAG_TYPE_LABELS: Record<CustomerTag['type'], string> = {
+  basic: '基础',
+  behavior: '行为',
+  intent: '意向',
+  risk: '风险',
+  result: '结果',
+};
 
-// --- MOCK DATA ---
-const MOCK_PROFILES: CustomerProfile[] = [
-  {
-    id: '1',
-    name: '张伟',
-    phoneNumber: '13800138000',
-    region: '上海',
-    tags: ['高净值', '价格敏感', '理财偏好'],
-    lastInteraction: 1715420000000,
-    notes: '客户对短期理财产品感兴趣，但对费率比较在意。建议下次推荐费率优惠活动。'
-  },
-  {
-    id: '2',
-    name: '李娜',
-    phoneNumber: '13912345678',
-    region: '北京',
-    tags: ['VIP', '投诉风险', '多次进线'],
-    lastInteraction: 1715310000000,
-    notes: '近期有多次关于物流延误的投诉，情绪较激动。需安抚。'
-  },
-  {
-    id: '3',
-    name: '王强',
-    phoneNumber: '15098765432',
-    region: '深圳',
-    tags: ['沉睡用户', '促销激活'],
-    lastInteraction: 1709870000000,
-    notes: '半年无活跃记录，双11大促营销已触达。'
-  },
-  {
-    id: '4',
-    name: '赵敏',
-    phoneNumber: '18655556666',
-    region: '杭州',
-    tags: ['企业客户', '高频'],
-    lastInteraction: 1715490000000,
-    notes: '企业采购负责人，通常周一上午联系。'
-  }
-];
+const TAG_SOURCE_LABELS: Record<CustomerTag['source'], string> = {
+  call_recognition: '通话识别',
+  manual: '人工标记',
+  marketing_result: '营销结果',
+  follow_up_result: '跟进结果',
+};
 
-const MOCK_TIMELINE: Record<string, TimelineEvent[]> = {
-  '1': [
-    { id: 'e1', type: 'CALL', date: '2024-05-11 14:30', title: '智能外呼：双11理财推广', detail: '通话时长 45s，意向等级：A级', status: 'success' },
-    { id: 'e2', type: 'MARKETING', date: '2024-05-11 14:32', title: '短信触达', detail: '发送优惠券链接短信', status: 'sent' },
-    { id: 'e3', type: 'SYSTEM', date: '2024-05-01 10:00', title: '画像更新', detail: '系统自动添加标签：[理财偏好]', status: 'info' }
-  ],
-  '2': [
-    { id: 'e1', type: 'TICKET', date: '2024-05-10 09:15', title: '工单创建', detail: '投诉：物流配送延误 #TK-9982', status: 'open' },
-    { id: 'e2', type: 'CALL', date: '2024-05-10 09:10', title: '呼入接待', detail: '通话时长 120s，情绪：愤怒', status: 'handled' }
-  ]
+const CONFIDENCE_LABELS: Record<CustomerTag['confidence'], string> = {
+  high: '高',
+  medium: '中',
+  low: '低',
+};
+
+// 根据状态文案选择不同的徽标颜色。
+const statusClass = (value?: string) => {
+  if (!value) return 'bg-slate-50 text-slate-500 border-slate-100';
+  if (value.includes('禁止') || value.includes('风险') || value.includes('拒绝')) return 'bg-red-50 text-red-600 border-red-100';
+  if (value.includes('待') || value.includes('中') || value.includes('冷却')) return 'bg-amber-50 text-amber-700 border-amber-100';
+  if (value.includes('完成') || value.includes('可') || value.includes('正常')) return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+  return 'bg-slate-50 text-slate-600 border-slate-100';
+};
+
+// 通用徽标。
+const Badge: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
+  <span className={'inline-flex items-center px-2 py-0.5 rounded-full border text-[11px] font-medium ' + className}>{children}</span>
+);
+
+const FilterSelect: React.FC<{ value: string; options: string[]; onChange: (value: string) => void }> = ({ value, options, onChange }) => (
+  <select
+    value={value}
+    onChange={event => onChange(event.target.value)}
+    className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20"
+  >
+    {options.map(option => <option key={option} value={option}>{option}</option>)}
+  </select>
+);
+
+// 给不同互动记录匹配图标。
+const interactionIcon = (type: CustomerInteraction['type']) => {
+  if (type === 'marketing') return <Megaphone size={14} />;
+  if (type === 'follow_up') return <CalendarClock size={14} />;
+  if (type === 'manual') return <ShieldCheck size={14} />;
+  return <Phone size={14} />;
+};
+
+// 给标签类型匹配颜色。
+const tagClass = (tag: CustomerTag) => {
+  if (tag.type === 'risk') return 'bg-red-50 text-red-600 border-red-100';
+  if (tag.type === 'intent') return 'bg-blue-50 text-blue-700 border-blue-100';
+  if (tag.type === 'result') return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+  return 'bg-slate-50 text-slate-600 border-slate-100';
 };
 
 export default function CustomerProfileManager() {
-  const [profiles, setProfiles] = useState<CustomerProfile[]>(MOCK_PROFILES);
+  const [profiles] = useState<CustomerProfile[]>(MOCK_CUSTOMER_PROFILES);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProfile, setSelectedProfile] = useState<CustomerProfile | null>(null);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [editingNotes, setEditingNotes] = useState(false);
+  const [levelFilter, setLevelFilter] = useState('全部等级');
+  const [riskFilter, setRiskFilter] = useState('全部风险');
+  const [marketingFilter, setMarketingFilter] = useState('全部营销状态');
+  const [followUpFilter, setFollowUpFilter] = useState('全部跟进状态');
 
-  // Handlers
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value);
+  const filteredProfiles = useMemo(() => {
+    const keyword = searchTerm.trim();
+    return profiles.filter(profile => {
+      const matchedKeyword = !keyword || [profile.name, profile.phoneNumber, profile.region, profile.customerLevel, ...(profile.tags || [])]
+        .filter(Boolean)
+        .some(value => String(value).includes(keyword));
+      const matchedLevel = levelFilter === '全部等级' || profile.customerLevel === levelFilter;
+      const matchedRisk = riskFilter === '全部风险' || profile.riskStatus === riskFilter;
+      const matchedMarketing = marketingFilter === '全部营销状态' || profile.marketingStatus === marketingFilter;
+      const matchedFollowUp = followUpFilter === '全部跟进状态' || profile.followUpStatus === followUpFilter;
+      return matchedKeyword && matchedLevel && matchedRisk && matchedMarketing && matchedFollowUp;
+    });
+  }, [profiles, searchTerm, levelFilter, riskFilter, marketingFilter, followUpFilter]);
 
-  const filteredData = profiles.filter(p => 
-    p.name.includes(searchTerm) || 
-    p.phoneNumber.includes(searchTerm) ||
-    p.tags.some(t => t.includes(searchTerm))
-  );
+  const overview = useMemo(() => {
+    return [
+      { label: '客户总数', value: profiles.length, icon: UserSquare, tone: 'bg-blue-50 text-blue-600' },
+      { label: '可推荐', value: profiles.filter(item => item.marketingStatus === '可推荐').length, icon: Megaphone, tone: 'bg-emerald-50 text-emerald-600' },
+      { label: '待跟进', value: profiles.filter(item => item.followUpStatus === '待跟进').length, icon: CalendarClock, tone: 'bg-amber-50 text-amber-600' },
+      { label: '风险客户', value: profiles.filter(item => item.riskStatus && item.riskStatus !== '正常').length, icon: AlertTriangle, tone: 'bg-red-50 text-red-600' },
+    ];
+  }, [profiles]);
 
-  const openProfile = (profile: CustomerProfile) => {
-    setSelectedProfile(profile);
-    setIsDrawerOpen(true);
-    setEditingNotes(false);
-  };
-
-  const closeDrawer = () => {
-    setIsDrawerOpen(false);
-    setSelectedProfile(null);
-  };
-
-  const updateProfileTags = (newTags: string[]) => {
-    if (!selectedProfile) return;
-    const updated = { ...selectedProfile, tags: newTags };
-    setProfiles(prev => prev.map(p => p.id === selectedProfile.id ? updated : p));
-    setSelectedProfile(updated);
-  };
-
-  const updateProfileNotes = (newNotes: string) => {
-    if (!selectedProfile) return;
-    const updated = { ...selectedProfile, notes: newNotes };
-    setProfiles(prev => prev.map(p => p.id === selectedProfile.id ? updated : p));
-    setSelectedProfile(updated);
-  };
-
-  // Helper to render timeline icons
-  const getEventIcon = (type: TimelineEvent['type']) => {
-    switch (type) {
-      case 'CALL': return <Phone size={14} />;
-      case 'MARKETING': return <Zap size={14} />;
-      case 'TICKET': return <Ticket size={14} />;
-      case 'SYSTEM': return <Settings size={14} />;
-      default: return <Clock size={14} />;
-    }
-  };
-
-  const getEventColor = (type: TimelineEvent['type']) => {
-    switch (type) {
-      case 'CALL': return 'bg-blue-100 text-blue-600';
-      case 'MARKETING': return 'bg-purple-100 text-purple-600';
-      case 'TICKET': return 'bg-amber-100 text-amber-600';
-      case 'SYSTEM': return 'bg-slate-100 text-slate-600';
-      default: return 'bg-gray-100 text-gray-600';
-    }
-  };
+  const recommendedCampaigns = selectedProfile
+    ? MOCK_MARKETING_CAMPAIGNS.filter(campaign => selectedProfile.recommendedCampaignIds?.includes(campaign.id))
+    : [];
 
   return (
-    <div className="flex h-full bg-slate-50 relative overflow-hidden">
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 p-8">
-        
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8 shrink-0">
+    <div className="space-y-5">
+      <div className="flex items-start justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900">客户画像</h2>
+          <p className="text-sm text-slate-500 mt-1">按标签、风险、营销和跟进状态管理语音机器人客户资产。</p>
+        </div>
+        <button className="px-3 py-2 text-sm border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 rounded">导出客户</button>
+      </div>
+
+      <div className="grid grid-cols-4 gap-3">
+        {overview.map(item => (
+          <div key={item.label} className="bg-white border border-slate-200 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-slate-500">{item.label}</p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">{item.value}</p>
+              </div>
+              <div className={'h-10 w-10 rounded-xl flex items-center justify-center ' + item.tone}>
+                <item.icon size={20} />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-white border border-slate-200">
+        <div className="p-4 border-b border-slate-200">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center">
-              <UserSquare size={24} className="mr-3 text-primary" />
-              客户画像管理 (CDP)
-            </h1>
-            <p className="text-sm text-slate-500 mt-1">
-              集中管理客户数据资产，基于历史交互自动构建多维画像。
-            </p>
+            <h3 className="font-semibold text-slate-800">客户筛选</h3>
+            <p className="text-xs text-slate-500 mt-1">从通话、营销、跟进和人工标记中筛选可运营客户。</p>
+          </div>
+          <div className="grid grid-cols-5 gap-3 mt-4">
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-2.5 text-slate-400" />
+              <input
+                value={searchTerm}
+                onChange={event => setSearchTerm(event.target.value)}
+                placeholder="姓名、手机号、地区或标签"
+                className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+            <FilterSelect value={levelFilter} onChange={setLevelFilter} options={['全部等级', '普通客户', 'VIP客户', '企业客户', '高价值客户']} />
+            <FilterSelect value={riskFilter} onChange={setRiskFilter} options={['全部风险', '正常', '投诉风险', '情绪异常', '黑名单']} />
+            <FilterSelect value={marketingFilter} onChange={setMarketingFilter} options={['全部营销状态', '可推荐', '已触达', '已拒绝', '冷却中', '禁止触达']} />
+            <FilterSelect value={followUpFilter} onChange={setFollowUpFilter} options={['全部跟进状态', '无跟进', '待跟进', '跟进中', '已完成', '已取消']} />
           </div>
         </div>
 
-        {/* Filter Bar */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6 flex flex-wrap gap-4 items-center">
-           <div className="relative">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input 
-                className="pl-10 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:border-primary outline-none w-72"
-                placeholder="搜索姓名、手机号或标签..."
-                value={searchTerm}
-                onChange={handleSearch}
-              />
-           </div>
-           <div className="h-8 w-px bg-slate-200 mx-2"></div>
-           <div className="flex items-center space-x-2 text-sm text-slate-600">
-              <Filter size={16} className="text-slate-400" />
-              <span>筛选:</span>
-              <select className="bg-transparent font-medium outline-none cursor-pointer hover:text-primary">
-                 <option>所有地区</option>
-                 <option>上海</option>
-                 <option>北京</option>
-              </select>
-              <select className="bg-transparent font-medium outline-none cursor-pointer hover:text-primary ml-2">
-                 <option>所有标签</option>
-                 <option>VIP</option>
-                 <option>高净值</option>
-              </select>
-           </div>
+        <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-slate-800">客户列表</h3>
+            <p className="text-xs text-slate-500 mt-1">共 {filteredProfiles.length} 个客户，点击行查看标签证据链和通话时间线。</p>
+          </div>
         </div>
 
-        {/* Table */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex-1 flex flex-col overflow-hidden">
-           <div className="flex-1 overflow-auto">
-              <table className="w-full text-left">
-                 <thead className="bg-slate-50 border-b border-slate-100 sticky top-0 z-10">
-                    <tr>
-                       <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">客户信息</th>
-                       <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">归属地</th>
-                       <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase w-1/3">画像标签</th>
-                       <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">最近交互</th>
-                       <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-right">操作</th>
-                    </tr>
-                 </thead>
-                 <tbody className="divide-y divide-slate-100">
-                    {filteredData.map(profile => (
-                       <tr key={profile.id} className="hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => openProfile(profile)}>
-                          <td className="px-6 py-4">
-                             <div className="flex items-center">
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold mr-3 shadow-sm ${
-                                   profile.tags.includes('VIP') ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'
-                                }`}>
-                                   {profile.name[0]}
-                                </div>
-                                <div>
-                                   <div className="font-bold text-slate-800 text-sm flex items-center">
-                                      {profile.name}
-                                      {profile.tags.includes('VIP') && <ShieldCheck size={12} className="ml-1 text-amber-500 fill-amber-100" />}
-                                   </div>
-                                   <div className="text-xs text-slate-500 font-mono mt-0.5">{profile.phoneNumber}</div>
-                                </div>
-                             </div>
-                          </td>
-                          <td className="px-6 py-4">
-                             <div className="flex items-center text-sm text-slate-600">
-                                <MapPin size={14} className="mr-1 text-slate-400" />
-                                {profile.region}
-                             </div>
-                          </td>
-                          <td className="px-6 py-4">
-                             <div className="flex flex-wrap gap-1.5">
-                                {profile.tags.slice(0, 4).map((tag, i) => (
-                                   <span key={i} className={`px-2 py-0.5 rounded text-xs border ${
-                                      tag === 'VIP' ? 'bg-amber-50 text-amber-700 border-amber-100' : 
-                                      tag.includes('风险') ? 'bg-red-50 text-red-600 border-red-100' :
-                                      'bg-slate-50 text-slate-600 border-slate-100'
-                                   }`}>
-                                      {tag}
-                                   </span>
-                                ))}
-                                {profile.tags.length > 4 && <span className="text-xs text-slate-400 self-center">...</span>}
-                             </div>
-                          </td>
-                          <td className="px-6 py-4 text-xs text-slate-500">
-                             <div className="flex items-center">
-                                <History size={14} className="mr-1.5 opacity-70" />
-                                {new Date(profile.lastInteraction).toLocaleDateString()}
-                             </div>
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                             <button className="p-2 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-full transition-colors">
-                                <MoreHorizontal size={18} />
-                             </button>
-                          </td>
-                       </tr>
-                    ))}
-                 </tbody>
-              </table>
-           </div>
-           <div className="p-4 border-t border-slate-100 bg-slate-50 text-xs text-slate-500 text-center">
-              共 {filteredData.length} 位客户
-           </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-xs text-slate-500">
+              <tr>
+                <th className="text-left px-5 py-3 font-medium">客户信息</th>
+                <th className="text-left px-5 py-3 font-medium">客户等级</th>
+                <th className="text-left px-5 py-3 font-medium">最近通话结果</th>
+                <th className="text-left px-5 py-3 font-medium">营销状态</th>
+                <th className="text-left px-5 py-3 font-medium">跟进状态</th>
+                <th className="text-left px-5 py-3 font-medium">风险状态</th>
+                <th className="text-left px-5 py-3 font-medium">画像标签</th>
+                <th className="text-left px-5 py-3 font-medium">证据</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredProfiles.map(profile => (
+                <tr key={profile.id} onClick={() => setSelectedProfile(profile)} className="hover:bg-blue-50/40 cursor-pointer">
+                  <td className="px-5 py-4">
+                    <div className="font-semibold text-slate-800">{profile.name}</div>
+                    <div className="text-xs text-slate-500 mt-1">{profile.phoneNumber} · {profile.region}</div>
+                    <div className="text-xs text-slate-400 mt-1">最近通话：{formatDateTime(profile.lastInteraction)}</div>
+                  </td>
+                  <td className="px-5 py-4"><Badge className="bg-purple-50 text-purple-700 border-purple-100">{profile.customerLevel || '普通客户'}</Badge></td>
+                  <td className="px-5 py-4"><Badge className={statusClass(profile.lastCallResult)}>{profile.lastCallResult || '无记录'}</Badge></td>
+                  <td className="px-5 py-4"><Badge className={statusClass(profile.marketingStatus)}>{profile.marketingStatus || '未配置'}</Badge></td>
+                  <td className="px-5 py-4"><Badge className={statusClass(profile.followUpStatus)}>{profile.followUpStatus || '无跟进'}</Badge></td>
+                  <td className="px-5 py-4"><Badge className={statusClass(profile.riskStatus)}>{profile.riskStatus || '正常'}</Badge></td>
+                  <td className="px-5 py-4">
+                    <div className="flex flex-wrap gap-1.5 max-w-xs">
+                      {(profile.structuredTags || []).slice(0, 4).map(tag => (
+                        <Badge key={tag.id} className={tagClass(tag)}>{tag.name}</Badge>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="px-5 py-4 text-xs text-slate-500">标签证据链 · 通话时间线</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* Detail Drawer */}
-      {isDrawerOpen && selectedProfile && (
-         <div className="w-[450px] bg-white border-l border-gray-200 shadow-2xl z-20 flex flex-col animate-in slide-in-from-right duration-300 absolute right-0 top-0 bottom-0">
-            {/* Drawer Header */}
-            <div className="h-40 bg-gradient-to-br from-slate-800 to-slate-900 relative shrink-0">
-               <div className="absolute top-4 right-4">
-                  <button onClick={closeDrawer} className="text-white/50 hover:text-white transition-colors">
-                     <X size={20} />
-                  </button>
-               </div>
-               <div className="absolute -bottom-10 left-6 flex items-end">
-                  <div className="w-20 h-20 rounded-xl bg-white p-1 shadow-lg">
-                     <div className={`w-full h-full rounded-lg flex items-center justify-center text-3xl font-bold ${
-                        selectedProfile.tags.includes('VIP') ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-500'
-                     }`}>
-                        {selectedProfile.name[0]}
-                     </div>
+      {selectedProfile && (
+        <div className="fixed inset-0 bg-slate-900/40 z-50 flex justify-end">
+          <div className="w-[560px] bg-white h-full shadow-2xl overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-slate-100 p-5 flex items-start justify-between z-10">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">{selectedProfile.name}</h3>
+                <p className="text-sm text-slate-500 mt-1">{selectedProfile.phoneNumber} · {selectedProfile.region}</p>
+              </div>
+              <button onClick={() => setSelectedProfile(null)} className="p-2 hover:bg-slate-100 rounded-lg">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-5">
+              <section className="border border-blue-100 bg-blue-50/60 p-4">
+                <div className="flex items-center gap-2 font-bold text-blue-900">
+                  <Sparkles size={18} />
+                  AI 洞察摘要
+                </div>
+                <p className="text-sm text-blue-900/80 mt-3 leading-6">{selectedProfile.notes || '暂无摘要'}</p>
+              </section>
+
+              <section className="border border-slate-200 p-4">
+                <div className="flex items-center gap-2 font-bold text-slate-800">
+                  <Tag size={18} />
+                  画像标签与标签来源
+                </div>
+                <p className="text-xs text-slate-500 mt-1">标签证据链会展示来源、置信度、更新时间和解释说明。</p>
+                <div className="mt-3 space-y-3">
+                  {(selectedProfile.structuredTags || []).map(tag => (
+                    <div key={tag.id} className="border border-slate-100 rounded-lg p-3">
+                      <div className="flex items-center justify-between">
+                        <Badge className={tagClass(tag)}>{tag.name}</Badge>
+                        <span className="text-xs text-slate-400">置信度：{CONFIDENCE_LABELS[tag.confidence]}</span>
+                      </div>
+                      <div className="text-xs text-slate-500 mt-2">
+                        {TAG_TYPE_LABELS[tag.type]} · 标签来源：{TAG_SOURCE_LABELS[tag.source]} · 更新时间：{formatDateTime(tag.updatedAt)}
+                      </div>
+                      <p className="text-sm text-slate-600 mt-2">{tag.explanation}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="grid grid-cols-2 gap-3">
+                <div className="border border-slate-200 p-4">
+                  <div className="flex items-center gap-2 font-bold text-slate-800">
+                    <Megaphone size={17} />
+                    当前可推荐活动
                   </div>
-                  <div className="mb-12 ml-4">
-                     <h2 className="text-xl font-bold text-white flex items-center">
-                        {selectedProfile.name}
-                        {selectedProfile.tags.includes('VIP') && (
-                           <span className="ml-2 px-2 py-0.5 bg-amber-500 text-white text-[10px] rounded font-bold uppercase tracking-wider">VIP</span>
+                  <div className="mt-3 space-y-2">
+                    {recommendedCampaigns.length === 0 && <p className="text-sm text-slate-400">当前无可推荐活动</p>}
+                    {recommendedCampaigns.map(campaign => (
+                      <div key={campaign.id} className="text-sm text-slate-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
+                        {campaign.name}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="border border-slate-200 p-4">
+                  <div className="flex items-center gap-2 font-bold text-slate-800">
+                    <AlertTriangle size={17} />
+                    当前禁止触达原因
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {(selectedProfile.touchBlockReasons || []).length === 0 && <p className="text-sm text-slate-400">暂无禁止触达原因</p>}
+                    {(selectedProfile.touchBlockReasons || []).map(reason => (
+                      <div key={reason} className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{reason}</div>
+                    ))}
+                  </div>
+                </div>
+              </section>
+
+              <section className="border border-slate-200 p-4">
+                <div className="flex items-center gap-2 font-bold text-slate-800">
+                  <History size={18} />
+                  通话时间线、营销和自动跟进记录
+                </div>
+                <div className="mt-4 space-y-3">
+                  {(selectedProfile.interactions || []).map(item => (
+                    <div key={item.id} className="flex gap-3">
+                      <div className="h-8 w-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center flex-shrink-0">
+                        {interactionIcon(item.type)}
+                      </div>
+                      <div className="flex-1 border-b border-slate-100 pb-3">
+                        <div className="flex items-center justify-between">
+                          <p className="font-medium text-slate-800">{item.title}</p>
+                          <span className="text-xs text-slate-400">{formatDateTime(item.time)}</span>
+                        </div>
+                        <p className="text-sm text-slate-500 mt-1">{item.detail}</p>
+                        {item.result && <p className="text-xs text-slate-400 mt-1">结果：{item.result}</p>}
+                        {(item.botName || item.flowName) && (
+                          <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
+                            <Bot size={12} /> {item.botName || '-'} · {item.flowName || '-'}
+                          </p>
                         )}
-                     </h2>
-                     <div className="text-white/70 text-sm font-mono flex items-center mt-1">
-                        <Phone size={12} className="mr-1.5" /> {selectedProfile.phoneNumber}
-                     </div>
-                  </div>
-               </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
             </div>
-
-            <div className="flex-1 overflow-y-auto pt-14 px-6 pb-6 space-y-8">
-               
-               {/* Basic Stats */}
-               <div className="grid grid-cols-3 gap-4 pb-6 border-b border-gray-100">
-                  <div className="text-center">
-                     <div className="text-xs text-slate-500 mb-1">通话次数</div>
-                     <div className="text-lg font-bold text-slate-800">12</div>
-                  </div>
-                  <div className="text-center border-l border-r border-gray-100">
-                     <div className="text-xs text-slate-500 mb-1">营销触达</div>
-                     <div className="text-lg font-bold text-slate-800">5</div>
-                  </div>
-                  <div className="text-center">
-                     <div className="text-xs text-slate-500 mb-1">工单记录</div>
-                     <div className="text-lg font-bold text-slate-800">2</div>
-                  </div>
-               </div>
-
-               {/* Tags */}
-               <section>
-                  <div className="flex justify-between items-center mb-3">
-                     <h3 className="text-sm font-bold text-slate-800 flex items-center">
-                        <Tag size={16} className="mr-2 text-primary" /> 画像标签
-                     </h3>
-                  </div>
-                  <TagInput 
-                     label=""
-                     tags={selectedProfile.tags}
-                     onChange={updateProfileTags}
-                     placeholder="添加标签..."
-                  />
-               </section>
-
-               {/* Notes / AI Insight */}
-               <section>
-                  <div className="flex justify-between items-center mb-3">
-                     <h3 className="text-sm font-bold text-slate-800 flex items-center">
-                        <MessageSquare size={16} className="mr-2 text-indigo-600" /> 
-                        AI 洞察摘要
-                     </h3>
-                     <button onClick={() => setEditingNotes(!editingNotes)} className="text-slate-400 hover:text-slate-600">
-                        <Edit3 size={14} />
-                     </button>
-                  </div>
-                  {editingNotes ? (
-                     <textarea 
-                        className="w-full h-32 p-3 text-sm border border-slate-200 rounded-lg focus:border-primary outline-none resize-none bg-slate-50"
-                        value={selectedProfile.notes || ''}
-                        onChange={(e) => updateProfileNotes(e.target.value)}
-                        onBlur={() => setEditingNotes(false)}
-                        autoFocus
-                     />
-                  ) : (
-                     <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-lg text-sm text-slate-700 leading-relaxed relative">
-                        <div className="absolute top-3 right-3 text-indigo-200">
-                           <Zap size={16} />
-                        </div>
-                        {selectedProfile.notes || '暂无摘要'}
-                     </div>
-                  )}
-               </section>
-
-               {/* Timeline */}
-               <section>
-                  <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center">
-                     <History size={16} className="mr-2 text-slate-500" /> 
-                     全渠道旅程
-                  </h3>
-                  <div className="relative pl-4 space-y-6 before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-px before:bg-slate-200">
-                     {(MOCK_TIMELINE[selectedProfile.id] || []).map((event, idx) => (
-                        <div key={idx} className="relative pl-8">
-                           <div className={`absolute left-0 top-1 w-10 h-10 rounded-full border-4 border-white shadow-sm flex items-center justify-center z-10 ${getEventColor(event.type)}`}>
-                              {getEventIcon(event.type)}
-                           </div>
-                           <div className="bg-white border border-slate-100 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow">
-                              <div className="flex justify-between items-start mb-1">
-                                 <span className="text-sm font-bold text-slate-800">{event.title}</span>
-                                 <span className="text-[10px] text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded">{event.date.split(' ')[0]}</span>
-                              </div>
-                              <p className="text-xs text-slate-500 leading-relaxed">
-                                 {event.detail}
-                              </p>
-                           </div>
-                        </div>
-                     ))}
-                     {(!MOCK_TIMELINE[selectedProfile.id] || MOCK_TIMELINE[selectedProfile.id].length === 0) && (
-                        <div className="text-center text-xs text-slate-400 py-4">暂无历史记录</div>
-                     )}
-                  </div>
-               </section>
-
-            </div>
-         </div>
+          </div>
+        </div>
       )}
     </div>
   );

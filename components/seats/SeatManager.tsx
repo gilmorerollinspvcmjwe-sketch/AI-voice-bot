@@ -1,10 +1,10 @@
 
 import React, { useState } from 'react';
-import { 
+import {
   Headset, Plus, Search, Edit3, Trash2, Power, PowerOff, Users,
   Activity, AlertTriangle
 } from 'lucide-react';
-import { Seat, BotConfiguration } from '../../types';
+import { Seat, BotConfiguration, AudioRecording } from '../../types';
 import { Input, Select, Label, Switch } from '../ui/FormComponents';
 
 interface SeatManagerProps {
@@ -13,9 +13,18 @@ interface SeatManagerProps {
 
 const TOTAL_LICENSE_CAPACITY = 200; // Mock Total Purchased Capacity
 
+// 坐席排队时可播放的提示音，后续可替换为录音管理接口数据。
+const QUEUE_PROMPT_RECORDINGS: AudioRecording[] = [
+  { id: 'queue_default', name: '排队语音提示', text: '当前坐席繁忙，请您稍候，马上为您接入。', voice: 'Azure-Xiaoxiao', duration: 5, url: 'queue_default.mp3', updatedAt: 1773130717000 },
+  { id: 'queue_busy', name: '忙线排队提示', text: '坐席正在服务其他客户，请您耐心等待。', voice: 'Azure-Yunxi', duration: 4, url: 'queue_busy.mp3', updatedAt: 1773130717000 },
+  { id: 'queue_vip', name: '优先排队提示', text: '已为您进入优先排队，请稍候。', voice: 'Azure-Xiaoxiao', duration: 4, url: 'queue_vip.mp3', updatedAt: 1773130717000 },
+];
+
+const DEFAULT_QUEUE_PROMPT_AUDIO_ID = QUEUE_PROMPT_RECORDINGS[0].id;
+
 const MOCK_SEATS: Seat[] = [
-  { id: '9', name: '泰康Demo-02', botConfigId: 'bot_didi_demo', concurrency: 5, status: 'active', createdAt: 1773130717000 },
-  { id: '8', name: '泰康Demo-01', botConfigId: 'bot_didi_demo', concurrency: 5, status: 'active', createdAt: 1773130694000 },
+  { id: '9', name: '泰康Demo-02', botConfigId: 'bot_didi_demo', concurrency: 5, queuePromptAudioId: DEFAULT_QUEUE_PROMPT_AUDIO_ID, status: 'active', createdAt: 1773130717000 },
+  { id: '8', name: '泰康Demo-01', botConfigId: 'bot_didi_demo', concurrency: 5, queuePromptAudioId: DEFAULT_QUEUE_PROMPT_AUDIO_ID, status: 'active', createdAt: 1773130694000 },
   { id: '6', name: '天鹅到家', botConfigId: 'bot_didi_demo', concurrency: 1, status: 'active', createdAt: 1772692096000 },
   { id: '3', name: '智能体坐席_外卖骑手', botConfigId: '', concurrency: 1, status: 'disabled', createdAt: 1768805996000 },
   { id: '5', name: '【勿动】官网呼入', botConfigId: '', concurrency: 10, status: 'active', createdAt: 1772678339000 },
@@ -25,12 +34,13 @@ export default function SeatManager({ bots }: SeatManagerProps) {
   const [seats, setSeats] = useState<Seat[]>(MOCK_SEATS);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSeat, setEditingSeat] = useState<Seat | null>(null);
-  
+
   // Form Data
   const [formData, setFormData] = useState<Partial<Seat>>({
     name: '',
     botConfigId: '',
     concurrency: 1,
+    queuePromptAudioId: DEFAULT_QUEUE_PROMPT_AUDIO_ID,
     status: 'active',
   });
 
@@ -48,6 +58,7 @@ export default function SeatManager({ bots }: SeatManagerProps) {
         name: '',
         botConfigId: '',
         concurrency: 1,
+        queuePromptAudioId: DEFAULT_QUEUE_PROMPT_AUDIO_ID,
         status: 'active',
       });
     }
@@ -61,6 +72,7 @@ export default function SeatManager({ bots }: SeatManagerProps) {
     const newSeat = {
       ...formData,
       id: editingSeat ? editingSeat.id : Date.now().toString(),
+      queuePromptAudioId: formData.queuePromptAudioId || DEFAULT_QUEUE_PROMPT_AUDIO_ID,
       createdAt: editingSeat ? editingSeat.createdAt : Date.now()
     } as Seat;
 
@@ -87,6 +99,12 @@ export default function SeatManager({ bots }: SeatManagerProps) {
     return bot ? bot.name : (id ? '未知配置' : '-');
   };
 
+  // 根据录音 ID 显示坐席使用的排队提示音名称。
+  const getQueuePromptName = (id?: string) => {
+    const recording = QUEUE_PROMPT_RECORDINGS.find(item => item.id === id);
+    return recording ? recording.name : '默认排队语音';
+  };
+
   return (
     <div className="p-8 max-w-full mx-auto w-full h-full flex flex-col">
       <div className="flex justify-between items-center mb-6 shrink-0">
@@ -108,7 +126,7 @@ export default function SeatManager({ bots }: SeatManagerProps) {
                <span className="text-xs font-bold text-slate-500 mr-2 uppercase tracking-wide">总并发许可</span>
                <span className="text-xl font-bold text-slate-800">{TOTAL_LICENSE_CAPACITY}</span>
             </div>
-            
+
             <div className="h-8 w-px bg-slate-100"></div>
 
             <div className="flex flex-col justify-center min-w-[300px]">
@@ -123,7 +141,7 @@ export default function SeatManager({ bots }: SeatManagerProps) {
                   </span>
                </div>
                <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden flex">
-                  <div 
+                  <div
                      className={`h-full transition-all duration-500 ${isOverCapacity ? 'bg-red-500' : 'bg-primary'}`}
                      style={{ width: `${Math.min(100, (totalUsed / TOTAL_LICENSE_CAPACITY) * 100)}%` }}
                   ></div>
@@ -142,12 +160,12 @@ export default function SeatManager({ bots }: SeatManagerProps) {
          <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
             <div className="relative">
                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-               <input 
+               <input
                  className="pl-10 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:border-primary outline-none w-72 bg-white"
                  placeholder="搜索座席名称..."
                />
             </div>
-            <button 
+            <button
                onClick={() => handleOpenModal()}
                className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold hover:bg-sky-600 transition-all flex items-center shadow-sm"
             >
@@ -164,6 +182,7 @@ export default function SeatManager({ bots }: SeatManagerProps) {
                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">座席名称</th>
                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">机器人配置</th>
                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">数量/并发</th>
+                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">排队语音</th>
                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">状态</th>
                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">创建时间</th>
                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-right">操作</th>
@@ -185,6 +204,9 @@ export default function SeatManager({ bots }: SeatManagerProps) {
                            <div className="flex items-center text-sm font-medium text-slate-700">
                               <Users size={14} className="mr-1.5 text-slate-400" /> {seat.concurrency}
                            </div>
+                        </td>
+                        <td className="px-6 py-4">
+                           <span className="text-xs text-slate-600">{getQueuePromptName(seat.queuePromptAudioId)}</span>
                         </td>
                         <td className="px-6 py-4">
                            {seat.status === 'active' ? (
@@ -226,19 +248,19 @@ export default function SeatManager({ bots }: SeatManagerProps) {
                   </h3>
                   <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">×</button>
                </div>
-               
+
                <div className="p-6 space-y-5">
-                  <Input 
-                     label="座席名称" 
-                     required 
+                  <Input
+                     label="座席名称"
+                     required
                      placeholder="例如：外卖骑手招聘专席"
                      value={formData.name}
                      onChange={(e) => setFormData({...formData, name: e.target.value})}
                   />
-                  
+
                   <div>
                      <Label label="机器人配置" required />
-                     <Select 
+                     <Select
                         label=""
                         value={formData.botConfigId}
                         onChange={(e) => setFormData({...formData, botConfigId: e.target.value})}
@@ -249,8 +271,15 @@ export default function SeatManager({ bots }: SeatManagerProps) {
                      />
                   </div>
 
-                  <Input 
-                     label="并发数量" 
+                  <Select
+                     label="排队语音提示"
+                     value={formData.queuePromptAudioId || DEFAULT_QUEUE_PROMPT_AUDIO_ID}
+                     onChange={(e) => setFormData({...formData, queuePromptAudioId: e.target.value})}
+                     options={QUEUE_PROMPT_RECORDINGS.map(recording => ({ label: recording.name, value: recording.id }))}
+                  />
+
+                  <Input
+                     label="并发数量"
                      type="number"
                      min="1"
                      value={formData.concurrency}
@@ -259,10 +288,10 @@ export default function SeatManager({ bots }: SeatManagerProps) {
 
                   <div className="flex items-center justify-between pt-2">
                      <Label label="初始状态" />
-                     <Switch 
-                        label={formData.status === 'active' ? '启用' : '禁用'} 
-                        checked={formData.status === 'active'} 
-                        onChange={(v) => setFormData({...formData, status: v ? 'active' : 'disabled'})} 
+                     <Switch
+                        label={formData.status === 'active' ? '启用' : '禁用'}
+                        checked={formData.status === 'active'}
+                        onChange={(v) => setFormData({...formData, status: v ? 'active' : 'disabled'})}
                      />
                   </div>
                </div>

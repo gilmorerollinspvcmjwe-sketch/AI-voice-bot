@@ -1,0 +1,53 @@
+import fs from 'node:fs';
+
+const source = fs.readFileSync('components/bot/BotTopicManager.tsx', 'utf8');
+const types = fs.readFileSync('types.ts', 'utf8');
+
+const requiredSourceSnippets = [
+  '主题类型',
+  '流程主题',
+  '普通主题',
+  '一一对应',
+  '流程主题只负责把用户问题路由到指定 Flow',
+  '绑定流程',
+  '普通主题配置',
+  'isFlowTopic',
+  "topicType: 'flow'",
+  "topicType: 'normal'",
+  "prompt: isFlowTopic ? ''",
+  "tools: isFlowTopic ? []",
+  "entities: isFlowTopic ? []",
+  "flows: isFlowTopic",
+  "updateEditingTopic('flows', value ? [value] : [])",
+];
+
+const requiredTypeSnippets = [
+  "topicType?: 'normal' | 'flow'",
+  'linkedFlowId?: string',
+];
+
+const forbiddenFlowSectionSnippets = [
+  "isFlowTopic && <PromptEditor",
+  "isFlowTopic && renderSelectedChips(editingTopic.tools",
+  "isFlowTopic && renderSelectedChips(editingTopic.entities",
+];
+
+for (const snippet of requiredSourceSnippets) {
+  if (!source.includes(snippet)) {
+    throw new Error(`BotTopicManager 缺少文案或逻辑：${snippet}`);
+  }
+}
+
+for (const snippet of requiredTypeSnippets) {
+  if (!types.includes(snippet)) {
+    throw new Error(`types.ts 缺少主题类型字段：${snippet}`);
+  }
+}
+
+for (const snippet of forbiddenFlowSectionSnippets) {
+  if (source.includes(snippet)) {
+    throw new Error(`流程主题不应展示普通主题配置：${snippet}`);
+  }
+}
+
+console.log('topic manager topic type static check ok');
