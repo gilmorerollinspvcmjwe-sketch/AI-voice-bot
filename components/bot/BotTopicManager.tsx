@@ -153,13 +153,13 @@ const BotTopicManager: React.FC<BotTopicManagerProps> = ({ config, updateField }
     const updatedTopic = {
       ...editingTopic,
       topicType: editingTopic.topicType || 'normal',
-      linkedFlowId: isFlowTopic ? linkedFlowId : editingTopic.linkedFlowId,
+      linkedFlowId: isFlowTopic ? linkedFlowId : '',
       prompt: isFlowTopic ? '' : editingTopic.prompt,
       tools: isFlowTopic ? [] : editingTopic.tools,
       variables: isFlowTopic ? [] : editingTopic.variables,
       entities: isFlowTopic ? [] : editingTopic.entities,
       knowledgeTags: isFlowTopic ? [] : editingTopic.knowledgeTags,
-      flows: isFlowTopic ? [linkedFlowId] : editingTopic.flows,
+      flows: isFlowTopic ? [linkedFlowId] : [],
       updatedAt: new Date().toISOString(),
     };
     
@@ -199,17 +199,17 @@ const BotTopicManager: React.FC<BotTopicManagerProps> = ({ config, updateField }
     setEditingTopic({
       ...editingTopic,
       ...(isFlowTopic ? flowTopicPatch : normalTopicPatch),
-      linkedFlowId: isFlowTopic ? linkedFlowId : editingTopic.linkedFlowId,
+      linkedFlowId: isFlowTopic ? linkedFlowId : '',
       prompt: isFlowTopic ? '' : editingTopic.prompt,
       tools: isFlowTopic ? [] : editingTopic.tools,
       variables: isFlowTopic ? [] : editingTopic.variables,
       entities: isFlowTopic ? [] : editingTopic.entities,
       knowledgeTags: isFlowTopic ? [] : editingTopic.knowledgeTags,
-      flows: isFlowTopic ? (linkedFlowId ? [linkedFlowId] : []) : editingTopic.flows,
+      flows: isFlowTopic ? (linkedFlowId ? [linkedFlowId] : []) : [],
     });
   };
 
-  const toggleTopicArrayValue = (key: 'tools' | 'entities' | 'flows', value: string) => {
+  const toggleTopicArrayValue = (key: 'tools' | 'entities', value: string) => {
     if (!editingTopic || !value) return;
     const current = editingTopic[key] || [];
     const next = current.includes(value)
@@ -339,31 +339,29 @@ const BotTopicManager: React.FC<BotTopicManagerProps> = ({ config, updateField }
 
         <div className="p-6 space-y-6">
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-3">主题类型</label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <label className="sr-only">主题类型</label>
+            <div role="tablist" aria-label="主题类型" className="flex border-b border-gray-100">
               <button
                 type="button"
+                role="tab"
+                aria-selected={!isFlowTopic}
                 onClick={() => changeTopicType('normal')}
-                className={`rounded-xl border p-4 text-left transition-colors ${
-                  !isFlowTopic ? 'border-primary bg-sky-50 text-sky-800' : 'border-gray-200 bg-white text-slate-600 hover:bg-slate-50'
+                className={`border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+                  !isFlowTopic ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700'
                 }`}
               >
-                <div className="flex items-center gap-2 text-sm font-bold">
-                  <Tag size={16} /> 普通主题
-                </div>
-                <p className="mt-1 text-xs leading-5 text-slate-500">保留目前配置，可写提示词，并选择工具、实体和流程作为上下文。</p>
+                普通主题
               </button>
               <button
                 type="button"
+                role="tab"
+                aria-selected={isFlowTopic}
                 onClick={() => changeTopicType('flow')}
-                className={`rounded-xl border p-4 text-left transition-colors ${
-                  isFlowTopic ? 'border-purple-300 bg-purple-50 text-purple-800' : 'border-gray-200 bg-white text-slate-600 hover:bg-slate-50'
+                className={`border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+                  isFlowTopic ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700'
                 }`}
               >
-                <div className="flex items-center gap-2 text-sm font-bold">
-                  <Workflow size={16} /> 流程主题
-                </div>
-                <p className="mt-1 text-xs leading-5 text-slate-500">流程主题只负责把用户问题路由到指定 Flow，和流程一一对应。</p>
+                流程主题
               </button>
             </div>
           </div>
@@ -450,9 +448,7 @@ const BotTopicManager: React.FC<BotTopicManagerProps> = ({ config, updateField }
                   <label className="mb-2 flex items-center gap-2 text-xs font-bold text-slate-700">
                     <Workflow size={14} className="text-purple-500" /> 绑定流程
                   </label>
-                  <p className="text-[11px] text-slate-500">流程主题必须且只能选择一个 Flow；保存后不会写提示词，也不会绑定工具和实体。</p>
                 </div>
-                <span className="rounded-full border border-purple-100 bg-white px-2 py-1 text-[10px] font-bold text-purple-600">一一对应</span>
               </div>
               <select
                 value={editingTopic.linkedFlowId || editingTopic.flows?.[0] || ''}
@@ -533,12 +529,12 @@ const BotTopicManager: React.FC<BotTopicManagerProps> = ({ config, updateField }
                   variables={config.variables || []}
                   availableTools={config.agentConfig?.tools || []}
                   availableFunctions={BUILT_IN_FUNCTIONS}
-                  availableFlows={(config.flowConfig?.flows || []).map(f => ({ id: f.id, name: f.name, description: f.metadata?.description }))}
+                  availableFlows={[]}
                   height="h-48"
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-gray-100 pt-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-gray-100 pt-6">
                 <div className="rounded-xl border border-sky-100 bg-sky-50/40 p-4">
                   <label className="mb-2 flex items-center gap-2 text-xs font-bold text-slate-700">
                     <Wrench size={14} className="text-sky-500" /> 工具
@@ -580,28 +576,6 @@ const BotTopicManager: React.FC<BotTopicManagerProps> = ({ config, updateField }
                   </select>
                   <div className="mt-3">
                     {renderSelectedChips(editingTopic.entities || [], entityOptions, 'entity', (value) => toggleTopicArrayValue('entities', value))}
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-purple-100 bg-purple-50/40 p-4">
-                  <label className="mb-2 flex items-center gap-2 text-xs font-bold text-slate-700">
-                    <Workflow size={14} className="text-purple-500" /> 流程
-                  </label>
-                  <select
-                    value=""
-                    onChange={(e) => {
-                      toggleTopicArrayValue('flows', e.target.value);
-                      e.target.value = '';
-                    }}
-                    className="w-full px-3 py-2 text-xs border border-purple-100 rounded bg-white outline-none focus:border-primary"
-                  >
-                    <option value="">选择流程</option>
-                    {flowOptions.map((flow) => (
-                      <option key={flow.id} value={flow.id}>{flow.name}</option>
-                    ))}
-                  </select>
-                  <div className="mt-3">
-                    {renderSelectedChips(editingTopic.flows || [], flowOptions, 'flow', (value) => toggleTopicArrayValue('flows', value))}
                   </div>
                 </div>
               </div>

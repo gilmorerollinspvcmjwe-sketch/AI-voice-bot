@@ -7,17 +7,17 @@ const requiredSourceSnippets = [
   '主题类型',
   '流程主题',
   '普通主题',
-  '一一对应',
-  '流程主题只负责把用户问题路由到指定 Flow',
   '绑定流程',
   '普通主题配置',
   'isFlowTopic',
   "topicType: 'flow'",
   "topicType: 'normal'",
+  "linkedFlowId: isFlowTopic ? linkedFlowId : ''",
   "prompt: isFlowTopic ? ''",
   "tools: isFlowTopic ? []",
   "entities: isFlowTopic ? []",
-  "flows: isFlowTopic",
+  "flows: isFlowTopic ? [linkedFlowId] : []",
+  'availableFlows={[]}',
   "updateEditingTopic('flows', value ? [value] : [])",
 ];
 
@@ -30,6 +30,10 @@ const forbiddenFlowSectionSnippets = [
   "isFlowTopic && <PromptEditor",
   "isFlowTopic && renderSelectedChips(editingTopic.tools",
   "isFlowTopic && renderSelectedChips(editingTopic.entities",
+  "toggleTopicArrayValue('flows'",
+  "availableFlows={(config.flowConfig",
+  '流程主题只负责把用户问题路由到指定 Flow',
+  '一一对应',
 ];
 
 for (const snippet of requiredSourceSnippets) {
