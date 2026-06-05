@@ -1,6 +1,6 @@
-﻿// 实时监控页签，展示当前通话、排队、并发和机器人在线状态。
+// 实时监控页签，展示当前通话、并发和机器人在线状态。
 import React from 'react';
-import { Bot, CheckCircle, Headphones, Phone, Timer, TrendingUp } from 'lucide-react';
+import { Bot, CheckCircle, Headphones, Phone, TrendingUp } from 'lucide-react';
 import { RealtimeMonitorData } from '../../types';
 import { cx, formatDuration, getRealtimeStatus, StatCard, StatusBadge } from './reportUi';
 
@@ -14,23 +14,20 @@ export default function RealtimeReportTab({ data, onViewCallDetail }: RealtimeRe
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard title="当前通话中" value={data.activeCalls} desc="实时在线会话" tone="green" icon={<Phone size={22} />} />
-        <StatCard title="当前排队中" value={data.queueingCalls} desc="等待接入或转人工" tone="amber" icon={<Timer size={22} />} />
-        <StatCard title="当前空闲坐席" value={data.idleSeats} desc="可承接人工服务" tone="blue" icon={<Headphones size={22} />} />
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <StatCard title="当前通话中" value={data.activeCalls} tone="green" icon={<Phone size={22} />} />
         <StatCard
           title="当前占用并发"
           value={`${data.concurrencyUsed}/${data.concurrencyLimit}`}
-          desc={concurrencyRate > 0.95 ? '红色告警：并发接近满载' : concurrencyRate > 0.8 ? '黄色提醒：并发偏高' : '运行平稳'}
           tone={concurrencyRate > 0.95 ? 'red' : concurrencyRate > 0.8 ? 'amber' : 'green'}
           icon={<TrendingUp size={22} />}
         />
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <StatCard title="今日通话量" value={data.todayCalls} desc="按当前筛选口径统计" tone="blue" icon={<Phone size={22} />} />
-        <StatCard title="今日异常量" value={data.todayErrors} desc="模型、工具、语音和流程异常" tone="red" icon={<CheckCircle size={22} />} />
-        <StatCard title="今日转人工量" value={data.todayTransfers} desc="含排队中和接入成功" tone="purple" icon={<Headphones size={22} />} />
+        <StatCard title="今日通话量" value={data.todayCalls} tone="blue" icon={<Phone size={22} />} />
+        <StatCard title="今日异常量" value={data.todayErrors} tone="red" icon={<CheckCircle size={22} />} />
+        <StatCard title="今日转人工量" value={data.todayTransfers} tone="purple" icon={<Headphones size={22} />} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -50,7 +47,7 @@ export default function RealtimeReportTab({ data, onViewCallDetail }: RealtimeRe
                   <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
                     <div className={cx('h-full rounded-full', usage > 0.8 ? 'bg-amber-400' : 'bg-primary')} style={{ width: `${Math.min(100, usage * 100)}%` }} />
                   </div>
-                  <p className="mt-2 text-xs text-slate-500">通话 {bot.activeCalls} · 排队 {bot.queueCount} · 并发 {bot.concurrencyUsed}/{bot.concurrencyLimit}</p>
+                  <p className="mt-2 text-xs text-slate-500">通话 {bot.activeCalls} · 并发 {bot.concurrencyUsed}/{bot.concurrencyLimit}</p>
                 </div>
               );
             })}

@@ -1,4 +1,4 @@
-﻿// 流程分析页签，展示 Flow 节点漏斗、边命中和流失原因。
+// 流程分析页签，展示 Flow 节点漏斗、边命中和转人工入口。
 import React from 'react';
 import { CheckCircle, Headphones, Phone, TrendingUp } from 'lucide-react';
 import { FlowFunnelReport } from '../../types';
@@ -20,8 +20,8 @@ export default function FlowAnalysisTab({ report }: FlowAnalysisTabProps) {
         <StatCard title="主要人工入口" value={mainTransferNode.nodeName} desc={`转人工率 ${formatRate(mainTransferNode.transferRate)}`} tone="amber" icon={<Headphones size={22} />} />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm lg:col-span-2">
+      <div className="grid grid-cols-1 gap-6">
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <h3 className="mb-5 text-base font-bold text-slate-800">流程漏斗：{report.flowName}</h3>
           <div className="space-y-4">
             {report.nodes.map((node, index) => (
@@ -30,15 +30,6 @@ export default function FlowAnalysisTab({ report }: FlowAnalysisTabProps) {
                 <div className="mt-3 h-3 overflow-hidden rounded-full bg-white"><div className="h-full rounded-full bg-primary" style={{ width: `${node.passRate * 100}%` }} /></div>
                 <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-500 md:grid-cols-4"><span>进入 {node.enteredCount}</span><span>流失 {formatRate(node.dropRate)}</span><span>转人工 {formatRate(node.transferRate)}</span><span>停留 {formatDuration(node.avgStaySeconds)}</span></div>
               </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-4 text-base font-bold text-slate-800">流失原因列表</h3>
-          <div className="space-y-3">
-            {report.lossReasons.map(item => (
-              <div key={item.reason} className="rounded-lg bg-slate-50 p-3"><div className="flex justify-between text-sm"><span className="font-medium text-slate-700">{item.reason}</span><span>{item.count}</span></div><div className="mt-2 h-2 rounded-full bg-white"><div className="h-full rounded-full bg-red-400" style={{ width: `${item.percentage}%` }} /></div><p className="mt-1 text-xs text-slate-400">占比 {item.percentage}%</p></div>
             ))}
           </div>
         </div>

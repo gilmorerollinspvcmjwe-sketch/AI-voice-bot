@@ -62,6 +62,7 @@ types.ts：全项目共享的数据结构
 | `tsconfig.json` | TypeScript 编译配置。 |
 | `package.json` | 项目依赖和 `dev/build/preview` 命令。 |
 | `metadata.json` | AI Studio 应用元信息。 |
+| `DESIGN.md` | 项目级 UI/UX 设计基线，约束报表和后台页面的交互状态、信息层级和视觉风格。 |
 | `README.md` | 项目运行说明。 |
 | `CONTEXT.md` | 当前工作进度和关键决定记录。 |
 | `PRD_AI_Prompt_Generator.md` | AI 提示词生成器相关产品需求文档。 |
@@ -233,22 +234,24 @@ types.ts：全项目共享的数据结构
 | `components/call/CallRecordManager.tsx` | 通话记录模块入口。 |
 | `components/call/CallRecordList.tsx` | 展示通话记录列表。 |
 | `components/call/CallRecordDetail.tsx` | 展示单通电话的详情。 |
-| `components/report/MonitoringReport.tsx` | 增强版监控报表入口，组织实时监控、经营报表、流程分析、工具转人工和通话明细。 |
-| `components/report/reportUi.tsx` | 提供增强报表共享的指标卡、状态标签和格式化工具。 |
-| `components/report/RealtimeReportTab.tsx` | 展示实时运行看板、机器人在线状态、并发趋势和实时通话队列。 |
-| `components/report/AlertCenterPanel.tsx` | 展示异常告警中心，支持查看告警详情和标记处理。 |
-| `components/report/BusinessReportTab.tsx` | 展示业务结果报表和业务完成率明细。 |
-| `components/report/FlowAnalysisTab.tsx` | 展示流程漏斗、节点流失和边命中分析。 |
-| `components/report/ToolTransferTab.tsx` | 展示工具调用报表、直接播报统计和转人工分析。 |
-| `components/report/CallDetailsTab.tsx` | 展示通话明细列表和单通电话钻取详情。 |
-| `components/report/SubscriptionPanel.tsx` | 展示报表订阅配置和导出入口。 |
+| `components/report/MonitoringReport.tsx` | 综合运营报表入口，组织顶部筛选、刷新状态、通话统计、业务与流程分析、工具调用区块。 |
+| `components/report/reportUi.tsx` | 提供增强报表共享的指标卡、状态标签、排序表头、分页、空状态、加载骨架和格式化工具。 |
+| `components/report/RealtimeReportTab.tsx` | 历史实时看板组件，当前综合报表入口不再渲染。 |
+| `components/report/AlertCenterPanel.tsx` | 历史告警摘要组件，当前综合报表入口不再渲染。 |
+| `components/report/BusinessReportTab.tsx` | 历史经营报表组件，当前综合报表入口不再渲染。 |
+| `components/report/FlowAnalysisTab.tsx` | 历史流程分析组件，当前综合报表入口不再渲染。 |
+| `components/report/ToolTransferTab.tsx` | 展示工具调用报表。 |
+| `components/report/TopicFlowAnalysis.tsx` | 展示可搜索、排序、分页的 Topic 主题分析表和可展开 Flow 流程分析表。 |
+| `components/report/FlowDetailModal.tsx` | 展示 Flow 的 Step 明细和边 / 分支明细，支持搜索、排序、滚动和分页。 |
+| `components/report/CallDetailsTab.tsx` | 历史通话明细组件；通话详情当前统一走单独“通话记录”菜单。 |
+| `components/report/SubscriptionPanel.tsx` | 历史报表订阅组件，当前综合报表入口不再渲染。 |
 | `components/report/DashboardCards.tsx` | 展示旧版核心指标卡片，供历史报表组件复用。 |
 | `components/report/TrendChart.tsx` | 展示趋势图和小时热力图。 |
 | `components/report/BotPerformanceTable.tsx` | 展示机器人表现表格。 |
 | `components/report/IntentAccuracyChart.tsx` | 展示意图准确率图表。 |
 | `components/report/CallDurationDistribution.tsx` | 展示通话时长分布。 |
 | `components/report/SatisfactionAnalysis.tsx` | 展示满意度分析。 |
-| `components/report/mockData.ts` | 生成报表、通话记录、实时监控、告警、流程漏斗、工具转人工和订阅模拟数据。 |
+| `components/report/mockData.ts` | 生成报表、通话记录、历史实时监控、告警、Topic、Flow、工具转人工和订阅模拟数据。 |
 
 ### 6.10 其他组件
 
@@ -284,7 +287,7 @@ types.ts：全项目共享的数据结构
 - **Agent 与工具**：工具参数、工具定义、MCP 服务、函数、预设工具和增强工具。
 - **知识与 RAG**：问答对、分类、候选知识、RAG 配置、向量库配置、召回结果。
 - **运营资源**：坐席、音色、模板、号码、地理分组、工作时间、录音、外呼任务、客户画像、营销活动、自动跟进。
-- **报表与记录**：通话记录、指标、趋势、机器人表现、意图分析、实时监控、告警、业务结果、流程漏斗、工具调用、转人工和报表订阅。
+- **报表与记录**：通话记录、指标、趋势、机器人表现、意图分析、历史实时监控、告警、Topic、Flow、工具调用、转人工和报表订阅。
 - **Flow 工作台**：Flow 节点、连线、元数据、注释、调试场景、版本和完整流程配置。
 
 ## 9. 模块调用关系
@@ -316,7 +319,7 @@ App.tsx
 4. **机器人配置分片管理**：`BotConfigForm` 只负责汇总和保存，具体配置拆到多个子组件，便于按业务域维护。
 5. **流程能力逐步演进**：项目同时保留旧版 `FlowOrchestration/FlowEditor` 和新版 `FlowStudio/FlowWorkbench`，说明流程编排正在从简单画布向多 Flow 工作台演进。
 6. **本地持久化只用于轻量配置**：函数目录和问答分类使用 `localStorage`，不承担正式后端数据存储职责。
-7. **监控报表增强分层**：新版监控报表入口只负责筛选和页签切换，实时监控、告警、业务结果、流程漏斗、工具转人工、通话钻取和订阅分别拆为子组件，保持页面可维护。
+7. **综合运营报表分层**：新版报表入口只负责顶部筛选和区块组合；通话、Topic/Flow、工具调用分别拆为子组件，所有保留模块统一受日期筛选影响。
 8. **客户运营闭环保持语音机器人内聚**：客户画像、营销活动和自动跟进只服务语音机器人场景，不扩展成全渠道平台；自动跟进负责业务上下文，外呼任务负责拨号执行。
 
 ## 11. 测试覆盖
@@ -331,7 +334,7 @@ App.tsx
 | `tests/flowWorkbenchNodeConfig.render.tsx` | 工作台节点配置面板渲染。 |
 | `tests/polyaiConfigHelpers.behavior.ts` | PolyAI 配置辅助函数行为。 |
 | `tests/toolConfigPage.render.tsx` | 工具配置页渲染。 |
-| `tests/monitoringReport.enhancement.static.mjs` | 监控报表增强模块的静态能力检查。 |
+| `tests/monitoringReport.enhancement.static.mjs` | 综合运营报表模块的静态能力检查。 |
 | `tests/voiceCustomerOperations.static.mjs` | 客户画像、营销活动、自动跟进和机器人营销配置的静态能力检查。 |
 | `tests/customerOperations.behavior.mjs` | 客户触达保护、活动匹配、跟进任务生成和重试策略行为检查。 |
 | `tests/customerOperations.enterpriseUi.static.mjs` | 客户运营 B 端形态的静态能力检查，包括规则画布、筛选、规则配置和能力绑定。 |

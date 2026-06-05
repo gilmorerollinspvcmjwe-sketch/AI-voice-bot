@@ -1960,7 +1960,6 @@ export interface ReportMetrics {
   connectionRate: number;
   totalDuration: number;
   avgDuration: number;
-  totalDuration: number;
   avgSatisfaction: number;
   transferCount: number;
   transferRate: number;
@@ -1974,6 +1973,8 @@ export interface TrendData {
   avgDuration: number;
   satisfaction: number;
 }
+
+export type CallDirectionFilter = '全部呼叫' | '呼入' | '外呼';
 
 export interface BotPerformance {
   botId: string;
@@ -2050,7 +2051,6 @@ export interface ConcurrencyTrendPoint {
 export interface RealtimeMonitorData {
   activeCalls: number;
   queueingCalls: number;
-  idleSeats: number;
   concurrencyUsed: number;
   concurrencyLimit: number;
   todayCalls: number;
@@ -2077,23 +2077,28 @@ export interface AlertEvent {
   suggestion: string;
 }
 
+
+export interface TopicAnalysisReport {
+  id: string;
+  topicName: string;
+  callCount: number;
+  callShare: number;
+  firstTopicCallCount: number;
+  firstTopicShare: number;
+}
+
 export interface BusinessResultReport {
   id: string;
   businessName: string;
   triggerCount: number;
   completedCount: number;
-  completionRate: number;
-  failedCount: number;
-  failureRate: number;
   transferCount: number;
   transferRate: number;
   transferAfterCompleted: number;
   avgHandleTime: number;
   abandonedCount: number;
-  topFailureReason: string;
   relatedFlowName: string;
   relatedTools: string[];
-  failureSamples: string[];
 }
 
 export interface FlowFunnelNodeReport {
@@ -2159,23 +2164,13 @@ export interface TransferReportReason {
   reason: string;
   count: number;
   percentage: number;
-  successCount: number;
-  successRate: number;
-  avgQueueSeconds: number;
-  queueHangupRate: number;
   mainSourceFlow: string;
 }
 
 export interface TransferReport {
   totalTransfers: number;
   transferRate: number;
-  successRate: number;
-  avgQueueSeconds: number;
-  timeoutCount: number;
-  queueHangupCount: number;
-  solvedAfterTransferRate: number;
   reasons: TransferReportReason[];
-  queueBands: Array<{ range: string; count: number; percentage: number }>;
 }
 
 export interface CallFlowPathItem {
@@ -2225,6 +2220,107 @@ export interface ReportSubscription {
   fileFormat: 'Excel' | 'CSV';
   enabled: boolean;
   contentSummary: string[];
+}
+
+// ==================== 通话分析 Tab ====================
+
+export interface CallAnalysisMetrics {
+  totalCalls: number;
+  connectionRate: number;
+  effectiveRate: number;       // 有效通话率（>15s）
+  avgDuration: number;
+  medianDuration: number;
+  repeatCustomers: number;
+  userHangupRate: number;      // 用户主动挂断量 / 通话总量
+}
+
+export interface CallVolumeTrendPoint {
+  label: string;
+  inbound: number;
+  outbound: number;
+  connected: number;
+  inboundEffective: number;
+  effective: number;
+  outboundConnected: number;
+  missed: number;
+}
+
+export interface CallDurationBucket {
+  range: string;
+  count: number;
+  percentage: number;
+  completionRate: number;
+  transferRate: number;
+}
+
+export interface RepeatCallCustomer {
+  customerPhone: string;
+  count24h: number;
+  count7d: number;
+  lastBusiness: string;
+  lastResult: string;
+  unresolvedCount: number;
+  lastCallTime: number;
+}
+
+export interface RegionCallStat {
+  region: string;
+  totalCalls: number;
+  connectionRate: number;
+  completionRate: number;
+  transferRate: number;
+}
+
+export interface HangupReasonStat {
+  reason: string;
+  count: number;
+  percentage: number;
+}
+
+export interface ShortCallSample {
+  callId: string;
+  customerPhone: string;
+  duration: number;
+  hangupBy: string;
+  hangupReason: string;
+  botName: string;
+  businessName: string;
+  lastNode: string;
+}
+
+export interface CallAnalysisData {
+  metrics: CallAnalysisMetrics;
+  volumeTrend: CallVolumeTrendPoint[];
+  durationBuckets: CallDurationBucket[];
+  repeatCustomers: RepeatCallCustomer[];
+  regionStats: RegionCallStat[];
+  weekdayHourHeatmap: number[][];
+  hangupReasons: HangupReasonStat[];
+  shortCallSamples: ShortCallSample[];
+}
+
+// ==================== 工具与实体：实体质量 ====================
+
+export interface EntityFieldQuality {
+  field: string;
+  extractedCount: number;
+  successRate: number;
+  missingCount: number;
+  formatErrorCount: number;
+  lowConfidenceCount: number;
+  affectedBusiness: string;
+  suggestion: string;
+}
+
+export interface ValidationFunnelStage {
+  stage: string;
+  count: number;
+  rate: number;
+}
+
+export interface EntityQualityReport {
+  fields: EntityFieldQuality[];
+  validationFunnel: ValidationFunnelStage[];
 }
 
 // Extend CallRecord with report-related fields

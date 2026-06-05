@@ -102,6 +102,7 @@ export default function BotAgentConfig({ config, updateField, extractionConfigs 
     
     return groups;
   }, [agentConfig.tools]);
+  const groupedToolEntries = Object.entries(groupedTools) as Array<[string, AgentTool[]]>;
 
   return (
     <div className="flex flex-col h-[calc(100vh-280px)] bg-slate-50 border border-gray-200 rounded-lg overflow-hidden shadow-sm relative">
@@ -423,7 +424,7 @@ export default function BotAgentConfig({ config, updateField, extractionConfigs 
         ) : (
           // Category Sections
           <div>
-            {Object.entries(groupedTools).map(([category, tools]) => 
+            {groupedToolEntries.map(([category, tools]) => 
               tools.length > 0 && (
                 // <ToolCategorySection
                 //   key={category}
@@ -463,6 +464,7 @@ export default function BotAgentConfig({ config, updateField, extractionConfigs 
 
         {/* Quick Add Panel */}
         {/* <QuickAddToolPanel onAddTool={handleQuickAddTool} /> */}
+      </div>
       </div>
 
       {/* Tool Modal */}
