@@ -450,6 +450,7 @@ export default function App() {
   ]); // Pre-load Didi Bot and Agent Demo Bot
   const [editingBot, setEditingBot] = useState<BotConfiguration | null>(null);
   const [versionBot, setVersionBot] = useState<BotConfiguration | null>(null);
+  const [versionNotice, setVersionNotice] = useState('');
   const [view, setView] = useState<'LIST' | 'FORM'>('LIST');
 
   // Lifted state for Extraction Configs
@@ -599,13 +600,14 @@ export default function App() {
               <div className="h-full w-[520px] max-w-[96vw] bg-white shadow-2xl overflow-y-auto">
                 <div className="sticky top-0 bg-white border-b border-slate-100 p-5 flex items-start justify-between">
                   <div><h3 className="text-xl font-bold text-slate-900">版本记录</h3><p className="text-sm text-slate-500 mt-1">{versionBot.name}</p></div>
-                  <button onClick={() => setVersionBot(null)} className="p-2 hover:bg-slate-100 rounded-lg">×</button>
+                  <button onClick={() => { setVersionBot(null); setVersionNotice(''); }} className="p-2 hover:bg-slate-100 rounded-lg">×</button>
                 </div>
                 <div className="p-5 space-y-4">
+                  {versionNotice && <div className="text-sm text-emerald-600 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3">{versionNotice}</div>}
                   <section className="border border-amber-100 bg-amber-50/40 p-4 rounded-xl"><h4 className="font-bold text-slate-900">当前版本：{versionBot.currentVersion || '草稿'}</h4><p className="text-sm text-slate-500 mt-2">{versionBot.currentVersionType === 'debug' ? '仅调试版本可继续发布上线。' : '当前修改涉及提示词、流程和对话策略。'}</p></section>
                   <section className="border border-emerald-100 p-4 rounded-xl"><h4 className="font-bold text-slate-900">线上版本：{versionBot.onlineVersion || '未上线'}</h4><p className="text-sm text-slate-500 mt-2">生效中</p></section>
-                  {versionBot.debugVersion && <section className="border border-blue-100 p-4 rounded-xl"><h4 className="font-bold text-slate-900">{versionBot.debugVersion} 仅调试</h4><button className="mt-3 px-3 py-1.5 bg-primary text-white rounded text-sm">发布上线</button></section>}
-                  <section className="border border-slate-200 p-4 rounded-xl"><h4 className="font-bold text-slate-900">V1.7 历史</h4><button className="mt-3 px-3 py-1.5 border border-slate-200 rounded text-sm">恢复为草稿</button></section>
+                  {versionBot.debugVersion && <section className="border border-blue-100 p-4 rounded-xl"><h4 className="font-bold text-slate-900">{versionBot.debugVersion} 仅调试</h4><button onClick={() => setVersionNotice(`${versionBot.debugVersion} 已发布上线`)} className="mt-3 px-3 py-1.5 bg-primary text-white rounded text-sm">发布上线</button></section>}
+                  <section className="border border-slate-200 p-4 rounded-xl"><h4 className="font-bold text-slate-900">V1.7 历史</h4><button onClick={() => setVersionNotice('V1.7 已恢复为草稿')} className="mt-3 px-3 py-1.5 border border-slate-200 rounded text-sm">恢复为草稿</button></section>
                 </div>
               </div>
             </div>

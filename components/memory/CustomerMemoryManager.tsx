@@ -49,7 +49,7 @@ const summaries = [
   { callId: 'call_20260619_1028', time: '2026-06-19 10:28', summary: '客户咨询日常保洁是否包含擦玻璃，已告知需以购买项目和页面说明为准。', ttl: '14天', inPrompt: '是' },
 ];
 
-const Pill = ({ children }: { children: React.ReactNode }) => <span className="inline-flex items-center px-2 py-1 rounded-lg bg-slate-100 text-slate-600 text-xs font-medium mr-1 mb-1">{children}</span>;
+const Pill: React.FC<React.PropsWithChildren> = ({ children }) => <span className="inline-flex items-center px-2 py-1 rounded-lg bg-slate-100 text-slate-600 text-xs font-medium mr-1 mb-1">{children}</span>;
 
 interface CustomerMemoryManagerProps {
   initialPage?: 'manage' | 'config';
@@ -61,6 +61,8 @@ export default function CustomerMemoryManager({ initialPage = 'manage' }: Custom
   const [selectedField, setSelectedField] = useState<MemoryField | null>(null);
   const [activeTab, setActiveTab] = useState<'fields' | 'summaries'>('fields');
   const [isFieldModalOpen, setIsFieldModalOpen] = useState(false);
+  const [configNotice, setConfigNotice] = useState('');
+  const [searchKeyword, setSearchKeyword] = useState('');
 
   useEffect(() => {
     setPage(initialPage);
@@ -70,6 +72,11 @@ export default function CustomerMemoryManager({ initialPage = 'manage' }: Custom
   const openCustomer = (customer: CustomerMemory) => {
     setSelectedCustomer(customer);
     setPage('detail');
+  };
+
+  // 原型态交互：本地切换客户记忆开关，避免按钮看起来无效。
+  const toggleSelectedCustomerMemory = () => {
+    setSelectedCustomer(prev => ({ ...prev, enabled: !prev.enabled }));
   };
 
   return (
@@ -90,9 +97,9 @@ export default function CustomerMemoryManager({ initialPage = 'manage' }: Custom
           <div className="p-4 border-b border-slate-100 flex items-center justify-between gap-3">
             <div className="relative w-96 max-w-full">
               <Search size={16} className="absolute left-3 top-2.5 text-slate-400" />
-              <input className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="搜索客户ID / 名称 / 手机号 / 自定义字段" />
+              <input value={searchKeyword} onChange={event => setSearchKeyword(event.target.value)} className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="搜索客户ID / 名称 / 手机号 / 自定义字段" />
             </div>
-            <button className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600">重置筛选</button>
+            <button onClick={() => setSearchKeyword('')} className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600">重置筛选</button>
           </div>
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="text-left px-5 py-3">客户ID</th><th className="text-left px-5 py-3">名称</th><th className="text-left px-5 py-3">手机号</th><th className="text-left px-5 py-3">自定义字段</th><th className="text-left px-5 py-3">最近通话时间</th><th className="text-left px-5 py-3">最近小结更新时间</th><th className="text-left px-5 py-3">记忆开关</th><th className="text-left px-5 py-3">操作</th></tr></thead>
@@ -123,7 +130,7 @@ export default function CustomerMemoryManager({ initialPage = 'manage' }: Custom
               <p className="text-sm text-slate-500 mt-1">{selectedCustomer.id} · {selectedCustomer.phone}</p>
               <div className="mt-3">{Object.entries(selectedCustomer.fields).map(([key, value]) => <Pill key={key}>{key}：{value}</Pill>)}</div>
             </div>
-            <button className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600">{selectedCustomer.enabled ? '关闭记忆' : '开启记忆'}</button>
+            <button onClick={toggleSelectedCustomerMemory} className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600">{selectedCustomer.enabled ? '关闭记忆' : '开启记忆'}</button>
           </div>
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
             <div className="flex border-b border-slate-100 px-4">
@@ -143,7 +150,11 @@ export default function CustomerMemoryManager({ initialPage = 'manage' }: Custom
         <div className="space-y-4">
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex items-center justify-between">
             <div><h2 className="text-xl font-bold text-slate-900">记忆配置</h2><p className="text-sm text-slate-500 mt-1">配置记忆开关、自定义记忆字段、抽取提示词和通话小结提示词。</p></div>
-            <div className="flex gap-2"><button className="px-3 py-2 border border-slate-200 rounded-lg text-sm">保存草稿</button><button className="px-3 py-2 bg-primary text-white rounded-lg text-sm">发布配置</button></div>
+            <div className="flex items-center gap-2">
+              {configNotice && <span className="text-xs text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg">{configNotice}</span>}
+              <button onClick={() => setConfigNotice('草稿已保存')} className="px-3 py-2 border border-slate-200 rounded-lg text-sm">保存草稿</button>
+              <button onClick={() => setConfigNotice('配置已发布')} className="px-3 py-2 bg-primary text-white rounded-lg text-sm">发布配置</button>
+            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-4">
@@ -173,7 +184,7 @@ export default function CustomerMemoryManager({ initialPage = 'manage' }: Custom
                       <td className="px-4 py-3">{field.name.includes('地址') ? '局部脱敏' : '不脱敏'}</td>
                       <td className="px-4 py-3">{field.ttl}</td>
                       <td className="px-4 py-3 max-w-xs text-slate-500">{field.fragment}</td>
-                      <td className="px-4 py-3"><button onClick={() => setIsFieldModalOpen(true)} className="text-primary hover:underline mr-3">编辑</button><button className="text-slate-400 hover:text-red-500">停用</button></td>
+                      <td className="px-4 py-3"><button onClick={() => setIsFieldModalOpen(true)} className="text-primary hover:underline mr-3">编辑</button><button onClick={() => setConfigNotice(`${field.name} 已停用`)} className="text-slate-400 hover:text-red-500">停用</button></td>
                     </tr>
                   ))}
                 </tbody>

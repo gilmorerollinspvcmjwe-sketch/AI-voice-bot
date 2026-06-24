@@ -197,7 +197,7 @@ const DataTable = ({ rows }: { rows: TableRow[] }) => rows.length ? <div classNa
 export default function AiReplyLogModal({ log, onClose }: AiReplyLogModalProps) {
   const [activeTab, setActiveTab] = useState<LogTab>('概览');
   const [showJson, setShowJson] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'success' | 'failed'>('idle');
   const fullLog = useMemo(() => log ? buildFullLog(log) : null, [log]);
 
   if (!log || !fullLog) return null;
@@ -205,9 +205,14 @@ export default function AiReplyLogModal({ log, onClose }: AiReplyLogModalProps) 
   const currentJson = { scenario: log.scenario === 'tool' ? '工具调用型回复' : '知识召回型回复', tab: activeTab, data: fullLog };
 
   const handleCopy = async () => {
-    await navigator.clipboard?.writeText(JSON.stringify(currentJson, null, 2));
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard API unavailable');
+      await navigator.clipboard.writeText(JSON.stringify(currentJson, null, 2));
+      setCopyStatus('success');
+    } catch {
+      setCopyStatus('failed');
+    }
+    window.setTimeout(() => setCopyStatus('idle'), 1600);
   };
 
   const renderPane = () => {
@@ -232,7 +237,8 @@ export default function AiReplyLogModal({ log, onClose }: AiReplyLogModalProps) 
           <div className="flex items-center gap-2">
             <button onClick={handleCopy} className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 flex items-center gap-1"><Copy size={14} />复制日志</button>
             <button onClick={() => setShowJson(prev => !prev)} className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">查看原始JSON</button>
-            {copied && <span className="text-xs text-emerald-600">已复制</span>}
+            {copyStatus === 'success' && <span className="text-xs text-emerald-600">已复制</span>}
+            {copyStatus === 'failed' && <span className="text-xs text-red-500">复制失败</span>}
             <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg"><X size={18} /></button>
           </div>
         </div>

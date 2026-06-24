@@ -17,3 +17,9 @@
 - 「记忆配置」中补充自定义记忆字段管理，字段支持编码、名称、类型、启用、强制抽取、进入 Prompt、脱敏、有效期和抽取说明。
 - AI 回复日志补齐输入、理解、流程、知识/工具、Prompt、模型、TTS 等审计字段，并增加工具调用型与知识召回型两类 mock 数据。
 - 已验证：`node scripts\check-voice-agent-features.cjs` 全部 PASS；`npm run build` 通过，仅有 Vite chunk 体积提示。
+
+## 2026-06-24 Subagent 审查修复
+- 根据 code-reviewer 审查，补齐客户记忆页按钮反馈：重置筛选、开启/关闭记忆、保存草稿、发布配置、停用字段均有本地交互。
+- 修复 AI 回复日志复制失败提示，Clipboard 不可用或失败时不再误报已复制。
+- 修复 `Pill` 组件类型，相关改动文件在 `npx tsc --noEmit --pretty false` 输出中过滤无新增报错。
+- 已验证：`node scripts\check-voice-agent-features.cjs` 全部 PASS；`npm run build` 通过，仅有 Vite chunk 体积提示。
