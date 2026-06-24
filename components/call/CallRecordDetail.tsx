@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Play, Volume2, Download, Edit, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Plus, FileSearch } from 'lucide-react';
-import AiReplyLogModal, { AiReplyLogData } from './AiReplyLogModal';
+import AiReplyLogModal, { AiReplyLogData, AiReplyLogScenario } from './AiReplyLogModal';
 
 interface CallDetail {
   callId: string;
@@ -155,9 +155,11 @@ export default function CallRecordDetail({ callId }: CallRecordDetailProps) {
 
   // 打开某一轮 AI 回复日志，展示模型回复链路。
   const handleOpenAiLog = (dialogueIndex: number) => {
+    const scenario: AiReplyLogScenario = dialogueIndex <= 2 ? 'tool' : 'knowledge';
     const dialogue = callDetail.dialogues[dialogueIndex];
     const previousUser = [...callDetail.dialogues.slice(0, dialogueIndex)].reverse().find(item => item.isUser);
     setSelectedAiLog({
+      scenario,
       callId: callId || callDetail.callId,
       turnName: `Turn ${dialogueIndex + 1}`,
       time: dialogue.timestamp,
@@ -165,9 +167,9 @@ export default function CallRecordDetail({ callId }: CallRecordDetailProps) {
       assistantOutput: dialogue.content,
       modelName: dialogue.model || 'qwen-plus',
       triggerType: dialogue.tag || '大模型触发',
-      topicName: previousUser ? '业务咨询' : '开场欢迎',
-      flowName: '主流程',
-      stepName: previousUser ? '问题答复' : '开场白',
+      topicName: scenario === 'tool' ? '岗位推荐' : '岗位了解',
+      flowName: '招聘推荐流程',
+      stepName: scenario === 'tool' ? '查询岗位' : '介绍岗位',
       firstResponseMs: dialogueIndex % 2 === 0 ? '420ms' : '390ms',
       totalMs: dialogueIndex % 2 === 0 ? '1200ms' : '860ms',
     });

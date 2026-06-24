@@ -526,7 +526,10 @@ export default function App() {
       case '客户画像':
         return <CustomerProfileManager />;
       case '客户记忆':
-        return <CustomerMemoryManager />;
+      case '记忆管理':
+        return <CustomerMemoryManager initialPage="manage" />;
+      case '记忆配置':
+        return <CustomerMemoryManager initialPage="config" />;
       case '自动跟进':
         return <FollowUpManager />;
       // -----------------------

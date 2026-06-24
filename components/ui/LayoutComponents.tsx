@@ -63,7 +63,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeSubItem, onNavigate }) =
     { icon: Headset, label: '智呼坐席管理', id: '智呼坐席管理' },
     { icon: Bot, label: '机器人配置', id: '机器人配置' },
     { icon: Wrench, label: '工具配置', id: '工具配置' },
-    { icon: Brain, label: '客户记忆', id: '客户记忆' },
+    {
+      icon: Brain,
+      label: '客户记忆',
+      id: '客户记忆',
+      subItems: [
+        { label: '记忆管理', id: '记忆管理', icon: Database },
+        { label: '记忆配置', id: '记忆配置', icon: Settings }
+      ]
+    },
     { icon: UserSquare, label: '客户画像', id: '客户画像' },
     { icon: Megaphone, label: '营销活动', id: '营销活动' },
     { icon: CalendarClock, label: '自动跟进', id: '自动跟进' },

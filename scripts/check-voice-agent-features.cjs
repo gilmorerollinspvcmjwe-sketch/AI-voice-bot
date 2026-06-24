@@ -13,7 +13,11 @@ const checks = [
   ['Call detail exposes AI reply log action', () => read('components/call/CallRecordDetail.tsx').includes('查看日志') && read('components/call/CallRecordDetail.tsx').includes('AiReplyLogModal')],
   ['Customer memory manager exists', () => exists('components/memory/CustomerMemoryManager.tsx')],
   ['Sidebar has customer memory menu', () => read('components/ui/LayoutComponents.tsx').includes('客户记忆')],
-  ['App routes customer memory page', () => read('App.tsx').includes('CustomerMemoryManager') && read('App.tsx').includes("case '客户记忆'")],
+  ['Sidebar has memory management submenu', () => read('components/ui/LayoutComponents.tsx').includes('记忆管理') && read('components/ui/LayoutComponents.tsx').includes('记忆配置')],
+  ['App routes customer memory pages', () => read('App.tsx').includes('CustomerMemoryManager') && read('App.tsx').includes("case '记忆管理'") && read('App.tsx').includes("case '记忆配置'")],
+  ['Memory config has custom field management', () => read('components/memory/CustomerMemoryManager.tsx').includes('自定义记忆字段') && read('components/memory/CustomerMemoryManager.tsx').includes('新增字段') && read('components/memory/CustomerMemoryManager.tsx').includes('字段编码')],
+  ['AI reply log has complete audit fields', () => read('components/call/AiReplyLogModal.tsx').includes('ASR final 文本') && read('components/call/AiReplyLogModal.tsx').includes('变量变化') && read('components/call/AiReplyLogModal.tsx').includes('工具原始返回') && read('components/call/AiReplyLogModal.tsx').includes('Prompt 拼接明细')],
+  ['AI reply log has two mock scenarios', () => read('components/call/AiReplyLogModal.tsx').includes('search_jobs') && read('components/call/AiReplyLogModal.tsx').includes('知识召回型回复')],
 ];
 
 let failed = 0;
