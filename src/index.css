@@ -1,3 +1,44 @@
+@import '../design/tokens/tokens.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    /* Tailwind opacity utilities need channel values, while design tokens keep hex values. */
+    --tw-color-primary-rgb: 24 89 209;
+    --tw-color-secondary-rgb: 104 117 134;
+    --tw-color-sidebar-rgb: 11 20 32;
+  }
+
+  html {
+    font-family: var(--typography-font-sans);
+    background: var(--color-semantic-bg-page);
+    color: var(--color-semantic-text-primary);
+  }
+
+  body {
+    background: var(--color-semantic-bg-page);
+    color: var(--color-semantic-text-primary);
+    font-size: var(--typography-size-body);
+    line-height: var(--typography-line-height-normal);
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  button:focus-visible,
+  [role='button']:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  a:focus-visible {
+    outline: none;
+    box-shadow: var(--state-focus-ring);
+  }
+}

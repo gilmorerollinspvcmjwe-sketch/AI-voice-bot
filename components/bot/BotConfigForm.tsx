@@ -576,39 +576,39 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto w-full pb-20">
+    <div className="px-[var(--layout-content-padding-x)] py-[var(--layout-content-padding-y)] max-w-[var(--layout-panel-max-width)] mx-auto w-full pb-20">
       {/* Form Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+      <div className="flex flex-col md:flex-row md:items-start justify-between mb-5 gap-4">
         <div>
-          <button onClick={onCancel} className="text-xs text-slate-400 hover:text-primary mb-2 flex items-center transition-colors">
+          <button onClick={onCancel} className="text-xs text-[var(--color-semantic-text-tertiary)] hover:text-[var(--color-semantic-primary)] mb-2 flex items-center transition-colors">
             <ArrowRight size={12} className="rotate-180 mr-1" /> 返回列表
           </button>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+          <h1 className="text-[var(--typography-size-headline)] font-bold text-[var(--color-semantic-text-primary)] tracking-tight">
             {initialData.id ? '编辑机器人配置' : '新建机器人配置'}
           </h1>
         </div>
         {/* Switch removed here as requested */}
       </div>
 
-      <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="mb-5 rounded-[var(--component-card-radius)] border border-[var(--color-semantic-border-default)] bg-[var(--color-semantic-bg-surface)] p-4 shadow-[var(--shadow-xs)] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-4 text-sm">
-            <span className="font-bold text-slate-900">当前版本：{getCurrentVersionLabel()}</span>
-            <span className="font-bold text-slate-900">线上版本：{config.onlineVersion || '未上线'}</span>
+            <span className="font-bold text-[var(--color-semantic-text-primary)]">当前版本：{getCurrentVersionLabel()}</span>
+            <span className="font-bold text-[var(--color-semantic-text-primary)]">线上版本：{config.onlineVersion || '未上线'}</span>
           </div>
           {(config.currentVersionType === 'draft' || !config.currentVersionType) && (
-            <p className="text-xs text-slate-500">本次修改涉及：提示词、流程、对话策略</p>
+            <p className="text-xs text-[var(--color-semantic-text-tertiary)]">本次修改涉及：提示词、流程、对话策略</p>
           )}
           {config.currentVersionType === 'debug' && (
-            <p className="text-xs text-slate-500">仅调试版本可继续编辑，也可发布上线。</p>
+            <p className="text-xs text-[var(--color-semantic-text-tertiary)]">仅调试版本可继续编辑，也可发布上线。</p>
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setIsVersionDrawerOpen(true)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 flex items-center gap-2">
+          <button onClick={() => setIsVersionDrawerOpen(true)} className="h-[var(--component-button-height-md)] px-3 border border-[var(--color-semantic-border-default)] rounded-[var(--component-button-radius)] text-sm text-[var(--color-semantic-text-secondary)] hover:bg-[var(--state-hover-bg)] flex items-center gap-2 transition-colors">
             <History size={15} /> 版本记录
           </button>
           {(config.currentVersionType === 'draft' || config.currentVersionType === 'debug' || !config.currentVersionType) && (
-            <button onClick={() => { setPublishScope(config.currentVersionType === 'debug' ? 'online' : 'debug'); setIsPublishModalOpen(true); }} className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-sky-600">
+            <button onClick={() => { setPublishScope(config.currentVersionType === 'debug' ? 'online' : 'debug'); setIsPublishModalOpen(true); }} className="h-[var(--component-button-height-md)] px-4 bg-[var(--color-semantic-primary)] text-[var(--color-semantic-text-inverse)] rounded-[var(--component-button-radius)] text-sm font-semibold hover:bg-[var(--color-semantic-primary-hover)] transition-colors">
               发布
             </button>
           )}
@@ -616,8 +616,8 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
       </div>
 
       {/* Main Tabs Navigation */}
-      <div className="border-b border-gray-200 mb-8">
-        <div className="flex space-x-8 overflow-x-auto pb-px">
+      <div className="mb-6 rounded-[var(--component-tabs-radius)] bg-[var(--color-semantic-bg-subtle)] p-1 overflow-x-auto">
+        <div className="flex gap-[var(--component-tabs-gap)] min-w-max">
           {[
             { id: 'BASIC', label: '基础配置' },
             { id: 'FLOW_CONFIG', label: '流程配置' },
@@ -631,8 +631,8 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`pb-3 text-sm font-medium transition-all relative whitespace-nowrap ${
-                activeTab === tab.id ? 'text-primary border-b-2 border-primary' : 'text-slate-500 hover:text-slate-700'
+              className={`h-[var(--component-tabs-item-height)] px-3 rounded-[var(--component-tabs-radius)] text-sm font-semibold transition-all relative whitespace-nowrap ${
+                activeTab === tab.id ? 'bg-[var(--color-semantic-bg-surface)] text-[var(--color-semantic-primary)] shadow-[var(--shadow-xs)]' : 'text-[var(--color-semantic-text-tertiary)] hover:text-[var(--color-semantic-text-primary)]'
               }`}
             >
               {tab.label}
@@ -647,8 +647,8 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
                 e.stopPropagation();
                 setIsMoreOpen(!isMoreOpen);
               }}
-              className={`pb-3 text-sm font-medium transition-all relative whitespace-nowrap flex items-center gap-1 ${
-                ['FLOW', 'BUSINESS', 'MARKETING', 'TEST'].includes(activeTab) ? 'text-primary border-b-2 border-primary' : 'text-slate-500 hover:text-slate-700'
+              className={`h-[var(--component-tabs-item-height)] px-3 rounded-[var(--component-tabs-radius)] text-sm font-semibold transition-all relative whitespace-nowrap flex items-center gap-1 ${
+                ['FLOW', 'BUSINESS', 'MARKETING', 'TEST'].includes(activeTab) ? 'bg-[var(--color-semantic-bg-surface)] text-[var(--color-semantic-primary)] shadow-[var(--shadow-xs)]' : 'text-[var(--color-semantic-text-tertiary)] hover:text-[var(--color-semantic-text-primary)]'
               }`}
             >
               更多配置
@@ -659,7 +659,7 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
             
             {isMoreOpen && (
               <div 
-                className="fixed bg-white border border-gray-200 rounded-lg shadow-lg z-[100]"
+                className="fixed bg-[var(--color-semantic-bg-surface)] border border-[var(--color-semantic-border-default)] rounded-[var(--component-dropdown-menu-radius)] shadow-[var(--component-popover-shadow)] z-[100] p-1"
                 style={{
                   top: `${dropdownPosition.top}px`,
                   left: `${dropdownPosition.left}px`,
@@ -680,10 +680,10 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
                     }}
                     className={`w-full text-left px-4 py-2.5 text-sm transition-colors first:rounded-t-lg last:rounded-b-lg ${
                       activeTab === tab.id 
-                        ? 'bg-primary/5 text-primary font-medium' 
+                        ? 'bg-[var(--color-semantic-primary-soft)] text-[var(--color-semantic-primary)] font-medium' 
                         : tab.isPrimaryAction
-                          ? 'text-primary font-semibold bg-blue-50/60 hover:bg-blue-50'
-                          : 'text-slate-600 hover:bg-slate-50'
+                          ? 'text-[var(--color-semantic-primary)] font-semibold bg-[var(--color-semantic-primary-soft)] hover:bg-[var(--color-blue-100)]'
+                          : 'text-[var(--color-semantic-text-secondary)] hover:bg-[var(--state-hover-bg)]'
                     }`}
                   >
                     {tab.label}
@@ -1005,18 +1005,18 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
       </div>
 
       {isVersionDrawerOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/30">
-          <div className="h-full w-[560px] max-w-[96vw] bg-white shadow-2xl overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-slate-100 p-5 flex items-start justify-between">
+        <div className="fixed inset-0 z-50 flex justify-end bg-[var(--color-semantic-overlay)]">
+          <div className="h-full w-[var(--component-drawer-width-md)] max-w-[96vw] bg-[var(--color-semantic-bg-surface)] shadow-[var(--shadow-lg)] overflow-y-auto">
+            <div className="sticky top-0 bg-[var(--color-semantic-bg-surface)] border-b border-[var(--color-semantic-border-subtle)] p-[var(--component-drawer-padding)] flex items-start justify-between">
               <div>
-                <h3 className="text-xl font-bold text-slate-900">版本记录</h3>
+                <h3 className="text-xl font-bold text-[var(--color-semantic-text-primary)]">版本记录</h3>
                 <p className="text-sm text-slate-500 mt-1">{config.name || '未命名机器人'}</p>
               </div>
-              <button onClick={() => setIsVersionDrawerOpen(false)} className="p-2 hover:bg-slate-100 rounded-lg"><X size={18} /></button>
+              <button onClick={() => setIsVersionDrawerOpen(false)} className="p-2 hover:bg-[var(--state-hover-bg)] rounded-[var(--radius-control)]" aria-label="关闭版本记录"><X size={18} /></button>
             </div>
             <div className="p-5 space-y-4">
               {(config.currentVersionType === 'draft' || !config.currentVersionType) && (
-                <section className="border border-amber-100 bg-amber-50/40 p-4 rounded-xl">
+                <section className="border border-[var(--color-amber-100)] bg-[var(--color-semantic-warning-soft)] p-4 rounded-[var(--component-card-radius)]">
                   <div className="flex items-center justify-between">
                     <h4 className="font-bold text-slate-900">当前草稿</h4>
                     <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-700">草稿</span>
@@ -1031,7 +1031,7 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
                   </div>
                 </section>
               )}
-              <section className="border border-emerald-100 p-4 rounded-xl">
+              <section className="border border-[var(--color-green-100)] p-4 rounded-[var(--component-card-radius)]">
                 <div className="flex items-center justify-between">
                   <h4 className="font-bold text-slate-900">{config.onlineVersion || '未上线'} 线上</h4>
                   <span className="text-xs px-2 py-1 rounded-full bg-emerald-50 text-emerald-700">生效中</span>
@@ -1041,7 +1041,7 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
                 <button className="mt-4 px-3 py-1.5 border border-slate-200 rounded text-sm">查看详情</button>
               </section>
               {config.debugVersion && (
-                <section className="border border-blue-100 p-4 rounded-xl">
+                <section className="border border-[var(--color-blue-100)] p-4 rounded-[var(--component-card-radius)]">
                   <div className="flex items-center justify-between">
                     <h4 className="font-bold text-slate-900">{config.debugVersion} 仅调试</h4>
                     <span className="text-xs px-2 py-1 rounded-full bg-blue-50 text-blue-700">仅调试</span>
@@ -1055,7 +1055,7 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
                   </div>
                 </section>
               )}
-              <section className="border border-slate-200 p-4 rounded-xl">
+              <section className="border border-[var(--color-semantic-border-default)] p-4 rounded-[var(--component-card-radius)]">
                 <div className="flex items-center justify-between">
                   <h4 className="font-bold text-slate-900">V1.7 历史</h4>
                   <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600">历史</span>
@@ -1073,23 +1073,23 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
       )}
 
       {isPublishModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
-          <div className="w-full max-w-xl bg-white rounded-2xl shadow-2xl overflow-hidden">
-            <div className="p-5 border-b border-slate-100 flex items-start justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-semantic-overlay)] px-4">
+          <div className="w-full max-w-xl bg-[var(--color-semantic-bg-surface)] rounded-[var(--component-modal-radius)] shadow-[var(--shadow-lg)] overflow-hidden">
+            <div className="p-[var(--component-modal-padding)] border-b border-[var(--color-semantic-border-subtle)] flex items-start justify-between">
               <div>
                 <h3 className="text-xl font-bold text-slate-900">发布新版本</h3>
                 <p className="text-sm text-slate-500 mt-1">{config.name || '未命名机器人'}</p>
               </div>
-              <button onClick={() => setIsPublishModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-lg"><X size={18} /></button>
+              <button onClick={() => setIsPublishModalOpen(false)} className="p-2 hover:bg-[var(--state-hover-bg)] rounded-[var(--radius-control)]" aria-label="关闭发布弹窗"><X size={18} /></button>
             </div>
             <div className="p-5 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">版本号</label>
-                <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" value={getNextVersion()} readOnly />
+                <input className="w-full h-[var(--component-field-height-md)] border border-[var(--color-semantic-border-default)] rounded-[var(--component-field-radius)] px-[var(--component-field-padding-x)] text-sm bg-[var(--state-readonly-bg)] text-[var(--state-readonly-text)]" value={getNextVersion()} readOnly />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">版本说明</label>
-                <textarea value={publishNote} onChange={event => setPublishNote(event.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm min-h-[100px]" />
+                <textarea value={publishNote} onChange={event => setPublishNote(event.target.value)} className="w-full border border-[var(--color-semantic-border-default)] rounded-[var(--component-field-radius)] px-[var(--component-field-padding-x)] py-2 text-sm min-h-[120px] leading-[var(--typography-line-height-relaxed)] focus:border-[var(--color-semantic-border-focus)] outline-none" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">发布范围</label>
@@ -1103,9 +1103,9 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
                 </div>
               </div>
             </div>
-            <div className="p-5 border-t border-slate-100 flex justify-end gap-3">
-              <button onClick={() => setIsPublishModalOpen(false)} className="px-4 py-2 border border-slate-200 rounded-lg text-sm">取消</button>
-              <button onClick={handlePublishVersion} className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium">确认发布</button>
+            <div className="p-[var(--component-modal-padding)] border-t border-[var(--color-semantic-border-subtle)] flex justify-end gap-3">
+              <button onClick={() => setIsPublishModalOpen(false)} className="h-[var(--component-button-height-md)] px-4 border border-[var(--color-semantic-border-default)] rounded-[var(--component-button-radius)] text-sm text-[var(--color-semantic-text-secondary)] hover:bg-[var(--state-hover-bg)]">取消</button>
+              <button onClick={handlePublishVersion} className="h-[var(--component-button-height-md)] px-4 bg-[var(--color-semantic-primary)] text-[var(--color-semantic-text-inverse)] rounded-[var(--component-button-radius)] text-sm font-semibold hover:bg-[var(--color-semantic-primary-hover)]">确认发布</button>
             </div>
           </div>
         </div>

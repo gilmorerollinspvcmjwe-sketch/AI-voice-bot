@@ -8,12 +8,23 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['var(--typography-font-sans)'],
+        mono: ['var(--typography-font-mono)'],
       },
       colors: {
-        sidebar: '#0f172a',
-        primary: '#0ea5e9',
-        secondary: '#64748b',
+        sidebar: 'rgb(var(--tw-color-sidebar-rgb) / <alpha-value>)',
+        primary: 'rgb(var(--tw-color-primary-rgb) / <alpha-value>)',
+        secondary: 'rgb(var(--tw-color-secondary-rgb) / <alpha-value>)',
+      },
+      borderRadius: {
+        control: 'var(--radius-control)',
+        card: 'var(--radius-card)',
+        panel: 'var(--radius-panel)',
+      },
+      boxShadow: {
+        panel: 'var(--shadow-sm)',
+        overlay: 'var(--shadow-lg)',
+        focus: 'var(--shadow-focus)',
       }
     },
   },

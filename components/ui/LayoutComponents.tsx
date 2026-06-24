@@ -125,15 +125,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeSubItem, onNavigate }) =
   };
 
   return (
-    <div className="w-64 bg-sidebar text-slate-300 flex flex-col h-full border-r border-slate-800">
-      <div className="h-16 flex items-center px-6 border-b border-slate-800 font-bold text-white tracking-wider flex-shrink-0">
+    <aside className="w-[var(--layout-sidebar-width)] bg-[var(--color-sidebar-bg)] text-[var(--color-sidebar-text)] flex flex-col h-full border-r border-[var(--color-sidebar-border)]">
+      <div className="h-[var(--layout-header-height)] flex items-center px-6 border-b border-[var(--color-sidebar-border)] font-bold text-[var(--color-sidebar-text-strong)] tracking-[0.08em] flex-shrink-0">
         AI VOICEDESK
       </div>
-      <div className="flex-1 overflow-y-auto py-4">
+      <nav className="flex-1 overflow-y-auto py-4" aria-label="主导航">
         {menuItems.map((item, idx) => {
           if (item.type === 'header') {
             return (
-              <div key={idx} className="px-6 py-2 mt-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              <div key={idx} className="px-6 h-7 flex items-center mt-2 text-[11px] font-bold text-[var(--component-nav-text-muted)] uppercase tracking-[0.08em]">
                 {item.label}
               </div>
             );
@@ -144,60 +144,66 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeSubItem, onNavigate }) =
 
           return (
             <div key={idx} className="mb-1">
-              <div 
+              <button
+                type="button"
                 onClick={() => item.subItems ? toggleExpand(item.label) : onNavigate(item.id!)}
-                className={`flex items-center px-6 py-2.5 cursor-pointer hover:bg-slate-800 transition-colors ${isActive && !item.subItems ? 'text-white bg-slate-800/50 border-r-2 border-primary' : ''}`}
+                className={`relative w-full min-h-[var(--component-sidebar-group-height)] flex items-center px-6 rounded-[var(--component-sidebar-item-radius)] text-left transition-colors duration-[var(--motion-duration-base)] mx-2 max-w-[calc(100%-16px)] hover:bg-[var(--color-sidebar-hover-bg)] focus-visible:ring-0 ${isActive ? 'text-[var(--component-nav-active-text)] bg-[var(--component-nav-active-bg)]' : ''}`}
+                aria-expanded={item.subItems ? isExpanded : undefined}
+                aria-current={!item.subItems && isActive ? 'page' : undefined}
               >
-                {item.icon && <item.icon size={18} className={`mr-3 ${isActive ? 'text-primary' : 'text-slate-400'}`} />}
-                <span className={`text-sm font-medium flex-1 ${isActive ? 'text-white' : ''}`}>{item.label}</span>
+                {isActive && <span className="absolute left-0 top-2 bottom-2 w-[var(--component-sidebar-indicator-width)] rounded-r-full bg-[var(--color-sidebar-indicator)]" />}
+                {item.icon && <item.icon size={18} className={`mr-3 ${isActive ? 'text-[var(--color-semantic-primary)]' : 'text-[var(--color-sidebar-icon)]'}`} />}
+                <span className={`text-sm font-semibold flex-1 ${isActive ? 'text-[var(--component-nav-active-text)]' : 'text-[var(--component-nav-text)]'}`}>{item.label}</span>
                 {item.subItems && (
                   isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />
                 )}
-              </div>
+              </button>
               
               {/* Sub Menu */}
               {item.subItems && isExpanded && (
-                <div className="bg-slate-900/50 pb-2 pt-1">
+                <div className="pb-2 pt-1">
                   {item.subItems.map((sub, sIdx) => (
-                    <div 
+                    <button
+                      type="button"
                       key={sIdx} 
                       onClick={() => onNavigate(sub.id)}
-                      className={`pl-14 pr-6 py-2 text-xs cursor-pointer hover:text-white transition-colors flex items-center ${sub.id === activeSubItem ? 'text-primary font-medium' : 'text-slate-400'}`}
+                      className={`w-full min-h-[var(--component-sidebar-item-height)] pl-[var(--component-sidebar-indent-level2)] pr-6 text-xs text-left rounded-[var(--component-sidebar-item-radius)] transition-colors duration-[var(--motion-duration-base)] flex items-center mx-2 max-w-[calc(100%-16px)] hover:bg-[var(--color-sidebar-hover-bg)] hover:text-[var(--color-sidebar-text-strong)] ${sub.id === activeSubItem ? 'text-[var(--color-semantic-primary)] font-semibold bg-[var(--color-sidebar-active-bg)]' : 'text-[var(--color-sidebar-text)]'}`}
+                      aria-current={sub.id === activeSubItem ? 'page' : undefined}
                     >
                       {sub.icon && <sub.icon size={12} className="mr-2 opacity-70" />}
                       {sub.label}
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
             </div>
           );
         })}
-      </div>
-    </div>
+      </nav>
+    </aside>
   );
 };
 
 export const Header: React.FC<{ title?: string }> = ({ title = "机器人配置" }) => {
   return (
-    <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 shadow-sm z-10 flex-shrink-0">
-      <div className="flex items-center space-x-2 text-sm text-slate-500">
-        <span className="cursor-pointer hover:text-primary">控制台</span>
-        <span>/</span>
-        <span className="text-slate-800 font-medium">{title}</span>
+    <header className="h-[var(--layout-header-height)] bg-[var(--component-header-bg)] border-b border-[var(--component-header-border)] backdrop-blur-[var(--component-topbar-blur)] flex items-center justify-between px-[var(--component-header-padding-x)] z-10 flex-shrink-0">
+      <div className="flex items-center space-x-2 text-sm text-[var(--color-semantic-text-tertiary)]">
+        <span className="cursor-pointer hover:text-[var(--color-semantic-primary)]">控制台</span>
+        <span className="text-[var(--color-semantic-text-placeholder)]">/</span>
+        <span className="text-[var(--color-semantic-text-primary)] font-semibold text-[var(--component-header-title-size)]">{title}</span>
       </div>
       <div className="flex items-center space-x-6">
-        <div className="relative cursor-pointer">
-          <Bell size={20} className="text-slate-500 hover:text-slate-700" />
-          <span className="absolute -top-1 -right-1 h-2 w-2 bg-red-500 rounded-full"></span>
-        </div>
-        <div className="flex items-center cursor-pointer">
-          <div className="h-8 w-8 bg-primary rounded-full flex items-center justify-center text-white font-bold text-xs mr-2">
+        <button type="button" className="relative cursor-pointer h-9 w-9 rounded-[var(--radius-control)] flex items-center justify-center hover:bg-[var(--state-hover-bg)]" aria-label="通知">
+          <Bell size={20} className="text-[var(--color-semantic-text-tertiary)]" />
+          <span className="absolute top-2 right-2 h-2 w-2 bg-[var(--color-semantic-danger)] rounded-full"></span>
+        </button>
+        <button type="button" className="flex items-center cursor-pointer rounded-[var(--radius-control)] px-2 py-1.5 hover:bg-[var(--state-hover-bg)]" aria-label="当前用户">
+          <div className="h-8 w-8 bg-[var(--color-semantic-primary)] rounded-full flex items-center justify-center text-[var(--color-semantic-text-inverse)] font-bold text-xs mr-2">
             AD
           </div>
-          <span className="text-sm text-slate-700 font-medium">Admin User</span>
-        </div>
+          <span className="text-sm text-[var(--color-semantic-text-secondary)] font-medium">Admin User</span>
+        </button>
       </div>
-    </div>
+    </header>
   );
 };

@@ -9,12 +9,12 @@ interface LabelProps {
 
 export const Label: React.FC<LabelProps> = ({ label, required, tooltip }) => (
   <div className="flex items-center mb-2">
-    {required && <span className="text-red-500 mr-1">*</span>}
-    <label className="text-sm font-medium text-slate-700">{label}</label>
+    {required && <span className="text-[var(--color-semantic-danger)] mr-1">*</span>}
+    <label className="text-sm font-semibold text-[var(--color-semantic-text-secondary)]">{label}</label>
     {tooltip && (
       <div className="group relative ml-2">
-        <HelpCircle size={14} className="text-slate-400 cursor-help" />
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+        <HelpCircle size={14} className="text-[var(--color-semantic-text-placeholder)] cursor-help" />
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-[var(--component-tooltip-bg)] text-[var(--component-tooltip-text)] text-xs rounded-[var(--component-tooltip-radius)] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-[var(--component-popover-shadow)]">
           {tooltip}
         </div>
       </div>
@@ -27,11 +27,11 @@ export const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { lab
     {label && <Label label={label} required={required} tooltip={tooltip} />}
     <div className="relative">
       <input
-        className={`w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:bg-gray-100 disabled:text-gray-500 ${className}`}
+        className={`w-full h-[var(--component-field-height-md)] px-[var(--component-field-padding-x)] text-sm border border-[var(--color-semantic-border-default)] rounded-[var(--component-field-radius)] bg-[var(--color-semantic-bg-surface)] text-[var(--color-semantic-text-primary)] placeholder:text-[var(--color-semantic-text-placeholder)] hover:border-[var(--color-semantic-border-strong)] focus:outline-none focus:border-[var(--color-semantic-border-focus)] transition-all disabled:bg-[var(--color-semantic-bg-disabled)] disabled:text-[var(--color-semantic-text-disabled)] disabled:cursor-not-allowed ${className || ''}`}
         {...props}
       />
       {suffix && (
-        <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-medium">{suffix}</span>
+        <span className="absolute right-3 top-2.5 text-xs text-[var(--color-semantic-text-tertiary)] font-medium">{suffix}</span>
       )}
     </div>
   </div>
@@ -43,7 +43,7 @@ export const Select: React.FC<React.SelectHTMLAttributes<HTMLSelectElement> & { 
     {label && <Label label={label} required={required} tooltip={tooltip} />}
     <div className="relative">
       <select
-        className={`w-full px-3 py-2 text-sm border border-gray-300 rounded appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all ${className}`}
+        className={`w-full h-[var(--component-select-height-md)] px-[var(--component-select-padding-x)] text-sm border border-[var(--color-semantic-border-default)] rounded-[var(--component-select-radius)] appearance-none bg-[var(--color-semantic-bg-surface)] text-[var(--color-semantic-text-primary)] hover:border-[var(--color-semantic-border-strong)] focus:outline-none focus:border-[var(--color-semantic-border-focus)] transition-all disabled:bg-[var(--color-semantic-bg-disabled)] disabled:text-[var(--color-semantic-text-disabled)] disabled:cursor-not-allowed ${className || ''}`}
         {...props}
       >
         {options.map((opt, idx) => {
@@ -53,7 +53,7 @@ export const Select: React.FC<React.SelectHTMLAttributes<HTMLSelectElement> & { 
         })}
       </select>
       <div className="absolute right-3 top-3 pointer-events-none">
-        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+        <svg className="w-4 h-4 text-[var(--color-semantic-text-placeholder)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
       </div>
     </div>
   </div>
@@ -63,7 +63,7 @@ export const Slider: React.FC<{ label: string; value: number; onChange: (val: nu
   <div className="mb-5">
     <div className="flex justify-between items-center mb-2">
       <Label label={label} tooltip={tooltip} />
-      <span className="text-xs font-mono bg-slate-100 px-2 py-1 rounded text-slate-600">{value}</span>
+      <span className="text-xs font-mono bg-[var(--color-semantic-bg-subtle)] px-2 py-1 rounded-[var(--radius-sm)] text-[var(--color-semantic-text-secondary)]">{value}</span>
     </div>
     <input
       type="range"
@@ -72,9 +72,9 @@ export const Slider: React.FC<{ label: string; value: number; onChange: (val: nu
       step={step}
       value={value}
       onChange={(e) => onChange(parseFloat(e.target.value))}
-      className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary"
+      className="w-full h-1.5 bg-[var(--color-semantic-border-default)] rounded-full appearance-none cursor-pointer accent-[var(--color-semantic-primary)] disabled:cursor-not-allowed"
     />
-    <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+    <div className="flex justify-between text-[10px] text-[var(--color-semantic-text-placeholder)] mt-1">
       <span>{min}</span>
       <span>{max}</span>
     </div>
@@ -84,18 +84,21 @@ export const Slider: React.FC<{ label: string; value: number; onChange: (val: nu
 export const Switch: React.FC<{ label: string; checked: boolean; onChange: (checked: boolean) => void; tooltip?: string }> = ({ label, checked, onChange, tooltip }) => (
   <div className="mb-5 flex items-center justify-between">
     <Label label={label} tooltip={tooltip} />
-    <div 
-      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${checked ? 'bg-primary' : 'bg-gray-300'}`}
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      className={`relative inline-flex h-[var(--component-switch-height-md)] w-[var(--component-switch-width-md)] items-center rounded-full transition-colors cursor-pointer ${checked ? 'bg-[var(--color-semantic-primary)]' : 'bg-[var(--color-semantic-border-strong)]'}`}
       onClick={() => onChange(!checked)}
     >
-      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`} />
-    </div>
+      <span className={`inline-block h-[var(--component-switch-knob-md)] w-[var(--component-switch-knob-md)] transform rounded-full bg-white transition-transform shadow-[var(--shadow-xs)] ${checked ? 'translate-x-5' : 'translate-x-0.5'}`} />
+    </button>
   </div>
 );
 
 export const SectionTitle: React.FC<{ title: string }> = ({ title }) => (
-  <div className="mb-6 pb-2 border-b border-gray-100">
-    <h3 className="text-base font-bold text-slate-800">{title}</h3>
+  <div className="mb-6 pb-2 border-b border-[var(--color-semantic-border-subtle)]">
+    <h3 className="text-base font-bold text-[var(--color-semantic-text-primary)]">{title}</h3>
   </div>
 );
 
@@ -120,13 +123,13 @@ export const TagInput: React.FC<{ label: string; tags: string[]; onChange: (tags
   };
 
   return (
-    <div className={`mb-5 ${disabled ? 'opacity-60' : ''}`}>
+    <div className={`mb-5 ${disabled ? 'opacity-[var(--state-disabled-opacity)]' : ''}`}>
       <Label label={label} />
-      <div className={`flex flex-wrap gap-2 p-2 border border-gray-300 rounded min-h-[42px] transition-colors ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}>
+      <div className={`flex flex-wrap gap-2 p-2 border border-[var(--color-semantic-border-default)] rounded-[var(--component-field-radius)] min-h-[42px] transition-colors ${disabled ? 'bg-[var(--color-semantic-bg-disabled)] cursor-not-allowed' : 'bg-[var(--color-semantic-bg-surface)] hover:border-[var(--color-semantic-border-strong)]'}`}>
         {tags.map((tag, idx) => (
-          <span key={idx} className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-medium flex items-center">
+          <span key={idx} className="bg-[var(--color-semantic-primary-soft)] text-[var(--color-semantic-primary-text)] px-2 py-1 rounded-[var(--component-badge-radius)] text-xs font-medium flex items-center">
             {tag}
-            {!disabled && <X size={12} className="ml-1 cursor-pointer hover:text-blue-900" onClick={() => removeTag(tag)} />}
+            {!disabled && <X size={12} className="ml-1 cursor-pointer hover:text-[var(--color-semantic-primary-active)]" onClick={() => removeTag(tag)} />}
           </span>
         ))}
         <input
@@ -147,7 +150,7 @@ export const TextArea: React.FC<React.TextareaHTMLAttributes<HTMLTextAreaElement
   <div className="mb-5">
     {label && <Label label={label} required={required} tooltip={tooltip} />}
     <textarea
-      className={`w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:bg-gray-100 disabled:text-gray-500 ${className}`}
+      className={`w-full min-h-24 px-[var(--component-field-padding-x)] py-2 text-sm border border-[var(--color-semantic-border-default)] rounded-[var(--component-field-radius)] bg-[var(--color-semantic-bg-surface)] text-[var(--color-semantic-text-primary)] placeholder:text-[var(--color-semantic-text-placeholder)] hover:border-[var(--color-semantic-border-strong)] focus:outline-none focus:border-[var(--color-semantic-border-focus)] transition-all disabled:bg-[var(--color-semantic-bg-disabled)] disabled:text-[var(--color-semantic-text-disabled)] disabled:cursor-not-allowed ${className || ''}`}
       {...props}
     />
   </div>

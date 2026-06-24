@@ -23,3 +23,20 @@
 - 修复 AI 回复日志复制失败提示，Clipboard 不可用或失败时不再误报已复制。
 - 修复 `Pill` 组件类型，相关改动文件在 `npx tsc --noEmit --pretty false` 输出中过滤无新增报错。
 - 已验证：`node scripts\check-voice-agent-features.cjs` 全部 PASS；`npm run build` 通过，仅有 Vite chunk 体积提示。
+
+## 2026-06-24 UI 设计规范接入
+- 已按 `voice-agent-design-handoff/use.md` 读取设计规范，并将交付包核心文件复制到 `design/`：DESIGN、tokens、组件规范、原型。
+- 已在 `src/index.css` 全局接入 `design/tokens/tokens.css`，并补充基础字体、页面背景、focus ring。
+- 已在 `tailwind.config.js` 将 primary/sidebar/secondary、字体、圆角、阴影映射到 token；使用 RGB channel 兼容 Tailwind `/opacity` 写法。
+- 已按规范升级公共壳层 `components/ui/LayoutComponents.tsx`：侧边栏、顶栏使用 token、保留菜单层级、补充 button 语义与 focus/hover。
+- 已按规范升级现有基础表单组件 `components/ui/FormComponents.tsx`：Input、Select、Switch、Slider、TagInput、TextArea 使用 token 并保留原 API。
+- 已验证：`node scripts\check-voice-agent-features.cjs` 全部 PASS；`npm run build` 通过，仅有 Vite chunk 体积提示；相关文件在 `tsc` 过滤输出中无新增报错。
+- 未提交 git；当前工作区仍含此前未提交的长期流程/文档等改动，需要后续单独处理。
+
+## 2026-06-24 机器人与工具页面 UI 升级
+- 已按 `design/` 规范升级「机器人配置列表」：工具栏、搜索、状态筛选、表格密度、状态标签、固定操作列、空态均迁移到 token 体系。
+- 已升级「机器人配置详情」外壳：页面容器、版本摘要区、Tabs、更多菜单、版本抽屉和发布弹窗使用 token 化后台组件视觉；未改变保存、发布、版本恢复等业务逻辑。
+- 已升级「工具配置」：搜索、分类筛选、工具列表行、状态标签、启停/编辑/删除按钮统一企业后台风格；保留原新增工具、添加 MCP、地理工具编辑逻辑。
+- 已修正 `ToolConfigPage` mock 参数缺失 `source` 的类型问题。
+- 已验证：`node scripts\check-voice-agent-features.cjs` 全部 PASS；`npm run build` 通过，仅有 Vite chunk 体积提示；相关文件在 `tsc` 过滤输出中无新增报错。
+- 未提交 git。
