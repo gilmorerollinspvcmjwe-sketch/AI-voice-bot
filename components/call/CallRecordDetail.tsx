@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Play, Volume2, Download, Edit, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Plus } from 'lucide-react';
+import { Play, Volume2, Download, Edit, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Plus, FileSearch } from 'lucide-react';
+import AiReplyLogModal, { AiReplyLogData } from './AiReplyLogModal';
 
 interface CallDetail {
   callId: string;
@@ -112,6 +113,7 @@ export default function CallRecordDetail({ callId }: CallRecordDetailProps) {
   });
   const [addingToTestCase, setAddingToTestCase] = useState<boolean>(false);
   const [addSuccess, setAddSuccess] = useState<boolean>(false);
+  const [selectedAiLog, setSelectedAiLog] = useState<AiReplyLogData | null>(null);
 
   const togglePlay = (type: string) => {
     if (playingAudio === type) {
@@ -148,6 +150,27 @@ export default function CallRecordDetail({ callId }: CallRecordDetailProps) {
       ...prev,
       [section]: !prev[section]
     }));
+  };
+
+
+  // 打开某一轮 AI 回复日志，展示模型回复链路。
+  const handleOpenAiLog = (dialogueIndex: number) => {
+    const dialogue = callDetail.dialogues[dialogueIndex];
+    const previousUser = [...callDetail.dialogues.slice(0, dialogueIndex)].reverse().find(item => item.isUser);
+    setSelectedAiLog({
+      callId: callId || callDetail.callId,
+      turnName: `Turn ${dialogueIndex + 1}`,
+      time: dialogue.timestamp,
+      userInput: previousUser?.content || '开场白',
+      assistantOutput: dialogue.content,
+      modelName: dialogue.model || 'qwen-plus',
+      triggerType: dialogue.tag || '大模型触发',
+      topicName: previousUser ? '业务咨询' : '开场欢迎',
+      flowName: '主流程',
+      stepName: previousUser ? '问题答复' : '开场白',
+      firstResponseMs: dialogueIndex % 2 === 0 ? '420ms' : '390ms',
+      totalMs: dialogueIndex % 2 === 0 ? '1200ms' : '860ms',
+    });
   };
 
   const handleAddToTestCase = () => {
@@ -416,9 +439,15 @@ export default function CallRecordDetail({ callId }: CallRecordDetailProps) {
                       {dialogue.content}
                     </div>
                     
-                    {/* 添加到测试用例按钮 */}
+                    {/* AI 回复日志和添加测试用例按钮 */}
                     {!dialogue.isUser && (
-                      <div className={`mt-2 flex ${dialogue.isUser ? 'justify-start' : 'justify-end'}`}>
+                      <div className="mt-2 flex justify-end gap-2">
+                        <button
+                          className="text-xs border border-blue-100 text-primary px-2 py-0.5 rounded hover:bg-blue-50 transition-colors flex items-center gap-1"
+                          onClick={() => handleOpenAiLog(index)}
+                        >
+                          <FileSearch size={12} /> 查看日志
+                        </button>
                         <div className="relative group">
                           {addSuccess ? (
                             <div className="text-xs bg-green-500 text-white px-2 py-0.5 rounded">
@@ -454,6 +483,7 @@ export default function CallRecordDetail({ callId }: CallRecordDetailProps) {
           </div>
         </div>
       </div>
+      <AiReplyLogModal log={selectedAiLog} onClose={() => setSelectedAiLog(null)} />
     </div>
   );
 }

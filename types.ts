@@ -1045,6 +1045,12 @@ export interface BotConfiguration extends MarketingConfig, ProfileCollectionConf
   description: string;
   status: boolean;
   lastUpdated: number;
+  currentVersion?: string;
+  currentVersionType?: 'draft' | 'debug' | 'online' | 'none';
+  onlineVersion?: string;
+  debugVersion?: string;
+  versionUpdatedAt?: number;
+  versionChangeSummary?: string[];
   
   // Model Config
   llmType: ModelType;

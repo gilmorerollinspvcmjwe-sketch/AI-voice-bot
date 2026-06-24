@@ -26,6 +26,7 @@ import OutboundTasks from './components/outbound/OutboundTasks';
 import ContactLists from './components/outbound/ContactLists';
 import CampaignManager, { MOCK_CAMPAIGNS as INITIAL_CAMPAIGNS } from './components/marketing/CampaignManager';
 import CustomerProfileManager from './components/marketing/CustomerProfileManager';
+import CustomerMemoryManager from './components/memory/CustomerMemoryManager';
 import FollowUpManager from './components/followup/FollowUpManager';
 import MonitoringReport from './components/report/MonitoringReport';
 import CallRecordManager from './components/call/CallRecordManager';
@@ -443,8 +444,12 @@ const INITIAL_EXTRACTION_CONFIGS: ExtractionConfig[] = [
 
 export default function App() {
   const [activeMenu, setActiveMenu] = useState('机器人配置');
-  const [bots, setBots] = useState<BotConfiguration[]>([DIDI_BOT, AGENT_DEMO_BOT]); // Pre-load Didi Bot and Agent Demo Bot
+  const [bots, setBots] = useState<BotConfiguration[]>([
+    { ...DIDI_BOT, currentVersion: '草稿', currentVersionType: 'draft', onlineVersion: 'V1.8', debugVersion: 'V1.9', versionChangeSummary: ['提示词', '流程', '对话策略'] },
+    { ...AGENT_DEMO_BOT, currentVersion: 'V2.4', currentVersionType: 'debug', onlineVersion: 'V2.3', debugVersion: 'V2.4', versionChangeSummary: ['提示词', '工具配置'] },
+  ]); // Pre-load Didi Bot and Agent Demo Bot
   const [editingBot, setEditingBot] = useState<BotConfiguration | null>(null);
+  const [versionBot, setVersionBot] = useState<BotConfiguration | null>(null);
   const [view, setView] = useState<'LIST' | 'FORM'>('LIST');
 
   // Lifted state for Extraction Configs
@@ -520,12 +525,14 @@ export default function App() {
         return <CampaignManager campaigns={campaigns} onUpdateCampaigns={setCampaigns} />;
       case '客户画像':
         return <CustomerProfileManager />;
+      case '客户记忆':
+        return <CustomerMemoryManager />;
       case '自动跟进':
         return <FollowUpManager />;
       // -----------------------
       case '机器人配置':
         return view === 'LIST' ? (
-          <BotListView bots={bots} onEdit={handleEdit} onDelete={handleDelete} onCreate={handleCreate} />
+          <BotListView bots={bots} onEdit={handleEdit} onDelete={handleDelete} onCreate={handleCreate} onViewVersions={setVersionBot} />
         ) : (
           editingBot && (
             <BotConfigForm 
@@ -583,6 +590,23 @@ export default function App() {
         <Header title={activeMenu === '机器人配置' ? (view === 'LIST' ? "机器人列表" : editingBot?.name || "配置详情") : activeMenu} />
         <main className="flex-1 overflow-y-auto relative">
           {renderContent()}
+
+          {versionBot && (
+            <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/30">
+              <div className="h-full w-[520px] max-w-[96vw] bg-white shadow-2xl overflow-y-auto">
+                <div className="sticky top-0 bg-white border-b border-slate-100 p-5 flex items-start justify-between">
+                  <div><h3 className="text-xl font-bold text-slate-900">版本记录</h3><p className="text-sm text-slate-500 mt-1">{versionBot.name}</p></div>
+                  <button onClick={() => setVersionBot(null)} className="p-2 hover:bg-slate-100 rounded-lg">×</button>
+                </div>
+                <div className="p-5 space-y-4">
+                  <section className="border border-amber-100 bg-amber-50/40 p-4 rounded-xl"><h4 className="font-bold text-slate-900">当前版本：{versionBot.currentVersion || '草稿'}</h4><p className="text-sm text-slate-500 mt-2">{versionBot.currentVersionType === 'debug' ? '仅调试版本可继续发布上线。' : '当前修改涉及提示词、流程和对话策略。'}</p></section>
+                  <section className="border border-emerald-100 p-4 rounded-xl"><h4 className="font-bold text-slate-900">线上版本：{versionBot.onlineVersion || '未上线'}</h4><p className="text-sm text-slate-500 mt-2">生效中</p></section>
+                  {versionBot.debugVersion && <section className="border border-blue-100 p-4 rounded-xl"><h4 className="font-bold text-slate-900">{versionBot.debugVersion} 仅调试</h4><button className="mt-3 px-3 py-1.5 bg-primary text-white rounded text-sm">发布上线</button></section>}
+                  <section className="border border-slate-200 p-4 rounded-xl"><h4 className="font-bold text-slate-900">V1.7 历史</h4><button className="mt-3 px-3 py-1.5 border border-slate-200 rounded text-sm">恢复为草稿</button></section>
+                </div>
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>

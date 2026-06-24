@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowRight, Workflow, Bot, Plus, Edit2, Trash2 } from 'lucide-react';
+import { ArrowRight, Workflow, Bot, Plus, Edit2, Trash2, History, X } from 'lucide-react';
 import { BotConfiguration, ExtractionConfig, MarketingCampaign, FlowConfig, FlowDefinition, FlowNodeType, ExitNodeType } from '../../types';
 import { generateBotPrompt } from '../../services/geminiService';
 import BotBasicConfig from './BotBasicConfig';
@@ -377,6 +377,10 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
   const [editingFlowId, setEditingFlowId] = useState<string | null>(null);
   const [flowInfoMode, setFlowInfoMode] = useState<'CREATE' | 'EDIT' | null>(null);
   const [flowInfoDraft, setFlowInfoDraft] = useState({ id: '', name: '', description: '' });
+  const [isVersionDrawerOpen, setIsVersionDrawerOpen] = useState(false);
+  const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
+  const [publishScope, setPublishScope] = useState<'debug' | 'online'>('debug');
+  const [publishNote, setPublishNote] = useState('优化预约咨询话术，调整售后投诉转人工策略。');
 
   useEffect(() => {
     if (isMoreOpen && moreButtonRef.current) {
@@ -407,8 +411,65 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
     } finally { setIsGenerating(false); }
   };
 
+
+  // 根据当前配置计算版本展示文案。
+  const getCurrentVersionLabel = () => {
+    if (config.currentVersionType === 'draft') return '草稿';
+    if (config.currentVersionType === 'debug') return `${config.currentVersion || config.debugVersion || '调试版本'} 仅调试`;
+    if (config.currentVersionType === 'online') return `线上 ${config.onlineVersion || config.currentVersion || '-'}`;
+    return '—';
+  };
+
+  // 生成下一个版本号，供发布弹窗默认展示。
+  const getNextVersion = () => {
+    if (config.currentVersionType === 'debug' && config.currentVersion) return config.currentVersion;
+    const source = config.onlineVersion || 'V1.0';
+    const [major, minor] = source.replace('V', '').split('.');
+    return `V${major || '1'}.${Number(minor || 0) + 1}`;
+  };
+
+  // 保存草稿只更新当前版本状态，不影响线上版本。
+  const handleSaveDraft = () => {
+    const draftConfig = {
+      ...config,
+      currentVersion: '草稿',
+      currentVersionType: 'draft' as const,
+      versionUpdatedAt: Date.now(),
+      versionChangeSummary: ['提示词', '流程', '对话策略'],
+    };
+    setConfig(draftConfig);
+    onSave(draftConfig);
+  };
+
+  // 按选择范围发布：仅调试不影响线上，发布上线会替换线上版本。
+  const handlePublishVersion = () => {
+    const version = getNextVersion();
+    const nextConfig = publishScope === 'online'
+      ? {
+          ...config,
+          currentVersion: `线上 ${version}`,
+          currentVersionType: 'online' as const,
+          onlineVersion: version,
+          debugVersion: undefined,
+          versionUpdatedAt: Date.now(),
+          versionChangeSummary: ['提示词', '流程', '对话策略'],
+        }
+      : {
+          ...config,
+          currentVersion: version,
+          currentVersionType: 'debug' as const,
+          debugVersion: version,
+          versionUpdatedAt: Date.now(),
+          versionChangeSummary: ['提示词', '流程', '对话策略'],
+        };
+    setConfig(nextConfig);
+    onSave(nextConfig);
+    setIsPublishModalOpen(false);
+    setIsVersionDrawerOpen(false);
+  };
+
   const handleSave = () => {
-    onSave(config);
+    handleSaveDraft();
     
     // Create and show success toast
     const toast = document.createElement('div');
@@ -529,6 +590,31 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
         {/* Switch removed here as requested */}
       </div>
 
+      <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-4 text-sm">
+            <span className="font-bold text-slate-900">当前版本：{getCurrentVersionLabel()}</span>
+            <span className="font-bold text-slate-900">线上版本：{config.onlineVersion || '未上线'}</span>
+          </div>
+          {(config.currentVersionType === 'draft' || !config.currentVersionType) && (
+            <p className="text-xs text-slate-500">本次修改涉及：提示词、流程、对话策略</p>
+          )}
+          {config.currentVersionType === 'debug' && (
+            <p className="text-xs text-slate-500">仅调试版本可继续编辑，也可发布上线。</p>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setIsVersionDrawerOpen(true)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 flex items-center gap-2">
+            <History size={15} /> 版本记录
+          </button>
+          {(config.currentVersionType === 'draft' || config.currentVersionType === 'debug' || !config.currentVersionType) && (
+            <button onClick={() => { setPublishScope(config.currentVersionType === 'debug' ? 'online' : 'debug'); setIsPublishModalOpen(true); }} className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-sky-600">
+              发布
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Main Tabs Navigation */}
       <div className="border-b border-gray-200 mb-8">
         <div className="flex space-x-8 overflow-x-auto pb-px">
@@ -632,7 +718,7 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
              />
              <div className="flex justify-start space-x-4 pt-4 border-t border-gray-100 mt-6">
                <button onClick={handleSave} className="px-6 py-2 bg-primary text-white rounded hover:bg-sky-600 text-sm font-medium shadow-sm transition-all">
-                 保存配置
+                 保存草稿
                </button>
                <button onClick={onCancel} className="px-6 py-2 border border-gray-200 text-slate-600 rounded hover:bg-slate-50 text-sm font-medium transition-all">
                  取消
@@ -777,7 +863,7 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
              
              <div className="flex justify-start space-x-4 pt-4 border-t border-gray-100 mt-6">
                <button onClick={handleSave} className="px-6 py-2 bg-primary text-white rounded hover:bg-sky-600 text-sm font-medium shadow-sm transition-all">
-                 保存配置
+                 保存草稿
                </button>
                <button onClick={onCancel} className="px-6 py-2 border border-gray-200 text-slate-600 rounded hover:bg-slate-50 text-sm font-medium transition-all">
                  取消
@@ -816,7 +902,7 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
              </div>
              <div className="flex justify-start space-x-4 pt-4 border-t border-gray-100 mt-6">
                <button onClick={handleSave} className="px-6 py-2 bg-primary text-white rounded hover:bg-sky-600 text-sm font-medium shadow-sm transition-all">
-                 保存配置
+                 保存草稿
                </button>
                <button onClick={() => { setFlowEditMode(false); setEditingFlowId(null); }} className="px-6 py-2 border border-gray-200 text-slate-600 rounded hover:bg-slate-50 text-sm font-medium transition-all">
                  返回列表
@@ -884,7 +970,7 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
             />
              <div className="flex justify-start space-x-4 pt-4 border-t border-gray-100 mt-6">
                <button onClick={handleSave} className="px-6 py-2 bg-primary text-white rounded hover:bg-sky-600 text-sm font-medium shadow-sm transition-all">
-                 保存配置
+                 保存草稿
                </button>
                <button onClick={onCancel} className="px-6 py-2 border border-gray-200 text-slate-600 rounded hover:bg-slate-50 text-sm font-medium transition-all">
                  取消
@@ -917,6 +1003,113 @@ const BotConfigForm: React.FC<BotConfigFormProps> = ({ initialData, onSave, onCa
           </div>
         )}
       </div>
+
+      {isVersionDrawerOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/30">
+          <div className="h-full w-[560px] max-w-[96vw] bg-white shadow-2xl overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-slate-100 p-5 flex items-start justify-between">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">版本记录</h3>
+                <p className="text-sm text-slate-500 mt-1">{config.name || '未命名机器人'}</p>
+              </div>
+              <button onClick={() => setIsVersionDrawerOpen(false)} className="p-2 hover:bg-slate-100 rounded-lg"><X size={18} /></button>
+            </div>
+            <div className="p-5 space-y-4">
+              {(config.currentVersionType === 'draft' || !config.currentVersionType) && (
+                <section className="border border-amber-100 bg-amber-50/40 p-4 rounded-xl">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-bold text-slate-900">当前草稿</h4>
+                    <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-700">草稿</span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">最后保存：{new Date(config.versionUpdatedAt || config.lastUpdated).toLocaleString()}</p>
+                  <ul className="text-sm text-slate-600 mt-3 list-disc pl-5 space-y-1">
+                    {(config.versionChangeSummary || ['提示词', '流程', '对话策略']).map(item => <li key={item}>调整{item}</li>)}
+                  </ul>
+                  <div className="mt-4 flex gap-2">
+                    <button onClick={() => setIsVersionDrawerOpen(false)} className="px-3 py-1.5 border border-slate-200 rounded text-sm">继续编辑</button>
+                    <button onClick={() => setIsPublishModalOpen(true)} className="px-3 py-1.5 bg-primary text-white rounded text-sm">发布</button>
+                  </div>
+                </section>
+              )}
+              <section className="border border-emerald-100 p-4 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-slate-900">{config.onlineVersion || '未上线'} 线上</h4>
+                  <span className="text-xs px-2 py-1 rounded-full bg-emerald-50 text-emerald-700">生效中</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">发布时间：2026-06-23 14:20 · 发布人：张三</p>
+                <p className="text-sm text-slate-600 mt-3">优化预约咨询流程，调整售后转人工策略。</p>
+                <button className="mt-4 px-3 py-1.5 border border-slate-200 rounded text-sm">查看详情</button>
+              </section>
+              {config.debugVersion && (
+                <section className="border border-blue-100 p-4 rounded-xl">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-bold text-slate-900">{config.debugVersion} 仅调试</h4>
+                    <span className="text-xs px-2 py-1 rounded-full bg-blue-50 text-blue-700">仅调试</span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">发布时间：2026-06-24 11:00 · 发布人：李四</p>
+                  <p className="text-sm text-slate-600 mt-3">验证新版售后话术。</p>
+                  <div className="mt-4 flex gap-2">
+                    <button className="px-3 py-1.5 border border-slate-200 rounded text-sm">查看详情</button>
+                    <button onClick={() => setIsVersionDrawerOpen(false)} className="px-3 py-1.5 border border-slate-200 rounded text-sm">继续编辑</button>
+                    <button onClick={() => { setPublishScope('online'); setIsPublishModalOpen(true); }} className="px-3 py-1.5 bg-primary text-white rounded text-sm">发布上线</button>
+                  </div>
+                </section>
+              )}
+              <section className="border border-slate-200 p-4 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-slate-900">V1.7 历史</h4>
+                  <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600">历史</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">2026-06-21 18:30 · 发布人：王五</p>
+                <p className="text-sm text-slate-600 mt-3">新增用户打断、无应答重试规则。</p>
+                <div className="mt-4 flex gap-2">
+                  <button className="px-3 py-1.5 border border-slate-200 rounded text-sm">查看详情</button>
+                  <button onClick={() => { setConfig(prev => ({ ...prev, currentVersion: '草稿', currentVersionType: 'draft', versionUpdatedAt: Date.now() })); setIsVersionDrawerOpen(false); }} className="px-3 py-1.5 border border-slate-200 rounded text-sm">恢复为草稿</button>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isPublishModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
+          <div className="w-full max-w-xl bg-white rounded-2xl shadow-2xl overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-start justify-between">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">发布新版本</h3>
+                <p className="text-sm text-slate-500 mt-1">{config.name || '未命名机器人'}</p>
+              </div>
+              <button onClick={() => setIsPublishModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-lg"><X size={18} /></button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">版本号</label>
+                <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" value={getNextVersion()} readOnly />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">版本说明</label>
+                <textarea value={publishNote} onChange={event => setPublishNote(event.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm min-h-[100px]" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">发布范围</label>
+                <div className="flex gap-3">
+                  <label className={`flex-1 border rounded-xl px-4 py-3 cursor-pointer ${publishScope === 'debug' ? 'border-primary bg-blue-50 text-primary' : 'border-slate-200 text-slate-600'}`}>
+                    <input type="radio" name="publishScope" value="debug" checked={publishScope === 'debug'} onChange={() => setPublishScope('debug')} className="mr-2" />仅调试
+                  </label>
+                  <label className={`flex-1 border rounded-xl px-4 py-3 cursor-pointer ${publishScope === 'online' ? 'border-primary bg-blue-50 text-primary' : 'border-slate-200 text-slate-600'}`}>
+                    <input type="radio" name="publishScope" value="online" checked={publishScope === 'online'} onChange={() => setPublishScope('online')} className="mr-2" />发布上线
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div className="p-5 border-t border-slate-100 flex justify-end gap-3">
+              <button onClick={() => setIsPublishModalOpen(false)} className="px-4 py-2 border border-slate-200 rounded-lg text-sm">取消</button>
+              <button onClick={handlePublishVersion} className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium">确认发布</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
