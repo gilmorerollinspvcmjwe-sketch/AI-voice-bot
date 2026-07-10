@@ -33,6 +33,11 @@ function Section({ title, icon, children, defaultExpanded = true }: { title: str
 
 const ENTITY_TYPES: FlowEntityType[] = ['text', 'phone', 'number', 'datetime', 'address', 'email', 'alphanumeric'];
 const ASR_TYPES: FlowAsrBiasing[] = ['default', 'alphanumeric', 'name', 'datetime', 'number', 'address'];
+const IVR_OPTIONS = [
+  { value: 'ivr_general_queue', label: '通用人工队列' },
+  { value: 'ivr_expert', label: 'VIP 专属坐席' },
+  { value: 'ivr_complaint', label: '投诉建议专线' },
+];
 const HANDOFF_OPTIONS = [
   { id: 'handoff_human_service', label: '人工客服队列' },
   { id: 'handoff_vip_service', label: 'VIP 专席' },
@@ -86,6 +91,7 @@ export default function FlowNodeConfig({
   const updateStepPrompt = (updates: Partial<NonNullable<FlowNode['data']['stepPrompt']>>) => {
     updateNodeData({
       stepPrompt: {
+        ...localNode.data.stepPrompt,
         prompt: localNode.data.stepPrompt?.prompt || '',
         visibleFunctionIds: localNode.data.stepPrompt?.visibleFunctionIds || [],
         transitionFunctionIds: localNode.data.stepPrompt?.transitionFunctionIds || [],
@@ -144,6 +150,56 @@ export default function FlowNodeConfig({
               height="h-32"
               placeholder="描述这个步骤要完成的对话目标。使用 / 引用工具、代码块或流程。"
             />
+          </Section>
+        ) : null}
+
+        {localNode.type !== FlowNodeType.START ? (
+          <Section
+            title="转人工与挂机判断"
+            icon={<Sparkles size={16} />}
+          >
+            <div className="rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-xs leading-5 text-sky-700">
+              以下配置仅对当前 Step 生效；留空时使用后端默认判断规则。
+            </div>
+
+            <div>
+              <Label label="转人工判断提示词" tooltip="描述当前 Step 在什么情况下需要转人工。" />
+              <textarea
+                rows={4}
+                value={localNode.data.stepPrompt?.transferDecisionPrompt || ''}
+                disabled={readOnly}
+                onChange={(event) => updateStepPrompt({ transferDecisionPrompt: event.target.value })}
+                className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/10 disabled:bg-slate-100"
+                placeholder="选填，例如：用户明确要求人工，或当前问题无法继续自动处理时转人工。"
+              />
+            </div>
+
+            <div>
+              <Label label="目标 IVR" tooltip="当前 Step 判断需要转人工后进入的 IVR。" />
+              <select
+                value={localNode.data.stepPrompt?.transferIvrTarget || ''}
+                disabled={readOnly}
+                onChange={(event) => updateStepPrompt({ transferIvrTarget: event.target.value })}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/10 disabled:bg-slate-100"
+              >
+                <option value="">请选择目标 IVR</option>
+                {IVR_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <Label label="挂机判断提示词" tooltip="描述当前 Step 在什么情况下可以结束通话。" />
+              <textarea
+                rows={4}
+                value={localNode.data.stepPrompt?.hangupDecisionPrompt || ''}
+                disabled={readOnly}
+                onChange={(event) => updateStepPrompt({ hangupDecisionPrompt: event.target.value })}
+                className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/10 disabled:bg-slate-100"
+                placeholder="选填，例如：用户明确表示没有其他问题或要求结束通话时允许挂机。"
+              />
+            </div>
           </Section>
         ) : null}
 

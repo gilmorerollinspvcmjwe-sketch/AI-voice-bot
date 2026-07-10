@@ -2360,6 +2360,9 @@ export interface StepPromptConfig {
   visibleFunctionIds: string[];
   transitionFunctionIds: string[];
   codeBlockIds?: string[];
+  transferDecisionPrompt?: string;
+  transferIvrTarget?: string;
+  hangupDecisionPrompt?: string;
 }
 
 export type FlowStepKind = 'default' | 'function' | 'collect' | 'advanced' | 'exit';

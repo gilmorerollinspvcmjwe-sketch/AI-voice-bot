@@ -37,7 +37,12 @@ const sampleNode: FlowNode = {
 
 const html = renderToString(<FlowNodeConfig node={sampleNode} />);
 
-for (const text of ['Entity Collection', 'Retry Strategy', 'Flow Navigation', 'DTMF']) {
+for (const text of [
+  '转人工与挂机判断',
+  '转人工判断提示词',
+  '目标 IVR',
+  '挂机判断提示词',
+]) {
   if (!html.includes(text)) {
     throw new Error(`Expected FlowNodeConfig to render section: ${text}`);
   }
