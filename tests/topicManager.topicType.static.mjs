@@ -19,11 +19,24 @@ const requiredSourceSnippets = [
   "flows: isFlowTopic ? [linkedFlowId] : []",
   'availableFlows={[]}',
   "updateEditingTopic('flows', value ? [value] : [])",
+  '转人工与挂机判断',
+  '转人工判断提示词',
+  '目标 IVR',
+  '挂机判断提示词',
+  "updateEditingTopic('transferDecisionPrompt'",
+  "updateEditingTopic('transferIvrTarget'",
+  "updateEditingTopic('hangupDecisionPrompt'",
+  "transferDecisionPrompt: isFlowTopic ? '' : editingTopic.transferDecisionPrompt",
+  "transferIvrTarget: isFlowTopic ? '' : editingTopic.transferIvrTarget",
+  "hangupDecisionPrompt: isFlowTopic ? '' : editingTopic.hangupDecisionPrompt",
 ];
 
 const requiredTypeSnippets = [
   "topicType?: 'normal' | 'flow'",
   'linkedFlowId?: string',
+  'transferDecisionPrompt?: string',
+  'transferIvrTarget?: string',
+  'hangupDecisionPrompt?: string',
 ];
 
 const forbiddenFlowSectionSnippets = [

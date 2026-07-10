@@ -159,7 +159,7 @@ export default function FlowNodeConfig({
             icon={<Sparkles size={16} />}
           >
             <div className="rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-xs leading-5 text-sky-700">
-              以下配置仅对当前 Step 生效；留空时使用后端默认判断规则。
+              以下配置仅对当前 Step 生效。
             </div>
 
             <div>

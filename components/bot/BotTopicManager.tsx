@@ -22,6 +22,11 @@ const BotTopicManager: React.FC<BotTopicManagerProps> = ({ config, updateField }
   const topics = config.topicSkillLibraryConfig?.skills || [];
   const flowTopicPatch = { topicType: 'flow' as const };
   const normalTopicPatch = { topicType: 'normal' as const };
+  const ivrOptions = [
+    { value: 'ivr_general_queue', label: '通用人工队列' },
+    { value: 'ivr_expert', label: 'VIP 专属坐席' },
+    { value: 'ivr_complaint', label: '投诉建议专线' },
+  ];
 
   // 筛选和排序
   const filteredTopics = useMemo(() => {
@@ -84,6 +89,9 @@ const BotTopicManager: React.FC<BotTopicManagerProps> = ({ config, updateField }
       entities: [],
       flows: [],
       knowledgeTags: [],
+      transferDecisionPrompt: '',
+      transferIvrTarget: '',
+      hangupDecisionPrompt: '',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -159,6 +167,9 @@ const BotTopicManager: React.FC<BotTopicManagerProps> = ({ config, updateField }
       variables: isFlowTopic ? [] : editingTopic.variables,
       entities: isFlowTopic ? [] : editingTopic.entities,
       knowledgeTags: isFlowTopic ? [] : editingTopic.knowledgeTags,
+      transferDecisionPrompt: isFlowTopic ? '' : editingTopic.transferDecisionPrompt,
+      transferIvrTarget: isFlowTopic ? '' : editingTopic.transferIvrTarget,
+      hangupDecisionPrompt: isFlowTopic ? '' : editingTopic.hangupDecisionPrompt,
       flows: isFlowTopic ? [linkedFlowId] : [],
       updatedAt: new Date().toISOString(),
     };
@@ -532,6 +543,49 @@ const BotTopicManager: React.FC<BotTopicManagerProps> = ({ config, updateField }
                   availableFlows={[]}
                   height="h-48"
                 />
+              </div>
+
+              <div className="space-y-4 rounded-xl border border-sky-100 bg-sky-50/40 p-4">
+                <div>
+                  <h4 className="text-xs font-bold text-slate-700">转人工与挂机判断</h4>
+                  <p className="mt-1 text-[10px] text-slate-500">以下配置仅对当前普通主题生效。</p>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-xs font-bold text-slate-700">转人工判断提示词</label>
+                  <textarea
+                    rows={4}
+                    value={editingTopic.transferDecisionPrompt || ''}
+                    onChange={(e) => updateEditingTopic('transferDecisionPrompt', e.target.value)}
+                    className="w-full resize-none rounded border border-sky-100 bg-white px-3 py-2 text-sm outline-none focus:border-primary"
+                    placeholder="选填，例如：用户明确要求人工，或当前问题无法继续自动处理时转人工。"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-xs font-bold text-slate-700">目标 IVR</label>
+                  <select
+                    value={editingTopic.transferIvrTarget || ''}
+                    onChange={(e) => updateEditingTopic('transferIvrTarget', e.target.value)}
+                    className="w-full rounded border border-sky-100 bg-white px-3 py-2 text-sm outline-none focus:border-primary"
+                  >
+                    <option value="">请选择目标 IVR</option>
+                    {ivrOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-xs font-bold text-slate-700">挂机判断提示词</label>
+                  <textarea
+                    rows={4}
+                    value={editingTopic.hangupDecisionPrompt || ''}
+                    onChange={(e) => updateEditingTopic('hangupDecisionPrompt', e.target.value)}
+                    className="w-full resize-none rounded border border-sky-100 bg-white px-3 py-2 text-sm outline-none focus:border-primary"
+                    placeholder="选填，例如：用户明确表示没有其他问题或要求结束通话时允许挂机。"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-gray-100 pt-6">

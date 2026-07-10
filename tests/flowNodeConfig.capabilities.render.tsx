@@ -48,4 +48,8 @@ for (const text of [
   }
 }
 
+if (html.includes('后端默认判断规则')) {
+  throw new Error('FlowNodeConfig 不应展示后端判断相关文案');
+}
+
 console.log('capabilities render ok');

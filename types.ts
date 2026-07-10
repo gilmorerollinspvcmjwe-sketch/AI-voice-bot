@@ -1214,6 +1214,9 @@ export interface TopicSkill {
   entities?: string[];
   flows?: string[];
   knowledgeTags?: string[];
+  transferDecisionPrompt?: string;
+  transferIvrTarget?: string;
+  hangupDecisionPrompt?: string;
   createdAt: string;
   updatedAt: string;
 }
