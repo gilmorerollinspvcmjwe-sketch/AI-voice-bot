@@ -1177,6 +1177,10 @@ export interface BotConfiguration extends MarketingConfig, ProfileCollectionConf
   hangupConditionDuration?: number;
   hangupSpeech?: string;
 
+  // Parallel turn classification speech
+  channelCheckSpeech?: string;
+  unclearSpeech?: string;
+
   // No answer settings
   noAnswerInterval?: number;
   noAnswerMaxRepeats?: number;

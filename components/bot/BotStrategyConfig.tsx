@@ -457,6 +457,30 @@ const BotStrategyConfig: React.FC<BotStrategyConfigProps> = ({ config, updateFie
         </div>
       </StrategyCard>
 
+      <StrategyCard title="特殊话术" icon={<MessageSquare size={18} />}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-sky-50 rounded-2xl p-6 border border-sky-100">
+            <Label label="通道确认话术" />
+            <textarea
+              className="w-full h-32 px-4 py-3 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 outline-none resize-none bg-white leading-relaxed"
+              value={config.channelCheckSpeech || ''}
+              onChange={(e) => updateField('channelCheckSpeech', e.target.value)}
+              placeholder="例如：我在的，请继续说。"
+            />
+          </div>
+
+          <div className="bg-sky-50 rounded-2xl p-6 border border-sky-100">
+            <Label label="未听清话术" />
+            <textarea
+              className="w-full h-32 px-4 py-3 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 outline-none resize-none bg-white leading-relaxed"
+              value={config.unclearSpeech || ''}
+              onChange={(e) => updateField('unclearSpeech', e.target.value)}
+              placeholder="例如：抱歉，没太听清，您可以再说一遍吗？"
+            />
+          </div>
+        </div>
+      </StrategyCard>
+
       <StrategyCard title="全局静默播音" icon={<UserX size={18} />}>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
           <div className="lg:col-span-7 space-y-6">
