@@ -52,6 +52,70 @@ interface BotStrategyConfigProps {
 }
 
 const BotStrategyConfig: React.FC<BotStrategyConfigProps> = ({ config, updateField, onSave, onCancel }) => {
+  type SpeechField = 'channelCheckSpeech' | 'unclearSpeech';
+
+  const normalizeSpeechList = (value?: string | string[]) => {
+    if (Array.isArray(value)) return value.length > 0 ? value : [''];
+    return [value || ''];
+  };
+
+  const updateSpeechItem = (field: SpeechField, index: number, value: string) => {
+    const items = [...normalizeSpeechList(config[field])];
+    items[index] = value;
+    updateField(field, items);
+  };
+
+  const addSpeechItem = (field: SpeechField) => {
+    updateField(field, [...normalizeSpeechList(config[field]), '']);
+  };
+
+  const removeSpeechItem = (field: SpeechField, index: number) => {
+    const items = normalizeSpeechList(config[field]);
+    if (items.length <= 1) return;
+    updateField(field, items.filter((_, itemIndex) => itemIndex !== index));
+  };
+
+  const renderSpeechList = (field: SpeechField, label: string, placeholder: string) => {
+    const items = normalizeSpeechList(config[field]);
+
+    return (
+      <div className="rounded-xl border border-sky-100 bg-sky-50/60 p-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <Label label={label} />
+          <button
+            type="button"
+            onClick={() => addSpeechItem(field)}
+            className="inline-flex h-8 items-center gap-1 rounded-lg border border-sky-100 bg-white px-2.5 text-xs font-bold text-primary transition-colors hover:bg-sky-50"
+          >
+            <Plus size={12} /> 添加话术
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          {items.map((speech, index) => (
+            <div key={index} className="flex items-center gap-2">
+              <input
+                className="h-10 min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-primary/20"
+                value={speech}
+                onChange={(e) => updateSpeechItem(field, index, e.target.value)}
+                placeholder={placeholder}
+              />
+              <button
+                type="button"
+                onClick={() => removeSpeechItem(field, index)}
+                disabled={items.length <= 1}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 transition-colors hover:border-red-100 hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white disabled:hover:text-slate-400"
+                title="删除话术"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <StrategyCard title="开场欢迎语" icon={<MessageSquare size={18} />}>
@@ -459,25 +523,8 @@ const BotStrategyConfig: React.FC<BotStrategyConfigProps> = ({ config, updateFie
 
       <StrategyCard title="特殊话术" icon={<MessageSquare size={18} />}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-sky-50 rounded-2xl p-6 border border-sky-100">
-            <Label label="通道确认话术" />
-            <textarea
-              className="w-full h-32 px-4 py-3 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 outline-none resize-none bg-white leading-relaxed"
-              value={config.channelCheckSpeech || ''}
-              onChange={(e) => updateField('channelCheckSpeech', e.target.value)}
-              placeholder="例如：我在的，请继续说。"
-            />
-          </div>
-
-          <div className="bg-sky-50 rounded-2xl p-6 border border-sky-100">
-            <Label label="未听清话术" />
-            <textarea
-              className="w-full h-32 px-4 py-3 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 outline-none resize-none bg-white leading-relaxed"
-              value={config.unclearSpeech || ''}
-              onChange={(e) => updateField('unclearSpeech', e.target.value)}
-              placeholder="例如：抱歉，没太听清，您可以再说一遍吗？"
-            />
-          </div>
+          {renderSpeechList('channelCheckSpeech', '通道确认话术', '例如：我在的，请继续说。')}
+          {renderSpeechList('unclearSpeech', '未听清话术', '例如：抱歉，没太听清，您可以再说一遍吗？')}
         </div>
       </StrategyCard>
 
