@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, FileText, LogOut, Settings, Sparkles, Target, X } from 'lucide-react';
 import { AgentTool, BotVariable, BUILT_IN_FUNCTIONS, DelayProfile, ExitNodeType, FlowAsrBiasing, FlowEntityType, FlowFunction, FlowNode, FlowNodeType } from '../../types';
 import PromptEditor from '../ui/PromptEditor';
+import SpeechListEditor from '../ui/SpeechListEditor';
 import { Label } from '../ui/FormComponents';
 import { getDelayProfileOptions } from '../../services/polyaiConfigHelpers';
 
@@ -200,6 +201,22 @@ export default function FlowNodeConfig({
                 placeholder="选填，例如：用户明确表示没有其他问题或要求结束通话时允许挂机。"
               />
             </div>
+
+            <SpeechListEditor
+              label="转人工话术"
+              value={localNode.data.stepPrompt?.transferSpeeches}
+              disabled={readOnly}
+              onChange={(transferSpeeches) => updateStepPrompt({ transferSpeeches })}
+              placeholder="例如：好的，我帮您转接人工客服。"
+            />
+
+            <SpeechListEditor
+              label="挂机话术"
+              value={localNode.data.stepPrompt?.hangupSpeeches}
+              disabled={readOnly}
+              onChange={(hangupSpeeches) => updateStepPrompt({ hangupSpeeches })}
+              placeholder="例如：感谢您的来电，祝您生活愉快，再见。"
+            />
           </Section>
         ) : null}
 

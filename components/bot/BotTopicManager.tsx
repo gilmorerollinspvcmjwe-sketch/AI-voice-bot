@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Plus, Trash2, Edit2, X, Check, Search, Power, Tag, ChevronLeft, ChevronRight, Wrench, Box, Workflow } from 'lucide-react';
 import { BotConfiguration, TopicSkill, BUILT_IN_FUNCTIONS } from '../../types';
 import PromptEditor from '../ui/PromptEditor';
+import SpeechListEditor from '../ui/SpeechListEditor';
 
 interface BotTopicManagerProps {
   config: BotConfiguration;
@@ -92,6 +93,8 @@ const BotTopicManager: React.FC<BotTopicManagerProps> = ({ config, updateField }
       transferDecisionPrompt: '',
       transferIvrTarget: '',
       hangupDecisionPrompt: '',
+      transferSpeeches: [''],
+      hangupSpeeches: [''],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -170,6 +173,8 @@ const BotTopicManager: React.FC<BotTopicManagerProps> = ({ config, updateField }
       transferDecisionPrompt: isFlowTopic ? '' : editingTopic.transferDecisionPrompt,
       transferIvrTarget: isFlowTopic ? '' : editingTopic.transferIvrTarget,
       hangupDecisionPrompt: isFlowTopic ? '' : editingTopic.hangupDecisionPrompt,
+      transferSpeeches: isFlowTopic ? [] : editingTopic.transferSpeeches,
+      hangupSpeeches: isFlowTopic ? [] : editingTopic.hangupSpeeches,
       flows: isFlowTopic ? [linkedFlowId] : [],
       updatedAt: new Date().toISOString(),
     };
@@ -584,6 +589,21 @@ const BotTopicManager: React.FC<BotTopicManagerProps> = ({ config, updateField }
                     onChange={(e) => updateEditingTopic('hangupDecisionPrompt', e.target.value)}
                     className="w-full resize-none rounded border border-sky-100 bg-white px-3 py-2 text-sm outline-none focus:border-primary"
                     placeholder="选填，例如：用户明确表示没有其他问题或要求结束通话时允许挂机。"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                  <SpeechListEditor
+                    label="转人工话术"
+                    value={editingTopic.transferSpeeches}
+                    onChange={(value) => updateEditingTopic('transferSpeeches', value)}
+                    placeholder="例如：好的，我帮您转接人工客服。"
+                  />
+                  <SpeechListEditor
+                    label="挂机话术"
+                    value={editingTopic.hangupSpeeches}
+                    onChange={(value) => updateEditingTopic('hangupSpeeches', value)}
+                    placeholder="例如：感谢您的来电，祝您生活愉快，再见。"
                   />
                 </div>
               </div>

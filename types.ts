@@ -422,6 +422,7 @@ export interface AgentTool {
     fillerType: 'TTS' | 'AUDIO';
     fillerContent: string; // TTS text or Audio URL
     backgroundMusicId?: string;
+    soundEffect?: ToolSoundEffectConfig;
   };
   
   // === 新增字段 (用于 Demo 增强) ===
@@ -465,12 +466,28 @@ export interface AgentTool {
   interruptSpeech?: string;
 }
 
+export interface ToolSoundEffectConfig {
+  enabled: boolean;
+  audioId?: string;
+  audioName?: string;
+  audioUrl?: string;
+  stopOnTtsStart: boolean;
+}
+
 export interface DelayProfile {
   id: string;
   name: string;
   triggerMs: number;
   message: string;
   allowBargeIn: boolean;
+}
+
+export interface FirstResponseFillerConfig {
+  enabled: boolean;
+  triggerDelayMs: number;
+  phrases: string[];
+  minUserTurnsBetweenPlays: number;
+  avoidConsecutiveRepeat: boolean;
 }
 
 // 函数类型枚举 - 区分过渡函数和全局函数
@@ -1185,6 +1202,7 @@ export interface BotConfiguration extends MarketingConfig, ProfileCollectionConf
   noAnswerInterval?: number;
   noAnswerMaxRepeats?: number;
   noAnswerSpeech?: string;
+  firstResponseFillerConfig?: FirstResponseFillerConfig;
   globalTimeoutEnabled?: boolean;
   globalTimeoutSeconds?: number;
   globalTimeoutSpeech?: string;
@@ -1221,6 +1239,8 @@ export interface TopicSkill {
   transferDecisionPrompt?: string;
   transferIvrTarget?: string;
   hangupDecisionPrompt?: string;
+  transferSpeeches?: string | string[];
+  hangupSpeeches?: string | string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -2370,6 +2390,8 @@ export interface StepPromptConfig {
   transferDecisionPrompt?: string;
   transferIvrTarget?: string;
   hangupDecisionPrompt?: string;
+  transferSpeeches?: string | string[];
+  hangupSpeeches?: string | string[];
 }
 
 export type FlowStepKind = 'default' | 'function' | 'collect' | 'advanced' | 'exit';

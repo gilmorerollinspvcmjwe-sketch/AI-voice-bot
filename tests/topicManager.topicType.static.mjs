@@ -23,12 +23,18 @@ const requiredSourceSnippets = [
   '转人工判断提示词',
   '目标 IVR',
   '挂机判断提示词',
+  '转人工话术',
+  '挂机话术',
   "updateEditingTopic('transferDecisionPrompt'",
   "updateEditingTopic('transferIvrTarget'",
   "updateEditingTopic('hangupDecisionPrompt'",
+  "updateEditingTopic('transferSpeeches'",
+  "updateEditingTopic('hangupSpeeches'",
   "transferDecisionPrompt: isFlowTopic ? '' : editingTopic.transferDecisionPrompt",
   "transferIvrTarget: isFlowTopic ? '' : editingTopic.transferIvrTarget",
   "hangupDecisionPrompt: isFlowTopic ? '' : editingTopic.hangupDecisionPrompt",
+  "transferSpeeches: isFlowTopic ? [] : editingTopic.transferSpeeches",
+  "hangupSpeeches: isFlowTopic ? [] : editingTopic.hangupSpeeches",
 ];
 
 const requiredTypeSnippets = [
@@ -37,6 +43,8 @@ const requiredTypeSnippets = [
   'transferDecisionPrompt?: string',
   'transferIvrTarget?: string',
   'hangupDecisionPrompt?: string',
+  'transferSpeeches?: string | string[]',
+  'hangupSpeeches?: string | string[]',
 ];
 
 const forbiddenFlowSectionSnippets = [

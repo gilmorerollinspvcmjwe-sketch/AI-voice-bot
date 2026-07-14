@@ -15,6 +15,8 @@ const sampleNode: FlowNode = {
       prompt: 'Collect the verification code.',
       visibleFunctionIds: [],
       transitionFunctionIds: [],
+      transferSpeeches: ['I will transfer you now.', 'One moment while I connect you.'],
+      hangupSpeeches: ['Thank you for calling. Goodbye.'],
     },
     entityConfig: {
       enabled: true,
@@ -42,6 +44,10 @@ for (const text of [
   '转人工判断提示词',
   '目标 IVR',
   '挂机判断提示词',
+  '转人工话术',
+  '挂机话术',
+  'I will transfer you now.',
+  'Thank you for calling. Goodbye.',
 ]) {
   if (!html.includes(text)) {
     throw new Error(`Expected FlowNodeConfig to render section: ${text}`);
